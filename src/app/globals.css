@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/*
+  Threaded Hope — design tokens.
+  Warm neutrals (cream / sand / taupe) with a muted sage accent and warm gold highlight.
+  Edit these values to re-skin the whole site.
+*/
+:root {
+  --cream: #faf6ef;
+  --sand: #f1e9db;
+  --sand-deep: #e6dac6;
+  --taupe: #c9bba8;
+  --ink: #3d352c;
+  --ink-soft: #6b6155;
+  --sage: #7f9b7c;
+  --sage-deep: #5f7a5d;
+  --blue: #8ba3b8;
+  --gold: #c39a45;
+  --gold-deep: #a87f2d;
+  --border: #e4d9c7;
+
+  --background: var(--cream);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-cream: var(--cream);
+  --color-sand: var(--sand);
+  --color-sand-deep: var(--sand-deep);
+  --color-taupe: var(--taupe);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-sage: var(--sage);
+  --color-sage-deep: var(--sage-deep);
+  --color-blue: var(--blue);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-border: var(--border);
+
+  --font-serif: var(--font-heading), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-body), system-ui, -apple-system, sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+/* Visible, accessible focus ring for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  background: var(--sage-deep);
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+}
