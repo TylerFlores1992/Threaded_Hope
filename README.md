@@ -77,21 +77,53 @@ box. To use real photos:
 
 ---
 
-## Plugging in real payments (Stripe)
+## Real payments with Stripe (built in)
 
-The checkout (`src/app/checkout/page.tsx`) is intentionally a **mock**. The
-payment step is clearly labeled "Demo mode" and no card data leaves the browser.
-The single integration point is the `placeOrder()` function.
+Checkout is wired to **Stripe Checkout** (Stripe's secure hosted payment page).
+The flow: cart → `/api/checkout` builds a Checkout Session (prices recomputed
+server-side) → the shopper is redirected to Stripe to pay → they return to
+`/checkout/success` and the cart clears.
 
-To go live with Stripe:
+**Your order & sales record is the [Stripe Dashboard](https://dashboard.stripe.com)** —
+every paid order appears there with the customer, items, amount, and shipping
+address, and receipts are emailed automatically.
 
-1. `npm install stripe @stripe/stripe-js`
-2. Create a route handler (e.g. `src/app/api/checkout/route.ts`) that builds a
-   Stripe Checkout Session or PaymentIntent from the cart items on the server.
-3. In `placeOrder()`, call that endpoint and redirect to Stripe Checkout (or
-   confirm the PaymentIntent with Stripe Elements), then clear the cart on
-   success. Replace the mock card fields with Stripe Elements.
-4. Add a webhook handler to fulfill orders once payment is confirmed.
+### 1. Get your keys
+
+1. Create a free account at [stripe.com](https://stripe.com).
+2. Copy your **Secret key** from
+   [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys)
+   (use the **test** key — `sk_test_…` — while developing).
+3. Copy `.env.example` to `.env.local` and paste the key in:
+   ```
+   STRIPE_SECRET_KEY=sk_test_your_key_here
+   ```
+4. Restart `npm run dev`. Checkout now redirects to Stripe. Pay with Stripe's
+   [test card](https://stripe.com/docs/testing) `4242 4242 4242 4242`, any future
+   expiry, any CVC.
+
+### 2. (Optional) Local webhook for order events
+
+To exercise the order-fulfillment hook locally, install the
+[Stripe CLI](https://stripe.com/docs/stripe-cli) and run:
+
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
+
+Paste the `whsec_…` it prints into `.env.local` as `STRIPE_WEBHOOK_SECRET`.
+The webhook handler lives in `src/app/api/webhooks/stripe/route.ts` — add
+emailing/inventory/database side-effects there (marked `ADD FULFILLMENT HERE`).
+
+### 3. Going live
+
+Deploy the site (see below), switch to your **live** keys (`sk_live_…`), and add
+a webhook endpoint in the Stripe Dashboard pointing at
+`https://yourdomain.com/api/webhooks/stripe`.
+
+> **Note:** because real payments require a server, the site must be deployed
+> (e.g. **Vercel** — free tier, connects to this GitHub repo) rather than only
+> run locally. Ask and I can set up the deployment config.
 
 Because product data comes from a simple data layer, you can also swap
 `src/data/products.ts` for a real backend or the Shopify Storefront API later
@@ -108,11 +140,12 @@ src/
     shop/                  # all products (filter + sort + search)
     collections/[slug]/    # one page per collection
     products/[slug]/       # product detail
-    cart/  checkout/       # cart page + multi-step checkout
+    cart/  checkout/       # cart page + Stripe checkout + success page
+    api/                   # /api/checkout (Stripe session) + /api/webhooks/stripe
     our-story/ gifting/ faqs/ contact/ shipping-returns/
   components/              # reusable UI (Header, Footer, CartDrawer, cards…)
   data/                    # ← edit content here
-  lib/                     # cart state, price formatting, image placeholder
+  lib/                     # cart state, price formatting, image placeholder, stripe
 ```
 
 ## Accessibility
