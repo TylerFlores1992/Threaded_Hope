@@ -20,11 +20,20 @@ const body = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://threaded-hope.com",
+  ),
   title: {
     default: `${store.name} — Handmade Fabric Accessories`,
     template: `%s · ${store.name}`,
   },
   description: store.heroSubtitle,
+  openGraph: {
+    title: `${store.name} — Handmade Fabric Accessories`,
+    description: store.heroSubtitle,
+    siteName: store.name,
+    type: "website",
+  },
 };
 
 export default function RootLayout({
