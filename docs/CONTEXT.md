@@ -76,15 +76,17 @@ accessors (`getProducts`, `getProductBySlug`, `getProductsByCollection`,
 
 Either way they return the same `Product` object, so storefront components don't
 care where the data came from. `store.ts`, `collections.ts`, and `faqs.ts` remain
-static config (brand, the 10 collections, FAQs) — collections are not yet
+static config (brand, the 14 collections, FAQs) — collections are not yet
 DB-managed.
 
 - `store.ts` — brand name, tagline, **Scripture line**, contact, socials,
   shipping thresholds (`freeThreshold`, `flatRate`).
-- `collections.ts` — 10 collections; each has a `slug`, `hue` (drives placeholder
+- `collections.ts` — 14 collections; each has a `slug`, `hue` (drives placeholder
   color), and optional `featured`. Product records reference a collection by slug.
-- `products.ts` — the 63-product `seed[]`, used to seed the DB on first deploy
-  and as the runtime fallback. Slugs/placeholder images derive from name+collection.
+- `products.ts` — the 116-product `seed[]` (imported from the live Threaded Hope
+  Shopify shop), used to seed the DB on first deploy and as the runtime fallback.
+  Slugs derive from the product name; each entry carries a real `image` URL
+  (Threaded Hope Shopify CDN), falling back to a generated placeholder.
 
 ### Database (`prisma/schema.prisma`, `src/lib/db.ts`)
 

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { store } from "@/data/store";
 import { collections } from "@/data/collections";
 import { Newsletter } from "./Newsletter";
-import { Logo } from "./Logo";
 
 const shopLinks = collections.slice(0, 6);
 const helpLinks = [
@@ -18,7 +17,12 @@ export function Footer() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">
         <div className="md:col-span-1">
           <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-sage-deep" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt={store.name}
+              className="h-9 w-9 rounded-lg object-cover ring-1 ring-border"
+            />
             <span className="font-serif text-lg font-semibold text-ink">
               {store.name}
             </span>
@@ -95,6 +99,7 @@ function SocialLink({
   label: string;
   children: React.ReactNode;
 }) {
+  if (!href) return null;
   return (
     <a
       href={href}

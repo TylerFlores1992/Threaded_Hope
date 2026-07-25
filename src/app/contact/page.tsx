@@ -33,10 +33,12 @@ export default function ContactPage() {
                 </a>
               </dd>
             </div>
-            <div>
-              <dt className="font-semibold text-ink">Phone</dt>
-              <dd className="text-ink-soft">{store.contact.phone}</dd>
-            </div>
+            {store.contact.phone ? (
+              <div>
+                <dt className="font-semibold text-ink">Phone</dt>
+                <dd className="text-ink-soft">{store.contact.phone}</dd>
+              </div>
+            ) : null}
             <div>
               <dt className="font-semibold text-ink">Studio</dt>
               <dd className="text-ink-soft">{store.contact.location}</dd>

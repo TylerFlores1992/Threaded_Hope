@@ -86,7 +86,7 @@ database, Vercel Blob (photos), and an admin password. Set these up in Vercel:
    (Production + Preview).
 
 On the next deploy, `prisma/deploy.mjs` runs `prisma db push` to create the
-tables and seeds the 63 starter products **once** (it skips seeding if the
+tables and seeds the 116 starter products **once** (it skips seeding if the
 catalog already has rows, so it never overwrites admin edits).
 
 **Using the admin:** go to `/admin`, sign in with `ADMIN_PASSWORD`, then manage
@@ -99,7 +99,7 @@ To work against the database locally, put the same `DATABASE_*` values in
 
 ```bash
 npm run db:push   # create/sync tables
-npm run db:seed   # seed the 63 starter products (skips if non-empty)
+npm run db:seed   # seed the 116 starter products (skips if non-empty)
 ```
 
 ## Deploy to production
