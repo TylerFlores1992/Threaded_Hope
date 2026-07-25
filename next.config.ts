@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    // Product photo uploads go through admin server actions; allow larger bodies.
+    serverActions: { bodySizeLimit: "8mb" },
+  },
 };
 
 export default nextConfig;

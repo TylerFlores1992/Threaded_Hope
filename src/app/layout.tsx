@@ -6,6 +6,7 @@ import { CartProvider } from "@/lib/cart-context";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
+import { ChromeGate } from "@/components/ChromeGate";
 
 // Friendly humanist serif for headings, clean sans for body.
 const heading = Fraunces({
@@ -49,12 +50,16 @@ export default function RootLayout({
           <a href="#main" className="skip-link">
             Skip to content
           </a>
-          <Header />
+          <ChromeGate>
+            <Header />
+          </ChromeGate>
           <main id="main" className="flex-1">
             {children}
           </main>
-          <Footer />
-          <CartDrawer />
+          <ChromeGate>
+            <Footer />
+            <CartDrawer />
+          </ChromeGate>
         </CartProvider>
       </body>
     </html>
