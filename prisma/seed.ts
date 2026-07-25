@@ -10,6 +10,13 @@ import { products } from "../src/data/products";
 const prisma = new PrismaClient();
 
 async function main() {
+  // One-time: only seed when the catalog is empty, so redeploys never clobber
+  // products created or edited in the admin.
+  const existing = await prisma.product.count();
+  if (existing > 0) {
+    console.log(`Products table already has ${existing} rows — skipping seed.`);
+    return;
+  }
   console.log(`Seeding ${products.length} products…`);
   for (const p of products) {
     await prisma.product.upsert({

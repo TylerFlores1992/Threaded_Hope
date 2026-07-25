@@ -8,7 +8,10 @@ import { PrismaClient } from "@prisma/client";
  * `DATABASE_URL` is present. Use `isDbConfigured()` to guard DB-only paths and
  * `getPrisma()` to obtain the client (throws if the DB isn't configured).
  */
-export const isDbConfigured = () => Boolean(process.env.DATABASE_URL);
+export const isDbConfigured = () =>
+  Boolean(
+    process.env.DATABASE_POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL,
+  );
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

@@ -59,6 +59,8 @@ function mapRow(row: ProductRow): Product {
 export async function getProducts(): Promise<Product[]> {
   if (!prisma) return staticProducts;
   const rows = await prisma.product.findMany({ orderBy: { createdAt: "asc" } });
+  // Safety: never render an empty storefront if the DB exists but isn't seeded.
+  if (rows.length === 0) return staticProducts;
   return rows.map(mapRow);
 }
 
@@ -87,6 +89,11 @@ export async function getFeaturedProducts(): Promise<Product[]> {
     where: { featured: true },
     orderBy: { createdAt: "asc" },
   });
+  if (rows.length === 0) {
+    // If nothing is flagged featured (or DB unseeded), fall back gracefully.
+    const total = await prisma.product.count();
+    if (total === 0) return staticFeatured;
+  }
   return rows.map(mapRow);
 }
 
