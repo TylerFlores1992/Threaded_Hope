@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/discounts", label: "Discounts" },
+  { href: "/admin/traffic", label: "Traffic" },
 ];
 
 export default function AdminLayout({
