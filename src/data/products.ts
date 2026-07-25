@@ -30,14 +30,19 @@ export type ProductSeed = {
   inStock?: boolean;
   featured?: boolean;
   createdAt?: string;
+  image?: string;
 };
 
-export type Product = Required<Omit<ProductSeed, "variants" | "createdAt">> & {
+export type Product = Required<
+  Omit<ProductSeed, "variants" | "createdAt" | "image">
+> & {
   slug: string;
   variants: Variant[];
   createdAt: string;
   collectionName: string;
   hue: number;
+  /** Real product photo URL (Vercel Blob); falls back to a generated placeholder. */
+  image?: string;
 };
 
 const COLOR: Variant = {

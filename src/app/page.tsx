@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { store } from "@/data/store";
 import { collections } from "@/data/collections";
-import { featuredProducts } from "@/data/products";
+import { getFeaturedProducts } from "@/lib/catalog";
 import { CollectionTile } from "@/components/CollectionTile";
 import { ProductCard } from "@/components/ProductCard";
 import { Newsletter } from "@/components/Newsletter";
 import { placeholderImage } from "@/lib/placeholder";
 
-export default function HomePage() {
+export const revalidate = 300;
+
+export default async function HomePage() {
   const featuredCollections = collections.filter((c) => c.featured);
-  const featured = featuredProducts.slice(0, 8);
+  const featured = (await getFeaturedProducts()).slice(0, 8);
 
   return (
     <>

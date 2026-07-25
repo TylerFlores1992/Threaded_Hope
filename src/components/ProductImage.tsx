@@ -7,15 +7,17 @@ import { placeholderImage } from "@/lib/placeholder";
 export function ProductImage({
   name,
   hue,
+  image,
   className = "",
   priority = false,
 }: {
   name: string;
   hue: number;
+  image?: string;
   className?: string;
   priority?: boolean;
 }) {
-  const src = placeholderImage(name, hue);
+  const src = image || placeholderImage(name, hue);
   return (
     // Placeholder is an inline SVG data URI, so a plain <img> is appropriate here.
     // eslint-disable-next-line @next/next/no-img-element

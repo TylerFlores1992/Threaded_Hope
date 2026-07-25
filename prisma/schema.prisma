@@ -1,0 +1,63 @@
+// Prisma schema for the Threaded Hope admin/storefront.
+// Products are the source of truth for the catalog once a DATABASE_URL is set;
+// without one, the app falls back to the static seed in src/data/products.ts.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Pooled, Prisma-tuned connection for the running app (Neon via Vercel).
+  url = env("DATABASE_POSTGRES_PRISMA_URL")
+  // Direct connection for migrations / schema sync (DDL).
+  directUrl = env("DATABASE_POSTGRES_URL_NON_POOLING")
+}
+
+/// A sellable product. `variants` is JSON: [{ "name": "Color", "options": ["Sage"] }].
+/// `collectionSlug` references a collection in src/data/collections.ts.
+model Product {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  name           String
+  description    String
+  priceCents     Int
+  collectionSlug String
+  image          String? // Vercel Blob URL; falls back to a generated placeholder
+  variants       Json     @default("[]")
+  featured       Boolean  @default(false)
+  inStock        Boolean  @default(true)
+  stock          Int? // null = untracked inventory
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([collectionSlug])
+  @@index([featured])
+}
+
+/// A paid order, recorded by the Stripe webhook on checkout.session.completed.
+/// `items` is a JSON snapshot so history is stable even if products change.
+model Order {
+  id               String   @id @default(cuid())
+  stripeSessionId  String   @unique
+  email            String?
+  customerName     String?
+  amountTotalCents Int
+  currency         String   @default("usd")
+  status           String   @default("paid")
+  shipping         Json?
+  items            Json     @default("[]")
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// A single storefront page view, for the admin traffic dashboard.
+model Pageview {
+  id        String   @id @default(cuid())
+  path      String
+  referrer  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}

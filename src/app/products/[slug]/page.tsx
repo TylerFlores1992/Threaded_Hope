@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  products,
-  productBySlug,
-  relatedProducts,
-} from "@/data/products";
+  getProducts,
+  getProductBySlug,
+  getRelatedProducts,
+} from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCard } from "@/components/ProductCard";
 import { AddToCart } from "@/components/AddToCart";
 
-export function generateStaticParams() {
+export const revalidate = 300;
+
+export async function generateStaticParams() {
+  const products = await getProducts();
   return products.map((p) => ({ slug: p.slug }));
 }
 
@@ -21,7 +24,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const product = productBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return {};
   return { title: product.name, description: product.description };
 }
@@ -32,10 +35,10 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = productBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = relatedProducts(product);
+  const related = await getRelatedProducts(product);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -59,6 +62,7 @@ export default async function ProductPage({
           <ProductImage
             name={product.name}
             hue={product.hue}
+            image={product.image}
             priority
             className="aspect-square w-full object-cover"
           />
