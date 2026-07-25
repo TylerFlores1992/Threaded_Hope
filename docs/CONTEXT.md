@@ -101,9 +101,15 @@ The single source of editable content. No CMS/DB — everything is typed literal
 - **Cart persist ordering:** the persist effect skips its first committed render
   (`loaded` ref) so the empty initial state can't clobber a stored cart before
   hydration lands.
-- **Package name** in `package.json` is still `app-scaffold` (from
-  create-next-app; the repo name has an underscore/capitals npm rejects). Cosmetic
-  only.
+- **`package.json` is pinned for Vercel.** `name` is `threaded-hope` (npm
+  rejects the repo's underscore/capitals) and `engines.node` is `22.x` so the
+  Vercel build image matches local dev.
+- **`vercel.json` forces the Next.js preset.** It contains only
+  `{ "framework": "nextjs" }`. Without it (or with the Vercel Project's Framework
+  Preset left on **"Other"**), the build succeeds but Vercel then looks for a
+  static `public/` output dir and fails with *"No Output Directory named public"*.
+  A dashboard override to a `public` output directory can still win over this
+  file — if that error recurs, clear the override in Vercel → Settings → Build.
 - **`metadataBase`** (`layout.tsx`) defaults to `https://threaded-hope.com`,
   overridable via `NEXT_PUBLIC_BASE_URL`, for correct canonical/OG URLs.
 
