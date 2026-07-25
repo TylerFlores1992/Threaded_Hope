@@ -86,7 +86,7 @@ database, Vercel Blob (photos), and an admin password. Set these up in Vercel:
    (Production + Preview).
 
 On the next deploy, `prisma/deploy.mjs` runs `prisma db push` to create the
-tables and seeds the 63 starter products **once** (it skips seeding if the
+tables and seeds the 116 starter products **once** (it skips seeding if the
 catalog already has rows, so it never overwrites admin edits).
 
 **Using the admin:** go to `/admin`, sign in with `ADMIN_PASSWORD`, then manage
@@ -99,8 +99,23 @@ To work against the database locally, put the same `DATABASE_*` values in
 
 ```bash
 npm run db:push   # create/sync tables
-npm run db:seed   # seed the 63 starter products (skips if non-empty)
+npm run db:seed   # seed the 116 starter products (skips if non-empty)
 ```
+
+### Migrate product photos into Vercel Blob
+
+The imported starter catalog references product photos on the Threaded Hope
+Shopify CDN. To move them onto your own Vercel Blob store (so the storefront no
+longer depends on Shopify), configure the database **and** `BLOB_READ_WRITE_TOKEN`,
+then run:
+
+```bash
+npm run migrate:images            # download from Shopify → upload to Blob → update DB
+npm run migrate:images -- --dry-run   # preview what would change, no writes
+```
+
+It only touches products still pointing at `cdn.shopify.com`, rewrites each to
+its new Blob URL, and is safe to re-run (already-migrated products are skipped).
 
 ## Deploy to production
 

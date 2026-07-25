@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getProductBySlug } from "@/lib/catalog";
+import { resolveUnitPrice } from "@/lib/pricing";
 import { store } from "@/data/store";
 
 export const runtime = "nodejs";
@@ -48,7 +49,10 @@ export async function POST(req: Request) {
     if (!product || !product.inStock) continue;
 
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));
-    subtotal += product.price * quantity;
+    // Price is resolved server-side from the selected options (e.g. size), so a
+    // tampered client price — or a mismatched variant — can't change the charge.
+    const unitPrice = resolveUnitPrice(product, item.options);
+    subtotal += unitPrice * quantity;
 
     const optionText =
       item.options && Object.keys(item.options).length > 0
@@ -61,7 +65,7 @@ export async function POST(req: Request) {
       quantity,
       price_data: {
         currency: "usd",
-        unit_amount: Math.round(product.price * 100),
+        unit_amount: Math.round(unitPrice * 100),
         product_data: {
           name: product.name,
           ...(optionText ? { description: optionText } : {}),

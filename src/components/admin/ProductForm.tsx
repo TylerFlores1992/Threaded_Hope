@@ -46,7 +46,12 @@ export function ProductForm({
 }) {
   const [preview, setPreview] = useState<string | undefined>(product?.image);
   const variantsText = (product?.variants ?? [])
-    .map((v) => `${v.name}: ${v.options.join(", ")}`)
+    .map((v) => {
+      const opts = v.options
+        .map((o) => (v.prices?.[o] != null ? `${o}=${v.prices[o]}` : o))
+        .join(", ");
+      return `${v.name}: ${opts}`;
+    })
     .join("\n");
 
   return (
@@ -112,7 +117,9 @@ export function ProductForm({
         <label className="block text-sm font-medium text-ink">
           Variants{" "}
           <span className="font-normal text-ink-soft">
-            (one per line, e.g. <code>Color: Sage, Cream, Blush</code>)
+            (one per line, e.g. <code>Color: Sage, Cream, Blush</code>; add{" "}
+            <code>=price</code> to charge per option, e.g.{" "}
+            <code>Size: S=13, M=14, L=15</code>)
           </span>
         </label>
         <textarea

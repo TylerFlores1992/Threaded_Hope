@@ -26,25 +26,26 @@ export default function OurStoryPage() {
 
         <div className="prose-content space-y-5 text-lg leading-relaxed text-ink-soft">
           <p>
-            {store.name} began the way many small dreams do — at a kitchen table,
-            with a borrowed sewing machine and a stack of fabric scraps too pretty to
-            throw away. What started as gifts for friends and family slowly grew into
-            something more: a little shop built on care, craft, and hope.
+            I started sewing in my season of waiting — waiting to grow our family, and
+            waiting as we healed from the miscarriage of our twin babies.
           </p>
           <p>
-            We believe the everyday things you carry should feel special. A zipper
-            pouch that makes you smile. A boo-boo bag that turns tears into giggles. A
-            keychain wallet that just works. Each piece is cut, stitched, and finished
-            by hand, in small batches, with attention to the details that mass
-            production skips.
+            Our miscarriage happened a few weeks after the loss of my grandpa. It was a
+            heavy time of grief, and I found myself spending a lot of time with my
+            grandma. She shared that she had been leaning on her sewing and petit point
+            as a way to help with her grief. She inspired me — and with a little push
+            from my husband, I decided to get a sewing machine. And here we are. :)
+          </p>
+          <p>
+            My hope is that this story can encourage anyone who&apos;s in a season of
+            waiting. Whether you&apos;re waiting for a job, healing, a spouse, or
+            something else — joy and peace can be found in the wait.
           </p>
 
-          <h2 className="!mt-10 font-serif text-2xl text-ink">Faith at our heart</h2>
+          <h2 className="!mt-10 font-serif text-2xl text-ink">The verse behind the name</h2>
           <p>
-            Faith is quietly woven through everything we do. It shapes how we treat our
-            customers, how we give back, and the gentle words of encouragement stitched
-            into our faith-based line. We&apos;re not here to preach — just to spread a
-            little hope, one handmade piece at a time.
+            Threaded Hope&apos;s name is inspired by the Bible verse I have leaned on
+            through this entire year:
           </p>
 
           <blockquote className="rounded-2xl border-l-4 border-sage-deep bg-sand px-6 py-4 font-serif italic text-ink">
@@ -54,11 +55,17 @@ export default function OurStoryPage() {
             </footer>
           </blockquote>
 
-          <h2 className="!mt-10 font-serif text-2xl text-ink">A community, not just a shop</h2>
+          <h2 className="!mt-10 font-serif text-2xl text-ink">Made with care, love &amp; hope</h2>
           <p>
-            Every order supports a small, family-run business and the community around
-            it. Thank you for being here, for choosing handmade, and for being part of
-            our story. We can&apos;t wait to stitch something special for you.
+            At {store.name}, we&apos;re all about creating handmade pieces that bring a
+            little extra joy to your day. Every item is made with care, love, and a
+            whole lot of hope. From custom bags to unique accessories, each piece has
+            its own story and is designed to make life a little brighter.
+          </p>
+          <p>
+            Whether you&apos;re shopping for yourself or looking for the perfect gift,
+            we&apos;ve got something special for you. Take a look around and see how
+            we&apos;re stitching a bit of hope into every thread. 🫶
           </p>
         </div>
 

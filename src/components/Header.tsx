@@ -6,7 +6,6 @@ import { useState } from "react";
 import { store } from "@/data/store";
 import { collections } from "@/data/collections";
 import { useCart } from "@/lib/cart-context";
-import { Logo } from "./Logo";
 
 const primaryNav = [
   { href: "/shop", label: "Shop" },
@@ -43,7 +42,12 @@ export function Header() {
         </button>
 
         <Link href="/" className="flex items-center gap-2" aria-label={store.name}>
-          <Logo className="h-9 w-9 text-sage-deep" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt={store.name}
+            className="h-10 w-10 rounded-lg object-cover ring-1 ring-border"
+          />
           <span className="font-serif text-xl font-semibold text-ink">
             {store.name}
           </span>

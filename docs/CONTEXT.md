@@ -76,15 +76,17 @@ accessors (`getProducts`, `getProductBySlug`, `getProductsByCollection`,
 
 Either way they return the same `Product` object, so storefront components don't
 care where the data came from. `store.ts`, `collections.ts`, and `faqs.ts` remain
-static config (brand, the 10 collections, FAQs) — collections are not yet
+static config (brand, the 14 collections, FAQs) — collections are not yet
 DB-managed.
 
 - `store.ts` — brand name, tagline, **Scripture line**, contact, socials,
   shipping thresholds (`freeThreshold`, `flatRate`).
-- `collections.ts` — 10 collections; each has a `slug`, `hue` (drives placeholder
+- `collections.ts` — 14 collections; each has a `slug`, `hue` (drives placeholder
   color), and optional `featured`. Product records reference a collection by slug.
-- `products.ts` — the 63-product `seed[]`, used to seed the DB on first deploy
-  and as the runtime fallback. Slugs/placeholder images derive from name+collection.
+- `products.ts` — the 116-product `seed[]` (imported from the live Threaded Hope
+  Shopify shop), used to seed the DB on first deploy and as the runtime fallback.
+  Slugs derive from the product name; each entry carries a real `image` URL
+  (Threaded Hope Shopify CDN), falling back to a generated placeholder.
 
 ### Database (`prisma/schema.prisma`, `src/lib/db.ts`)
 
@@ -137,8 +139,19 @@ DB-managed.
 ## Gotchas / decisions
 
 - **Server-side pricing is authoritative.** `api/checkout` re-looks-up each
-  product's price via the catalog layer by slug and ignores any client price, so
-  a tampered cart can't change the charge. It also skips out-of-stock items.
+  product via the catalog layer by slug and ignores any client price, so a
+  tampered cart can't change the charge. It also skips out-of-stock items.
+- **Per-variant pricing** (`lib/pricing.ts`). A product's `price` is the base
+  (lowest); a variant may carry a `prices` map (a price-driving axis, e.g. size).
+  `resolveUnitPrice(product, options)` is shared by the client (live price on the
+  product page) and the server (the charged amount at checkout), so they always
+  agree. `priceRange`/`hasVariablePricing` drive the "From $X" labels on cards
+  and product pages. In the admin, per-option prices use `Size: S=13, M=14`
+  syntax in the variants field.
+- **Product images can be migrated off Shopify.** Imported products hotlink the
+  Threaded Hope Shopify CDN. `npm run migrate:images` (see `scripts/migrate-
+  images.mjs`) downloads each photo into Vercel Blob and rewrites `product.image`
+  — idempotent, and requires a configured DB + `BLOB_READ_WRITE_TOKEN`.
 - **Zero-config still works.** With no `DATABASE_*`/Blob/Stripe/admin env vars,
   the app builds and serves the static catalog; checkout returns HTTP 503 and the
   admin shows a "connect a database" notice. Each capability lights up when its

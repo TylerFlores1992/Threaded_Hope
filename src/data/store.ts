@@ -6,28 +6,28 @@
 export const store = {
   name: "Threaded Hope",
   shortName: "Threaded Hope",
-  tagline: "Handcrafted with love, stitched with hope.",
+  tagline: "Stitching a little hope into every thread.",
   heroSubtitle:
-    "Small-batch fabric accessories made by hand — everyday goods with a little extra warmth woven in.",
+    "Handmade pieces made with care, love, and a whole lot of hope — from bags and pouches to keychains and gifts, each one has its own story.",
   newsletterPitch:
-    "Join our Threaded Hope community — be the first to hear about new products & offers.",
+    "Join our Threaded Hope community — be the first to hear about our newest products & offers.",
 
-  // A tasteful Scripture line for the footer. Swap for any verse you love.
+  // The verse the brand is named for.
   scripture: {
-    text: "“She is clothed with strength and dignity, and she laughs without fear of the future.”",
-    reference: "Proverbs 31:25",
+    text: "“Be joyful in hope, patient in affliction, persistent in prayer.”",
+    reference: "Romans 12:12",
   },
 
   contact: {
     email: "hello@threadedhope.shop",
-    phone: "(555) 019-2834",
+    phone: "",
     location: "Handmade in the USA",
   },
 
   socials: {
     instagram: "https://instagram.com/threadedhope",
-    facebook: "https://facebook.com/threadedhope",
-    pinterest: "https://pinterest.com/threadedhope",
+    facebook: "",
+    pinterest: "",
   },
 
   shipping: {

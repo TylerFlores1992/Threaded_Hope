@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { Product } from "@/data/products";
 import { useCart, makeLineId } from "@/lib/cart-context";
+import { resolveUnitPrice } from "@/lib/pricing";
+import { formatPrice } from "@/lib/format";
 import { QtyStepper } from "./CartDrawer";
 
 export function AddToCart({ product }: { product: Product }) {
@@ -14,6 +16,9 @@ export function AddToCart({ product }: { product: Product }) {
   );
   const [qty, setQty] = useState(1);
 
+  // Live price for the current selection (mirrors the server's checkout math).
+  const unitPrice = resolveUnitPrice(product, selected);
+
   const addToCart = () => {
     if (!product.inStock) return;
     add(
@@ -21,7 +26,7 @@ export function AddToCart({ product }: { product: Product }) {
         id: makeLineId(product.slug, selected),
         slug: product.slug,
         name: product.name,
-        price: product.price,
+        price: unitPrice,
         hue: product.hue,
         options: selected,
       },
@@ -37,6 +42,7 @@ export function AddToCart({ product }: { product: Product }) {
           <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={variant.name}>
             {variant.options.map((option) => {
               const active = selected[variant.name] === option;
+              const optionPrice = variant.prices?.[option];
               return (
                 <button
                   key={option}
@@ -52,12 +58,24 @@ export function AddToCart({ product }: { product: Product }) {
                   }`}
                 >
                   {option}
+                  {optionPrice != null && (
+                    <span className={active ? "text-white/80" : "text-ink-soft"}>
+                      {" "}
+                      · {formatPrice(optionPrice)}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
       ))}
+
+      {product.inStock && (
+        <p className="text-lg font-semibold text-sage-deep" aria-live="polite">
+          {formatPrice(unitPrice)}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-4">
         <div>

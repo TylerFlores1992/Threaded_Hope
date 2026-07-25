@@ -14,21 +14,35 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-/** Parse the variants textarea: one line per group, e.g. "Color: Sage, Cream". */
+/**
+ * Parse the variants textarea: one line per group, e.g. "Color: Sage, Cream".
+ * An option may carry a price with `=`, e.g. "Size: S=13, M=14, L=15" — those
+ * become a `prices` map so the option's selection drives the charged price.
+ */
 function parseVariants(raw: string): Variant[] {
   return raw
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name, opts = ""] = line.split(":");
-      return {
-        name: name.trim(),
-        options: opts
-          .split(",")
-          .map((o) => o.trim())
-          .filter(Boolean),
-      };
+      const idx = line.indexOf(":");
+      const name = (idx === -1 ? line : line.slice(0, idx)).trim();
+      const optsRaw = idx === -1 ? "" : line.slice(idx + 1);
+      const options: string[] = [];
+      const prices: Record<string, number> = {};
+      for (const part of optsRaw.split(",")) {
+        const [label, priceStr] = part.split("=");
+        const opt = label.trim();
+        if (!opt) continue;
+        options.push(opt);
+        if (priceStr !== undefined) {
+          const price = Number(priceStr.trim());
+          if (Number.isFinite(price) && price >= 0) prices[opt] = price;
+        }
+      }
+      const variant: Variant = { name, options };
+      if (Object.keys(prices).length > 0) variant.prices = prices;
+      return variant;
     })
     .filter((v) => v.name && v.options.length > 0);
 }
