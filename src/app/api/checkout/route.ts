@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
-import { productBySlug } from "@/data/products";
+import { getProductBySlug } from "@/lib/catalog";
 import { store } from "@/data/store";
 
 export const runtime = "nodejs";
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   let subtotal = 0;
 
   for (const item of items) {
-    const product = productBySlug(item.slug);
+    const product = await getProductBySlug(item.slug);
     if (!product || !product.inStock) continue;
 
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { products } from "@/data/products";
+import { getProducts } from "@/lib/catalog";
 import { ShopClient } from "@/components/ShopClient";
 
 export const metadata: Metadata = {
@@ -7,12 +7,17 @@ export const metadata: Metadata = {
   description: "Browse all handmade fabric accessories from Threaded Hope.",
 };
 
+// Revalidate periodically so catalog edits in the admin appear; admin mutations
+// also call revalidatePath for instant updates.
+export const revalidate = 300;
+
 export default async function ShopPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
+  const products = await getProducts();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">

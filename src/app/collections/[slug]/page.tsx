@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { collections, collectionBySlug } from "@/data/collections";
-import { productsByCollection } from "@/data/products";
+import { getProductsByCollection } from "@/lib/catalog";
 import { ProductCard } from "@/components/ProductCard";
 import { placeholderImage } from "@/lib/placeholder";
+
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return collections.map((c) => ({ slug: c.slug }));
@@ -29,7 +31,7 @@ export default async function CollectionPage({
   const collection = collectionBySlug(slug);
   if (!collection) notFound();
 
-  const items = productsByCollection(slug);
+  const items = await getProductsByCollection(slug);
 
   return (
     <div>

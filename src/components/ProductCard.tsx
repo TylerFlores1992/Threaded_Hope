@@ -13,6 +13,7 @@ export function ProductCard({ product }: { product: Product }) {
         <ProductImage
           name={product.name}
           hue={product.hue}
+          image={product.image}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />
         {!product.inStock && (

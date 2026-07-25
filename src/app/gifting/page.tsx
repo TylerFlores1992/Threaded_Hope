@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { collections } from "@/data/collections";
-import { products } from "@/data/products";
+import type { Product } from "@/data/products";
+import { getProducts } from "@/lib/catalog";
 import { PageIntro } from "@/components/PageIntro";
 import { ProductCard } from "@/components/ProductCard";
 import { CollectionTile } from "@/components/CollectionTile";
@@ -14,29 +15,33 @@ export const metadata: Metadata = {
 type GiftGuide = {
   title: string;
   blurb: string;
-  pick: () => typeof products;
+  pick: (products: Product[]) => Product[];
 };
 
 const giftGuides: GiftGuide[] = [
   {
     title: "Under $15",
     blurb: "Little treasures that make wonderful stocking stuffers.",
-    pick: () => products.filter((p) => p.price <= 15).slice(0, 4),
+    pick: (products) => products.filter((p) => p.price <= 15).slice(0, 4),
   },
   {
     title: "For the New Parent",
     blurb: "Thoughtful comfort for the moms and dads who do it all.",
-    pick: () =>
+    pick: (products) =>
       products.filter((p) => p.collection === "gifts-for-parents").slice(0, 4),
   },
   {
     title: "For the Pet Lover",
     blurb: "Because the fur babies deserve gifts too.",
-    pick: () => products.filter((p) => p.collection === "fur-babies").slice(0, 4),
+    pick: (products) =>
+      products.filter((p) => p.collection === "fur-babies").slice(0, 4),
   },
 ];
 
-export default function GiftingPage() {
+export const revalidate = 300;
+
+export default async function GiftingPage() {
+  const products = await getProducts();
   const giftCollections = collections.filter((c) =>
     ["gifts-for-parents", "faith-based", "fur-babies", "kiddos"].includes(c.slug),
   );
@@ -58,7 +63,7 @@ export default function GiftingPage() {
       </section>
 
       {giftGuides.map((guide) => {
-        const items = guide.pick();
+        const items = guide.pick(products);
         return (
           <section key={guide.title} className="mx-auto max-w-6xl px-4 py-8">
             <div className="mb-5">
