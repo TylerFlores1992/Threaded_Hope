@@ -69,10 +69,16 @@ only on `localhost`.
 ### 1. Deploy the app
 
 1. Ensure the code is on the **`main`** branch (Vercel deploys `main` as
-   production by default). Merge the feature branch first if needed.
+   production by default). Merge the feature branch first if needed. *(The
+   initial storefront is already merged to `main`.)*
 2. [vercel.com](https://vercel.com) → sign in with GitHub → **Add New → Project**
    → import **`TylerFlores1992/Threaded_Hope`**. Next.js is auto-detected; click
    **Deploy**. You get a `…vercel.app` URL in ~2 minutes.
+   - **Framework Preset must be "Next.js", not "Other".** The committed
+     `vercel.json` (`framework: nextjs`) sets this, but if a build ever fails
+     with *"No Output Directory named public"*, check **Settings → Build &
+     Deployment**: the preset is wrong (or a `public` Output Directory override
+     is set) and needs clearing.
 3. In **Project → Settings → Environment Variables**, add `STRIPE_SECRET_KEY`,
    `STRIPE_WEBHOOK_SECRET`, and `NEXT_PUBLIC_BASE_URL=https://threaded-hope.com`.
    Redeploy so they take effect.
@@ -82,13 +88,22 @@ only on `localhost`.
 1. Vercel **Project → Settings → Domains** → add `threaded-hope.com` (and
    `www.threaded-hope.com`). Vercel shows the DNS records to create.
 2. In the **Cloudflare** dashboard for the domain → **DNS → Records**, add what
-   Vercel specifies — typically:
+   Vercel specifies — the working setup is:
    - `A` record, name `@`, value `76.76.21.21`
-   - `CNAME` record, name `www`, value `cname.vercel-dns.com`
+   - `CNAME` record, name `www`, value the per-project target Vercel shows (e.g.
+     `<hash>.vercel-dns-017.com`; the legacy `cname.vercel-dns.com` also works)
    - **Cloudflare gotcha:** set these records to **DNS only (grey cloud)**, not
      proxied (orange cloud), so Vercel can issue/serve TLS. (If you keep the
      proxy on, set Cloudflare SSL/TLS mode to **Full**.)
-3. Wait for DNS to propagate; Vercel auto-provisions HTTPS.
+   - **Leave the existing email records alone** — the zone already has Zoho
+     `TXT`/DKIM records for mail; you're only *adding* the two web records above.
+3. Wait for DNS to propagate; Vercel auto-provisions HTTPS. After the records go
+   live, click **Refresh** on each domain in Vercel → Domains until it reads
+   **Valid Configuration**. The `www` TLS certificate is issued a few minutes
+   after `www` validates, so `www` may briefly serve a cert warning before the
+   apex domain does.
+
+> **Status:** `threaded-hope.com` is live over HTTPS; `www` redirects to it.
 
 ### 3. Go live with real payments
 
