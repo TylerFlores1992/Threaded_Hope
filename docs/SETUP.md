@@ -23,8 +23,9 @@ npm run start      # serve the production build
 npm run lint       # ESLint (expect only <img> warnings, no errors)
 ```
 
-Browsing, cart, and checkout *review* all work with **no configuration**.
-Only the payment step needs Stripe keys (below).
+Browsing and cart work with **no configuration** (the app falls back to the
+static catalog). Payments need Stripe keys; the admin, product management, and
+order/inventory/traffic tracking need a database (and Blob for photos) — all below.
 
 ## Environment variables
 
@@ -34,11 +35,19 @@ Copy the template and fill it in. **Never commit `.env.local` or real keys.**
 cp .env.example .env.local
 ```
 
-| Variable | Required | Purpose |
+| Variable | Required for | Purpose |
 | --- | --- | --- |
-| `STRIPE_SECRET_KEY` | For checkout | Stripe secret key. `sk_test_…` in dev, `sk_live_…` in production. From [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys). |
-| `STRIPE_WEBHOOK_SECRET` | For webhooks | Signing secret (`whsec_…`) from `stripe listen` locally or a Dashboard webhook endpoint in production. |
-| `NEXT_PUBLIC_BASE_URL` | Production | Canonical site URL, e.g. `https://threaded-hope.com`. Optional locally (defaults to the request origin; `metadataBase` falls back to the production domain). |
+| `STRIPE_SECRET_KEY` | Checkout | Stripe secret key. `sk_test_…` in dev, `sk_live_…` in production. From [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys). |
+| `STRIPE_WEBHOOK_SECRET` | Orders/inventory | Signing secret (`whsec_…`) from `stripe listen` locally or a Dashboard webhook endpoint. Must match the mode (test/live) of the secret key. |
+| `NEXT_PUBLIC_BASE_URL` | Production | Canonical site URL, e.g. `https://threaded-hope.com`. Optional locally. |
+| `DATABASE_POSTGRES_PRISMA_URL` | Admin/catalog | Pooled Postgres URL used by the app (Neon). Added by the Vercel Neon integration. |
+| `DATABASE_POSTGRES_URL_NON_POOLING` | Migrations | Direct Postgres URL used for schema sync + seed. Added by the integration. |
+| `BLOB_READ_WRITE_TOKEN` | Photo upload | Vercel Blob read-write token for the product image uploader. |
+| `ADMIN_PASSWORD` | Admin login | Password that gates `/admin`. Choose any strong value. |
+
+> The Neon integration adds several other `DATABASE_*` vars; only the two above
+> are read by the app. Without any database vars the site still runs on the
+> static catalog and `/admin` shows a "connect a database" notice.
 
 Restart `npm run dev` after editing `.env.local`.
 
@@ -57,8 +66,41 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 
 Paste the printed `whsec_…` into `.env.local` as `STRIPE_WEBHOOK_SECRET`.
-Add fulfillment side-effects in `src/app/api/webhooks/stripe/route.ts`
-(marked `ADD FULFILLMENT HERE`).
+On `checkout.session.completed`, the webhook records the order and decrements
+tracked inventory (when a database is configured). It's idempotent per Stripe
+session, so retries are safe.
+
+## Database, Blob & admin
+
+Product management, orders, inventory, discounts, and traffic run on a Postgres
+database, Vercel Blob (photos), and an admin password. Set these up in Vercel:
+
+1. **Postgres (Neon)** — Vercel → project → **Storage → Create Database → Neon
+   Postgres**. Use the env-var prefix **`DATABASE`**. This adds
+   `DATABASE_POSTGRES_PRISMA_URL`, `DATABASE_POSTGRES_URL_NON_POOLING`, and
+   related vars to all environments.
+2. **Blob** — Vercel → **Storage → Create → Blob**. Set **Access = Public**
+   (product photos are shown publicly) and enable the **read-write token**, which
+   adds `BLOB_READ_WRITE_TOKEN`.
+3. **Admin password** — Settings → Environment Variables → add `ADMIN_PASSWORD`
+   (Production + Preview).
+
+On the next deploy, `prisma/deploy.mjs` runs `prisma db push` to create the
+tables and seeds the 63 starter products **once** (it skips seeding if the
+catalog already has rows, so it never overwrites admin edits).
+
+**Using the admin:** go to `/admin`, sign in with `ADMIN_PASSWORD`, then manage
+Products (create/edit/delete with photo upload), Orders, Inventory, Discounts
+(Stripe promo codes), and Traffic. Storefront pages revalidate automatically when
+you save, so changes appear within moments.
+
+To work against the database locally, put the same `DATABASE_*` values in
+`.env.local`, then:
+
+```bash
+npm run db:push   # create/sync tables
+npm run db:seed   # seed the 63 starter products (skips if non-empty)
+```
 
 ## Deploy to production
 
@@ -81,7 +123,8 @@ only on `localhost`.
      is set) and needs clearing.
 3. In **Project → Settings → Environment Variables**, add `STRIPE_SECRET_KEY`,
    `STRIPE_WEBHOOK_SECRET`, and `NEXT_PUBLIC_BASE_URL=https://threaded-hope.com`.
-   Redeploy so they take effect.
+   For the admin, also set up the database, Blob, and `ADMIN_PASSWORD` — see
+   [Database, Blob & admin](#database-blob--admin). Redeploy so they take effect.
 
 ### 2. Connect the domain (threaded-hope.com — DNS at Cloudflare)
 
@@ -119,9 +162,13 @@ only on `localhost`.
 > real orders to fulfill. Sales tax is the store owner's responsibility. It's
 > safe to stay in test mode as long as you like.
 
-## Using your own product images
+## Product images
 
-Placeholder images are generated SVGs (`src/lib/placeholder.ts`, no network).
-To use real photos: drop files in `public/`, add an `image` field to products in
-`src/data/products.ts`, and render it in `src/components/ProductImage.tsx`
-(falling back to the placeholder when missing).
+The easiest way is the **admin**: edit a product at `/admin/products` and upload
+a photo — it's stored in Vercel Blob and shown on the storefront. Products with
+no photo use a generated SVG placeholder (`src/lib/placeholder.ts`, no network).
+
+Editing the static seed in code still works too (for products without a DB, or to
+change the starter catalog): each entry in `src/data/products.ts` accepts an
+optional `image` URL, rendered by `src/components/ProductImage.tsx` with the
+placeholder as fallback.
