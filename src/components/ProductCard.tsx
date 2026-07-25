@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Product } from "@/data/products";
 import { formatPrice } from "@/lib/format";
+import { priceRange, hasVariablePricing } from "@/lib/pricing";
 import { ProductImage } from "./ProductImage";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -30,7 +31,9 @@ export function ProductCard({ product }: { product: Product }) {
           {product.name}
         </h3>
         <p className="mt-auto pt-2 font-semibold text-sage-deep">
-          {formatPrice(product.price)}
+          {hasVariablePricing(product)
+            ? `From ${formatPrice(priceRange(product).min)}`
+            : formatPrice(product.price)}
         </p>
       </div>
     </Link>

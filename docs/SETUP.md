@@ -102,6 +102,21 @@ npm run db:push   # create/sync tables
 npm run db:seed   # seed the 116 starter products (skips if non-empty)
 ```
 
+### Migrate product photos into Vercel Blob
+
+The imported starter catalog references product photos on the Threaded Hope
+Shopify CDN. To move them onto your own Vercel Blob store (so the storefront no
+longer depends on Shopify), configure the database **and** `BLOB_READ_WRITE_TOKEN`,
+then run:
+
+```bash
+npm run migrate:images            # download from Shopify → upload to Blob → update DB
+npm run migrate:images -- --dry-run   # preview what would change, no writes
+```
+
+It only touches products still pointing at `cdn.shopify.com`, rewrites each to
+its new Blob URL, and is safe to re-run (already-migrated products are skipped).
+
 ## Deploy to production
 
 Target host: **Vercel** (free Hobby tier; made by the Next.js team). Real

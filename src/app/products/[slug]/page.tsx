@@ -7,6 +7,7 @@ import {
   getRelatedProducts,
 } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
+import { priceRange, hasVariablePricing } from "@/lib/pricing";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCard } from "@/components/ProductCard";
 import { AddToCart } from "@/components/AddToCart";
@@ -76,7 +77,9 @@ export default async function ProductPage({
             {product.name}
           </h1>
           <p className="mt-3 text-2xl font-semibold text-sage-deep">
-            {formatPrice(product.price)}
+            {hasVariablePricing(product)
+              ? `From ${formatPrice(priceRange(product).min)}`
+              : formatPrice(product.price)}
           </p>
           <p
             className={`mt-2 text-sm font-medium ${

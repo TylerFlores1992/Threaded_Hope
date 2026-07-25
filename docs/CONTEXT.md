@@ -139,8 +139,19 @@ DB-managed.
 ## Gotchas / decisions
 
 - **Server-side pricing is authoritative.** `api/checkout` re-looks-up each
-  product's price via the catalog layer by slug and ignores any client price, so
-  a tampered cart can't change the charge. It also skips out-of-stock items.
+  product via the catalog layer by slug and ignores any client price, so a
+  tampered cart can't change the charge. It also skips out-of-stock items.
+- **Per-variant pricing** (`lib/pricing.ts`). A product's `price` is the base
+  (lowest); a variant may carry a `prices` map (a price-driving axis, e.g. size).
+  `resolveUnitPrice(product, options)` is shared by the client (live price on the
+  product page) and the server (the charged amount at checkout), so they always
+  agree. `priceRange`/`hasVariablePricing` drive the "From $X" labels on cards
+  and product pages. In the admin, per-option prices use `Size: S=13, M=14`
+  syntax in the variants field.
+- **Product images can be migrated off Shopify.** Imported products hotlink the
+  Threaded Hope Shopify CDN. `npm run migrate:images` (see `scripts/migrate-
+  images.mjs`) downloads each photo into Vercel Blob and rewrites `product.image`
+  — idempotent, and requires a configured DB + `BLOB_READ_WRITE_TOKEN`.
 - **Zero-config still works.** With no `DATABASE_*`/Blob/Stripe/admin env vars,
   the app builds and serves the static catalog; checkout returns HTTP 503 and the
   admin shows a "connect a database" notice. Each capability lights up when its
