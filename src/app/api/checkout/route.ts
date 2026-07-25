@@ -65,6 +65,9 @@ export async function POST(req: Request) {
         product_data: {
           name: product.name,
           ...(optionText ? { description: optionText } : {}),
+          // slug lets the webhook map the paid line back to a product for
+          // order records and inventory decrement.
+          metadata: { slug: product.slug },
         },
       },
     });
@@ -87,6 +90,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items,
+      allow_promotion_codes: true,
       shipping_address_collection: { allowed_countries: ["US"] },
       shipping_options: [
         {

@@ -1,7 +1,72 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { Prisma } from "@prisma/client";
 import { getStripe } from "@/lib/stripe";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
+
+/** Records the paid order and decrements inventory. Idempotent per session. */
+async function recordOrder(session: Stripe.Checkout.Session) {
+  if (!prisma) return; // no DB → Stripe Dashboard remains the record
+  const existing = await prisma.order.findUnique({
+    where: { stripeSessionId: session.id },
+  });
+  if (existing) return; // already processed
+
+  const stripe = getStripe();
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+    expand: ["data.price.product"],
+    limit: 100,
+  });
+
+  const items = lineItems.data.map((li) => {
+    const product = li.price?.product as Stripe.Product | undefined;
+    return {
+      name: li.description ?? product?.name ?? "Item",
+      slug:
+        product && typeof product === "object"
+          ? (product.metadata?.slug ?? null)
+          : null,
+      quantity: li.quantity ?? 1,
+      unitAmountCents: li.price?.unit_amount ?? 0,
+    };
+  });
+
+  const details = session.customer_details;
+  await prisma.order.create({
+    data: {
+      stripeSessionId: session.id,
+      email: details?.email ?? null,
+      customerName: details?.name ?? null,
+      amountTotalCents: session.amount_total ?? 0,
+      currency: session.currency ?? "usd",
+      status: "paid",
+      shipping: details?.address
+        ? ({
+            name: details.name,
+            address: details.address,
+          } as unknown as Prisma.InputJsonValue)
+        : undefined,
+      items: items as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  // Decrement tracked inventory.
+  for (const it of items) {
+    if (!it.slug) continue;
+    const product = await prisma.product.findUnique({
+      where: { slug: it.slug },
+    });
+    if (product && product.stock != null) {
+      const newStock = Math.max(0, product.stock - it.quantity);
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { stock: newStock, inStock: newStock > 0 && product.inStock },
+      });
+    }
+  }
+}
 
 /**
  * Stripe webhook receiver.
@@ -37,14 +102,16 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    // ── ADD FULFILLMENT HERE ──
-    // e.g. send yourself an email, decrement inventory, save to a database.
-    // For now we just log it; the paid order is visible in your Stripe Dashboard.
-    console.log(
-      `✅ Paid order: ${session.id} — ${session.customer_details?.email ?? "unknown"} — ${
-        session.amount_total != null ? `$${(session.amount_total / 100).toFixed(2)}` : ""
-      }`,
-    );
+    try {
+      await recordOrder(session);
+    } catch (err) {
+      // Log and return 500 so Stripe retries; recordOrder is idempotent.
+      console.error("Failed to record order:", err);
+      return NextResponse.json(
+        { error: "Failed to record order." },
+        { status: 500 },
+      );
+    }
   }
 
   return NextResponse.json({ received: true });

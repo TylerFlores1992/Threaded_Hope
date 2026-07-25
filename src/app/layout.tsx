@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
 import { ChromeGate } from "@/components/ChromeGate";
+import { TrafficTracker } from "@/components/TrafficTracker";
 
 // Friendly humanist serif for headings, clean sans for body.
 const heading = Fraunces({
@@ -60,6 +61,7 @@ export default function RootLayout({
             <Footer />
             <CartDrawer />
           </ChromeGate>
+          <TrafficTracker />
         </CartProvider>
       </body>
     </html>
