@@ -46,7 +46,7 @@ export function Header() {
           <img
             src="/logo.png"
             alt={store.name}
-            className="h-10 w-10 rounded-lg object-cover ring-1 ring-border"
+            className="h-14 w-14 rounded-xl object-cover"
           />
           <span className="font-serif text-xl font-semibold text-ink">
             {store.name}

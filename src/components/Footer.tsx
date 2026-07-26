@@ -21,7 +21,7 @@ export function Footer() {
             <img
               src="/logo.png"
               alt={store.name}
-              className="h-9 w-9 rounded-lg object-cover ring-1 ring-border"
+              className="h-12 w-12 rounded-xl object-cover"
             />
             <span className="font-serif text-lg font-semibold text-ink">
               {store.name}

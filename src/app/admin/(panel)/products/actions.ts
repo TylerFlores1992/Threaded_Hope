@@ -72,6 +72,7 @@ type Parsed = {
   description: string;
   priceCents: number;
   collectionSlug: string;
+  collections: string[];
   featured: boolean;
   inStock: boolean;
   stock: number | null;
@@ -93,11 +94,20 @@ function parseForm(formData: FormData): Parsed {
     throw new Error("Price must be a positive number.");
   }
 
+  // Full membership = primary + any additional checked collections (validated,
+  // deduped, primary always first).
+  const extra = formData
+    .getAll("collections")
+    .map((v) => String(v).trim())
+    .filter((s) => s && collections.some((c) => c.slug === s));
+  const allCollections = Array.from(new Set([collectionSlug, ...extra]));
+
   return {
     name,
     description,
     priceCents: Math.round(price * 100),
     collectionSlug,
+    collections: allCollections,
     featured: formData.get("featured") === "on",
     inStock: formData.get("inStock") === "on",
     stock: stockRaw === "" ? null : Math.max(0, Math.floor(Number(stockRaw))),
@@ -125,6 +135,7 @@ export async function createProduct(formData: FormData): Promise<void> {
       description: data.description,
       priceCents: data.priceCents,
       collectionSlug: data.collectionSlug,
+      collections: data.collections,
       featured: data.featured,
       inStock: data.inStock,
       stock: data.stock,
@@ -154,6 +165,7 @@ export async function updateProduct(
       description: data.description,
       priceCents: data.priceCents,
       collectionSlug: data.collectionSlug,
+      collections: data.collections,
       featured: data.featured,
       inStock: data.inStock,
       stock: data.stock,

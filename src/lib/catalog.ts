@@ -31,6 +31,7 @@ type ProductRow = {
   description: string;
   priceCents: number;
   collectionSlug: string;
+  collections?: unknown;
   image: string | null;
   variants: unknown;
   featured: boolean;
@@ -40,8 +41,18 @@ type ProductRow = {
 
 function mapRow(row: ProductRow): Product {
   const collection = collectionMap.get(row.collectionSlug);
+  // Fall back to the primary slug when the collections list is empty (e.g. rows
+  // seeded before multi-collection support, or not yet backfilled).
+  const stored = Array.isArray(row.collections)
+    ? (row.collections as string[])
+    : [];
+  const collections =
+    stored.length > 0
+      ? Array.from(new Set([row.collectionSlug, ...stored]))
+      : [row.collectionSlug];
   return {
     collection: row.collectionSlug,
+    collections,
     name: row.name,
     price: row.priceCents / 100,
     description: row.description,
@@ -77,7 +88,12 @@ export async function getProductsByCollection(
 ): Promise<Product[]> {
   if (!prisma) return staticByCollection(collectionSlug);
   const rows = await prisma.product.findMany({
-    where: { collectionSlug },
+    where: {
+      OR: [
+        { collectionSlug },
+        { collections: { array_contains: collectionSlug } },
+      ],
+    },
     orderBy: { createdAt: "asc" },
   });
   return rows.map(mapRow);
@@ -103,9 +119,15 @@ export async function getRelatedProducts(
 ): Promise<Product[]> {
   if (!prisma) return staticRelated(product, limit);
   const rows = await prisma.product.findMany({
-    where: { collectionSlug: product.collection, slug: { not: product.slug } },
+    where: {
+      slug: { not: product.slug },
+      OR: [
+        { collectionSlug: product.collection },
+        { collections: { array_contains: product.collection } },
+      ],
+    },
     take: limit,
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ inStock: "desc" }, { createdAt: "asc" }], // in-stock first
   });
   return rows.map(mapRow);
 }

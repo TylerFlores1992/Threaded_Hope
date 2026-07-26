@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { collections, collectionBySlug } from "@/data/collections";
 import { getProductsByCollection } from "@/lib/catalog";
+import { withInStockFirst } from "@/lib/sort";
 import { ProductCard } from "@/components/ProductCard";
 import { placeholderImage } from "@/lib/placeholder";
 
@@ -31,7 +32,7 @@ export default async function CollectionPage({
   const collection = collectionBySlug(slug);
   if (!collection) notFound();
 
-  const items = await getProductsByCollection(slug);
+  const items = withInStockFirst(await getProductsByCollection(slug));
 
   return (
     <div>

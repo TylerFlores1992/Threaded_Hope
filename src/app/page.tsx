@@ -2,6 +2,7 @@ import Link from "next/link";
 import { store } from "@/data/store";
 import { collections } from "@/data/collections";
 import { getFeaturedProducts } from "@/lib/catalog";
+import { withInStockFirst } from "@/lib/sort";
 import { CollectionTile } from "@/components/CollectionTile";
 import { ProductCard } from "@/components/ProductCard";
 import { Newsletter } from "@/components/Newsletter";
@@ -11,7 +12,7 @@ export const revalidate = 300;
 
 export default async function HomePage() {
   const featuredCollections = collections.filter((c) => c.featured);
-  const featured = (await getFeaturedProducts()).slice(0, 8);
+  const featured = withInStockFirst(await getFeaturedProducts()).slice(0, 8);
 
   return (
     <>
