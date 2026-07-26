@@ -1,4 +1,17 @@
 import "server-only";
+import { getSetting, INSTAGRAM_TOKEN_KEY } from "@/lib/settings";
+
+/**
+ * The active token: the self-refreshed value in the DB when present, otherwise
+ * the `INSTAGRAM_ACCESS_TOKEN` env var (which also bootstraps the first refresh).
+ */
+export async function getInstagramToken(): Promise<string | null> {
+  return (
+    (await getSetting(INSTAGRAM_TOKEN_KEY)) ??
+    process.env.INSTAGRAM_ACCESS_TOKEN ??
+    null
+  );
+}
 
 /**
  * Latest Instagram posts for the homepage strip.
@@ -18,7 +31,7 @@ export type InstagramPost = {
 };
 
 export async function getInstagramPosts(limit = 6): Promise<InstagramPost[]> {
-  const token = process.env.INSTAGRAM_ACCESS_TOKEN;
+  const token = await getInstagramToken();
   if (!token) return [];
 
   const fields = "id,media_type,media_url,thumbnail_url,permalink,caption";

@@ -35,6 +35,13 @@ model Product {
   @@index([featured])
 }
 
+/** Small key/value store for app settings (e.g. the self-refreshing IG token). */
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 /// A paid order, recorded by the Stripe webhook on checkout.session.completed.
 /// `items` is a JSON snapshot so history is stable even if products change.
 model Order {
