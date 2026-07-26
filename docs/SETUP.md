@@ -172,9 +172,24 @@ site never breaks on a missing or expired token.
 
 To get a token you need an **Instagram Business or Creator account** and a Meta
 app with **Instagram Graph API** access; generate a **long-lived user access
-token** (~60 days) and add it as `INSTAGRAM_ACCESS_TOKEN` in Vercel. Long-lived
-tokens must be refreshed before they expire (Meta's token-refresh endpoint), so
-plan to rotate it.
+token** (~60 days) and add it as `INSTAGRAM_ACCESS_TOKEN` in Vercel.
+
+**The token refreshes itself.** A Vercel Cron job (`vercel.json` →
+`/api/cron/refresh-instagram`, weekly) exchanges the current token for a fresh
+60-day one and stores it in the database (the `Setting` table), which the feed
+prefers over the env var. So you paste the token **once**; after that it renews
+automatically and never lapses (as long as the cron runs). To enable it, set a
+**`CRON_SECRET`** env var in Vercel (any strong random string) — Vercel Cron
+sends it as a Bearer token to authenticate the job. You can trigger a refresh
+manually any time:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  https://threaded-hope.com/api/cron/refresh-instagram
+```
+
+If a refresh ever fails (e.g. the token fully expired first), just generate a new
+one and update `INSTAGRAM_ACCESS_TOKEN` — the cron re-bootstraps from it.
 
 ## Deploy to production
 

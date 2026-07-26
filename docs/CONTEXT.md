@@ -204,9 +204,14 @@ DB-managed.
   "Shop by collection" tiles use it. The "Stitched with hope" section shows the
   logo, and the header shows the centered logo alone (no wordmark text).
 - **Instagram strip.** `lib/instagram.ts` fetches the latest 6 posts via the
-  Instagram Graph API when `INSTAGRAM_ACCESS_TOKEN` is set (hourly `revalidate`,
-  so new posts surface and old ones drop off); it returns `[]` on missing/expired
-  token and the home page falls back to recent product photos.
+  Instagram Graph API (hourly `revalidate`, so new posts surface and old ones drop
+  off); it returns `[]` on missing/expired token and the home page falls back to
+  recent product photos.
+- **Self-refreshing Instagram token.** The active token is read from the DB
+  (`Setting` table, `lib/settings.ts`), falling back to `INSTAGRAM_ACCESS_TOKEN`.
+  A weekly Vercel Cron (`vercel.json` → `/api/cron/refresh-instagram`, guarded by
+  `CRON_SECRET`) exchanges it for a fresh 60-day token and stores it, so it never
+  lapses. The env var only bootstraps the first refresh.
 - **Server-action body limit.** `next.config.ts` sets
   `serverActions.bodySizeLimit = "8mb"` so product photo uploads fit.
 - **`package.json` is pinned for Vercel.** `name` is `threaded-hope`;
