@@ -30,45 +30,44 @@ export function Header({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-cream/90 backdrop-blur">
-      <div className="relative mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-        <button
-          type="button"
-          className="rounded-lg p-2 text-ink hover:bg-sand lg:hidden"
-          aria-label="Open menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((v) => !v)}
-        >
-          <MenuIcon />
-        </button>
+      <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-2">
+        {/* Left: mobile menu + desktop nav */}
+        <div className="flex items-center gap-5 justify-self-start">
+          <button
+            type="button"
+            className="rounded-lg p-2 text-ink hover:bg-sand lg:hidden"
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <MenuIcon />
+          </button>
+          <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary">
+            {primaryNav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-sm font-medium text-ink transition hover:text-sage-deep"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
 
-        <Link
-          href="/"
-          aria-label={store.name}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        >
-          {/* As tall as the header allows, natural width — fits a wide wordmark
-              or a square badge without changing the header's height. */}
+        {/* Center: logo — in-flow so it sets the header height; natural width
+            keeps the wide wordmark undistorted. */}
+        <Link href="/" aria-label={store.name} className="justify-self-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={logoSrc}
             alt={store.name}
-            className="h-14 w-auto max-w-[55vw] object-contain"
+            className="h-16 w-auto max-w-[60vw] object-contain md:h-20"
           />
         </Link>
 
-        <nav className="ml-6 hidden items-center gap-6 lg:flex" aria-label="Primary">
-          {primaryNav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-sm font-medium text-ink transition hover:text-sage-deep"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-2">
+        {/* Right: search + cart */}
+        <div className="flex items-center gap-2 justify-self-end">
           <form
             onSubmit={submitSearch}
             role="search"
