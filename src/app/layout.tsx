@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { store } from "@/data/store";
+import { getHomeImages } from "@/lib/home-images";
 import { CartProvider } from "@/lib/cart-context";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -38,9 +39,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const homeImages = await getHomeImages();
+  const logoSrc = homeImages.home_logo ?? "/logo.png";
   return (
     <html
       lang="en"
@@ -52,13 +55,13 @@ export default function RootLayout({
             Skip to content
           </a>
           <ChromeGate>
-            <Header />
+            <Header logoSrc={logoSrc} />
           </ChromeGate>
           <main id="main" className="flex-1">
             {children}
           </main>
           <ChromeGate>
-            <Footer />
+            <Footer logoSrc={logoSrc} />
             <CartDrawer />
           </ChromeGate>
           <TrafficTracker />

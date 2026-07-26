@@ -11,7 +11,7 @@ const helpLinks = [
   { href: "/our-story", label: "Our Story" },
 ];
 
-export function Footer() {
+export function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
   return (
     <footer className="mt-16 border-t border-border bg-sand">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">
@@ -19,9 +19,9 @@ export function Footer() {
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo.png"
+              src={logoSrc}
               alt={store.name}
-              className="h-12 w-12 rounded-xl object-cover"
+              className="h-11 w-auto max-w-[8rem] object-contain"
             />
             <span className="font-serif text-lg font-semibold text-ink">
               {store.name}

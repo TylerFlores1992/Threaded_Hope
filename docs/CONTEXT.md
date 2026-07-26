@@ -199,10 +199,18 @@ DB-managed.
 - **Admin products & inventory are searchable/filterable.** The tables are client
   components (`AdminProductsTable`, `AdminInventoryTable`) fed by the server pages;
   they offer text search, a collection filter, a status filter, and sorting.
-- **Home imagery is real, not placeholders.** `getCollectionImages()` (catalog)
-  picks a representative product photo per collection; the hero collage and the
-  "Shop by collection" tiles use it. The "Stitched with hope" section shows the
-  logo, and the header shows the centered logo alone (no wordmark text).
+- **Home imagery is real, not placeholders.** `getCollectionImageOptions()`
+  (catalog) yields distinct product photos per collection; the home page hands a
+  unique one to every slot so nothing repeats. The header shows the centered logo
+  alone (no wordmark text), sized to the header height (`h-14 w-auto`).
+- **Admin-managed home images.** `/admin/home` (`HomeImagesForm`) uploads the
+  logo, the 4 hero-collage images, and the story image to Vercel Blob, stored in
+  the `Setting` table. `lib/home-images.ts` (`unstable_cache`, tag `home-images`)
+  reads them; the root layout passes the logo to Header/Footer and the home page
+  applies the hero/story overrides — each falling back to its default. The logo
+  upload is auto-trimmed with `sharp` so a transparent wordmark fills its box. The
+  save action busts the cache with `revalidateTag(..., "max")` +
+  `revalidatePath("/", "layout")`.
 - **Instagram strip.** `lib/instagram.ts` fetches the latest 6 posts via the
   Instagram Graph API (hourly `revalidate`, so new posts surface and old ones drop
   off); it returns `[]` on missing/expired token and the home page falls back to

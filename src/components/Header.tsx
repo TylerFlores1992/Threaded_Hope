@@ -15,7 +15,7 @@ const primaryNav = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function Header() {
+export function Header({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
   const { count, openCart } = useCart();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -46,11 +46,13 @@ export function Header() {
           aria-label={store.name}
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
         >
+          {/* As tall as the header allows, natural width — fits a wide wordmark
+              or a square badge without changing the header's height. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
+            src={logoSrc}
             alt={store.name}
-            className="h-16 w-16 rounded-xl object-cover"
+            className="h-14 w-auto max-w-[55vw] object-contain"
           />
         </Link>
 
