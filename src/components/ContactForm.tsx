@@ -25,7 +25,7 @@ export function ContactForm() {
   if (sent) {
     return (
       <div className="rounded-2xl bg-sand p-8 text-center ring-1 ring-border">
-        <p className="font-serif text-xl text-ink">Thank you for reaching out! 🌿</p>
+        <p className="font-serif text-xl text-ink">Thank you for reaching out!</p>
         <p className="mt-2 text-ink-soft">
           We&apos;ll get back to you within 1–2 business days.
         </p>

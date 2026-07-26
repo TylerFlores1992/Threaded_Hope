@@ -53,7 +53,7 @@ export function Newsletter({ variant = "block" }: { variant?: "block" | "footer"
       </div>
       {status === "done" && (
         <p className="mt-2 text-sm text-sage-deep" role="status">
-          Thank you for joining our community! 🌿
+          Thank you for joining our community!
         </p>
       )}
       {status === "error" && (

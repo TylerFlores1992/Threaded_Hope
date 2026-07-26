@@ -63,7 +63,7 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2 md:py-24">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-sand px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sage-deep">
-              🧵 Handmade small-batch goods
+              Handmade small-batch goods
             </p>
             <h1 className="mt-4 font-serif text-4xl leading-tight text-ink md:text-5xl">
               {store.tagline}

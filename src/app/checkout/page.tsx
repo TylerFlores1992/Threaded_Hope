@@ -138,7 +138,7 @@ export default function CheckoutPage() {
             {loading ? "Redirecting…" : "Pay securely →"}
           </button>
           <p className="mt-3 flex items-center justify-center gap-1 text-xs text-ink-soft">
-            🔒 Secure payment powered by Stripe
+            Secure payment powered by Stripe
           </p>
           <Link
             href="/cart"

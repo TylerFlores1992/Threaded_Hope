@@ -14,7 +14,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "migrate:images": "node scripts/migrate-images.mjs",
-    "backfill:collections": "tsx scripts/backfill-collections.ts"
+    "backfill:collections": "tsx scripts/backfill-collections.ts",
+    "clean:descriptions": "tsx scripts/clean-descriptions.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

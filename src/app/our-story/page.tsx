@@ -65,7 +65,7 @@ export default function OurStoryPage() {
           <p>
             Whether you&apos;re shopping for yourself or looking for the perfect gift,
             we&apos;ve got something special for you. Take a look around and see how
-            we&apos;re stitching a bit of hope into every thread. 🫶
+            we&apos;re stitching a bit of hope into every thread.
           </p>
         </div>
 

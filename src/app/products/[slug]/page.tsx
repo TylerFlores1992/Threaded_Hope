@@ -93,9 +93,9 @@ export default async function ProductPage({
           <AddToCart product={product} />
 
           <ul className="mt-8 space-y-2 border-t border-border pt-6 text-sm text-ink-soft">
-            <li>🧵 Handmade in small batches</li>
-            <li>🚚 Free shipping on orders over $50</li>
-            <li>💌 Easy 30-day returns</li>
+            <li>Handmade in small batches</li>
+            <li>Free shipping on orders over $50</li>
+            <li>Easy 30-day returns</li>
           </ul>
         </div>
       </div>

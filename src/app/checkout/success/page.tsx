@@ -20,7 +20,7 @@ export default function CheckoutSuccessPage() {
       <h1 className="mt-6 font-serif text-3xl text-ink">Thank you for your order!</h1>
       <p className="mt-3 text-ink-soft">
         Your payment was successful and a receipt is on its way to your email.
-        We&apos;ll stitch it up and ship it with care. 🌿
+        We&apos;ll stitch it up and ship it with care.
       </p>
       <Link
         href="/shop"
