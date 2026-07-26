@@ -18,10 +18,17 @@ export default async function EditProductPage({
   const row = await prisma.product.findUnique({ where: { id } });
   if (!row) notFound();
 
+  const storedCollections = Array.isArray(row.collections)
+    ? (row.collections as string[])
+    : [];
   const values = {
     name: row.name,
     price: row.priceCents / 100,
     collection: row.collectionSlug,
+    collections:
+      storedCollections.length > 0
+        ? Array.from(new Set([row.collectionSlug, ...storedCollections]))
+        : [row.collectionSlug],
     description: row.description,
     variants: (Array.isArray(row.variants) ? row.variants : []) as Variant[],
     inStock: row.inStock,

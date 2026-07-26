@@ -21,7 +21,8 @@ model Product {
   name           String
   description    String
   priceCents     Int
-  collectionSlug String
+  collectionSlug String // primary collection (breadcrumb, hue, related)
+  collections    Json    @default("[]") // all collection slugs this product appears in
   image          String? // Vercel Blob URL; falls back to a generated placeholder
   variants       Json     @default("[]")
   featured       Boolean  @default(false)

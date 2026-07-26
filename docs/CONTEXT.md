@@ -93,7 +93,8 @@ DB-managed.
 ### Database (`prisma/schema.prisma`, `src/lib/db.ts`)
 
 - Models: **Product** (catalog), **Order** (paid orders, JSON `items` snapshot),
-  **Pageview** (traffic).
+  **Pageview** (traffic). `Product` has a primary `collectionSlug` plus a
+  `collections` JSON list of every collection it appears in (see gotchas).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
 - Tables + seed are **auto-provisioned at build time** by `prisma/deploy.mjs`
@@ -184,6 +185,19 @@ DB-managed.
 - **Brand logo & favicon.** The wordmark lives at `public/logo.png`, shown in the
   Header and Footer; `src/app/icon.png` + `apple-icon.png` supply the favicon and
   Apple touch icon via Next.js file-based metadata.
+- **Products can belong to multiple collections.** A product has a primary
+  `collection` (breadcrumb, hue, related) plus a `collections` list of every
+  collection it appears in. `productsByCollection` / the DB query match any
+  membership (`array_contains`), and the admin product form has an "Also list in"
+  checkbox group. Existing rows with an empty `collections` fall back to the
+  primary slug, so the column is safe to add via `prisma db push`.
+- **Sold-out items sort last.** `lib/sort.ts` (`withInStockFirst` / `inStockFirst`)
+  pushes out-of-stock products below in-stock ones on the shop, collections,
+  gifting, home, and related lists — independent of the chosen sort. Stock hitting
+  0 (via the webhook or an inventory edit) flips `inStock` to false.
+- **Admin products & inventory are searchable/filterable.** The tables are client
+  components (`AdminProductsTable`, `AdminInventoryTable`) fed by the server pages;
+  they offer text search, a collection filter, a status filter, and sorting.
 - **Server-action body limit.** `next.config.ts` sets
   `serverActions.bodySizeLimit = "8mb"` so product photo uploads fit.
 - **`package.json` is pinned for Vercel.** `name` is `threaded-hope`;

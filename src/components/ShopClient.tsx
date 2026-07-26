@@ -27,7 +27,8 @@ export function ShopClient({
     const q = query.trim().toLowerCase();
     let list = products.filter((p) => {
       const matchCollection =
-        activeCollections.length === 0 || activeCollections.includes(p.collection);
+        activeCollections.length === 0 ||
+        p.collections.some((c) => activeCollections.includes(c));
       const matchQuery =
         q === "" ||
         p.name.toLowerCase().includes(q) ||
@@ -37,6 +38,8 @@ export function ShopClient({
     });
 
     list = [...list].sort((a, b) => {
+      // Sold-out items always sink below in-stock ones, whatever the sort.
+      if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
       if (sort === "price-asc") return a.price - b.price;
       if (sort === "price-desc") return b.price - a.price;
       return b.createdAt.localeCompare(a.createdAt); // newest

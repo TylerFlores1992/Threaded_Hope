@@ -9,6 +9,7 @@ export type ProductFormValues = {
   name: string;
   price: number;
   collection: string;
+  collections: string[];
   description: string;
   variants: Variant[];
   inStock: boolean;
@@ -83,7 +84,7 @@ export function ProductForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-ink">
-            Collection
+            Primary collection
           </label>
           <select
             name="collectionSlug"
@@ -102,6 +103,33 @@ export function ProductForm({
           </select>
         </div>
       </div>
+
+      <fieldset>
+        <legend className="block text-sm font-medium text-ink">
+          Also list in{" "}
+          <span className="font-normal text-ink-soft">
+            (optional — the product shows in each checked collection; the primary
+            above drives its breadcrumb)
+          </span>
+        </legend>
+        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+          {collections.map((c) => (
+            <label
+              key={c.slug}
+              className="flex cursor-pointer items-center gap-2 text-sm text-ink"
+            >
+              <input
+                type="checkbox"
+                name="collections"
+                value={c.slug}
+                defaultChecked={product?.collections?.includes(c.slug) ?? false}
+                className="h-4 w-4 accent-sage-deep"
+              />
+              {c.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div>
         <label className="block text-sm font-medium text-ink">Description</label>

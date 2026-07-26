@@ -3,6 +3,7 @@ import Link from "next/link";
 import { collections } from "@/data/collections";
 import type { Product } from "@/data/products";
 import { getProducts } from "@/lib/catalog";
+import { withInStockFirst } from "@/lib/sort";
 import { PageIntro } from "@/components/PageIntro";
 import { ProductCard } from "@/components/ProductCard";
 import { CollectionTile } from "@/components/CollectionTile";
@@ -63,7 +64,7 @@ export default async function GiftingPage() {
       </section>
 
       {giftGuides.map((guide) => {
-        const items = guide.pick(products);
+        const items = withInStockFirst(guide.pick(products));
         return (
           <section key={guide.title} className="mx-auto max-w-6xl px-4 py-8">
             <div className="mb-5">

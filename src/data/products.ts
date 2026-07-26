@@ -26,7 +26,10 @@ export type Variant = {
 };
 
 export type ProductSeed = {
+  /** Primary collection — drives the breadcrumb, hue, and related products. */
   collection: string;
+  /** Additional collections this product also appears in (slugs). */
+  collections?: string[];
   name: string;
   price: number;
   description: string;
@@ -215,8 +218,20 @@ export const products: Product[] = seed.map((s, i) => {
       `Product "${s.name}" references unknown collection "${s.collection}"`,
     );
   }
+  // Full membership = primary first, then any extras (deduped, validated).
+  const allCollections = Array.from(
+    new Set([s.collection, ...(s.collections ?? [])]),
+  );
+  for (const slug of allCollections) {
+    if (!collectionMap.has(slug)) {
+      throw new Error(
+        `Product "${s.name}" references unknown collection "${slug}"`,
+      );
+    }
+  }
   return {
     ...s,
+    collections: allCollections,
     slug: slugify(s.name),
     variants: s.variants ?? [],
     inStock: s.inStock ?? true,
@@ -231,12 +246,16 @@ export const productBySlug = (slug: string) =>
   products.find((p) => p.slug === slug);
 
 export const productsByCollection = (collectionSlug: string) =>
-  products.filter((p) => p.collection === collectionSlug);
+  products.filter((p) => p.collections.includes(collectionSlug));
 
 export const featuredProducts = products.filter((p) => p.featured);
 
 export const relatedProducts = (product: Product, limit = 4) =>
   products
-    .filter((p) => p.collection === product.collection && p.slug !== product.slug)
+    .filter(
+      (p) =>
+        p.collections.includes(product.collection) && p.slug !== product.slug,
+    )
+    .sort((a, b) => Number(b.inStock) - Number(a.inStock)) // in-stock first
     .slice(0, limit);
 
