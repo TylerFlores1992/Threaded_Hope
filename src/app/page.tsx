@@ -3,6 +3,7 @@ import { store } from "@/data/store";
 import { collections } from "@/data/collections";
 import { getFeaturedProducts, getCollectionImageOptions } from "@/lib/catalog";
 import { getInstagramPosts } from "@/lib/instagram";
+import { getHomeImages } from "@/lib/home-images";
 import { withInStockFirst } from "@/lib/sort";
 import { CollectionTile } from "@/components/CollectionTile";
 import { ProductCard } from "@/components/ProductCard";
@@ -15,6 +16,8 @@ export default async function HomePage() {
   const featuredCollections = collections.filter((c) => c.featured);
   const collImages = await getCollectionImageOptions();
   const igPosts = await getInstagramPosts(6);
+  const homeImages = await getHomeImages();
+  const logoSrc = homeImages.home_logo ?? "/logo.png";
 
   // Hand out a unique image to every slot on the page so nothing repeats.
   const usedImages = new Set<string>();
@@ -34,11 +37,15 @@ export default async function HomePage() {
   featured.forEach((p) => p.image && usedImages.add(p.image));
 
   // Hero collage (top of page), then the tiles take the next distinct photos.
-  const heroCollage = featuredCollections.slice(0, 4).map((c) => ({
-    name: c.name,
-    slug: c.slug,
-    image: pickImage(c.slug) ?? placeholderImage(c.name, c.hue),
-  }));
+  // An admin override (home_hero_1..4) wins over the auto-picked photo.
+  const heroCollage = featuredCollections.slice(0, 4).map((c, i) => {
+    const override = homeImages[`home_hero_${i + 1}`];
+    return {
+      name: c.name,
+      slug: c.slug,
+      image: override ?? pickImage(c.slug) ?? placeholderImage(c.name, c.hue),
+    };
+  });
   const tileImages = Object.fromEntries(
     featuredCollections.map((c) => [c.slug, pickImage(c.slug)]),
   );
@@ -140,9 +147,9 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
+            src={homeImages.home_story_image ?? logoSrc}
             alt={store.name}
-            className="mx-auto w-full max-w-sm rounded-3xl"
+            className="mx-auto w-full max-w-sm rounded-3xl object-contain"
           />
           <div>
             <h2 className="font-serif text-3xl text-ink">Stitched with hope</h2>
