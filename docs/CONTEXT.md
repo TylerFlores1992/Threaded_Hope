@@ -58,11 +58,13 @@ src/
   data/                          store.ts, collections.ts, products.ts, faqs.ts
                                  (static seed + fallback catalog)
   lib/                           cart-context, format, placeholder, stripe,
-                                 db (Prisma), catalog (DB-or-static), auth
+                                 db (Prisma), catalog (DB-or-static), pricing, auth
 prisma/
   schema.prisma                  Product, Order, Pageview models
   seed.ts                        one-time seed from the static catalog
   deploy.mjs                     build step: db push + seed when a DB exists
+scripts/
+  migrate-images.mjs             move product photos Shopify CDN → Vercel Blob
 ```
 
 ### Catalog data layer (`src/lib/catalog.ts` + `src/data/`)
@@ -148,10 +150,12 @@ DB-managed.
   agree. `priceRange`/`hasVariablePricing` drive the "From $X" labels on cards
   and product pages. In the admin, per-option prices use `Size: S=13, M=14`
   syntax in the variants field.
-- **Product images can be migrated off Shopify.** Imported products hotlink the
-  Threaded Hope Shopify CDN. `npm run migrate:images` (see `scripts/migrate-
-  images.mjs`) downloads each photo into Vercel Blob and rewrites `product.image`
-  — idempotent, and requires a configured DB + `BLOB_READ_WRITE_TOKEN`.
+- **Product images can be migrated off Shopify.** Freshly-seeded products hotlink
+  the Threaded Hope Shopify CDN. `scripts/migrate-images.mjs` downloads each photo
+  into Vercel Blob and rewrites `product.image` — idempotent, and requires a
+  configured DB + `BLOB_READ_WRITE_TOKEN`. Load `.env.local` explicitly when
+  running it locally (`node --env-file=.env.local scripts/migrate-images.mjs`);
+  see SETUP.
 - **Zero-config still works.** With no `DATABASE_*`/Blob/Stripe/admin env vars,
   the app builds and serves the static catalog; checkout returns HTTP 503 and the
   admin shows a "connect a database" notice. Each capability lights up when its
@@ -170,10 +174,16 @@ DB-managed.
   header/footer on `/admin` without opting storefront pages out of static
   rendering. The `(panel)` route group carries the admin sidebar; `/admin/login`
   sits outside it so it renders bare.
-- **Product images.** Products have an optional `image` (Blob URL) rendered by
+- **Product images.** Each product has an optional `image` rendered by
   `components/ProductImage.tsx`, falling back to a **generated SVG placeholder**
-  (`lib/placeholder.ts`). Because placeholders are inline `<img>`, there are
-  intentional `@next/next/no-img-element` lint **warnings** (not errors).
+  (`lib/placeholder.ts`). Seeded products ship with a real photo URL and `seed.ts`
+  writes `image`, so DB-backed catalogs keep their photos (moved to Vercel Blob by
+  the migration above). The storefront renders plain `<img>` (also the brand logo
+  below), so there are intentional `@next/next/no-img-element` lint **warnings**
+  (not errors).
+- **Brand logo & favicon.** The wordmark lives at `public/logo.png`, shown in the
+  Header and Footer; `src/app/icon.png` + `apple-icon.png` supply the favicon and
+  Apple touch icon via Next.js file-based metadata.
 - **Server-action body limit.** `next.config.ts` sets
   `serverActions.bodySizeLimit = "8mb"` so product photo uploads fit.
 - **`package.json` is pinned for Vercel.** `name` is `threaded-hope`;
