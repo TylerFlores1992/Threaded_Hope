@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { store } from "@/data/store";
 import { collections } from "@/data/collections";
-import { getFeaturedProducts, getCollectionImages } from "@/lib/catalog";
+import { getFeaturedProducts, getCollectionImageOptions } from "@/lib/catalog";
 import { getInstagramPosts } from "@/lib/instagram";
 import { withInStockFirst } from "@/lib/sort";
 import { CollectionTile } from "@/components/CollectionTile";
@@ -13,25 +13,41 @@ export const revalidate = 300;
 
 export default async function HomePage() {
   const featuredCollections = collections.filter((c) => c.featured);
-  const featured = withInStockFirst(await getFeaturedProducts()).slice(0, 8);
-  const collImages = await getCollectionImages();
+  const collImages = await getCollectionImageOptions();
   const igPosts = await getInstagramPosts(6);
 
-  // Hero collage: a representative image from four different collections.
+  // Hand out a unique image to every slot on the page so nothing repeats.
+  const usedImages = new Set<string>();
+  const pickImage = (slug: string): string | undefined => {
+    for (const img of collImages[slug] ?? []) {
+      if (!usedImages.has(img)) {
+        usedImages.add(img);
+        return img;
+      }
+    }
+    return undefined;
+  };
+
+  // Reserve the featured-product photos first (that section shows them by name),
+  // so the collage and tiles below pick *other* photos and nothing repeats.
+  const featured = withInStockFirst(await getFeaturedProducts()).slice(0, 8);
+  featured.forEach((p) => p.image && usedImages.add(p.image));
+
+  // Hero collage (top of page), then the tiles take the next distinct photos.
   const heroCollage = featuredCollections.slice(0, 4).map((c) => ({
     name: c.name,
     slug: c.slug,
-    image: collImages[c.slug] ?? placeholderImage(c.name, c.hue),
+    image: pickImage(c.slug) ?? placeholderImage(c.name, c.hue),
   }));
+  const tileImages = Object.fromEntries(
+    featuredCollections.map((c) => [c.slug, pickImage(c.slug)]),
+  );
 
   // Instagram strip falls back to recent product photos when no IG feed is
-  // configured, so the section always looks intentional.
-  const fallbackImages = Array.from(
-    new Set([
-      ...featured.map((p) => p.image).filter(Boolean),
-      ...Object.values(collImages),
-    ]),
-  ).slice(0, 6) as string[];
+  // configured — again, only ones not already shown above.
+  const fallbackImages = Array.from(new Set(Object.values(collImages).flat()))
+    .filter((img) => !usedImages.has(img))
+    .slice(0, 6);
 
   return (
     <>
@@ -98,7 +114,7 @@ export default async function HomePage() {
             <CollectionTile
               key={c.slug}
               collection={c}
-              image={collImages[c.slug]}
+              image={tileImages[c.slug]}
             />
           ))}
         </div>

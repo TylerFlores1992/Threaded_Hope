@@ -114,19 +114,21 @@ export async function getFeaturedProducts(): Promise<Product[]> {
 }
 
 /**
- * One representative product image per collection slug — the first in-stock
- * product with a photo (falling back to any product with a photo). Used to give
- * collection tiles and the home hero real imagery instead of placeholders.
+ * Distinct product image URLs per collection slug (in-stock products first).
+ * Lets the home page hand out a *different* real photo to each spot — the hero
+ * collage and every collection tile — so no image repeats on the page.
  */
-export async function getCollectionImages(): Promise<Record<string, string>> {
+export async function getCollectionImageOptions(): Promise<
+  Record<string, string[]>
+> {
   const all = await getProducts();
-  const byCollection: Record<string, string> = {};
-  // In-stock, with-image products first so they win as the representative.
   const ordered = [...all].sort((a, b) => Number(b.inStock) - Number(a.inStock));
+  const byCollection: Record<string, string[]> = {};
   for (const p of ordered) {
     if (!p.image) continue;
     for (const slug of p.collections) {
-      if (!byCollection[slug]) byCollection[slug] = p.image;
+      const list = (byCollection[slug] ??= []);
+      if (!list.includes(p.image)) list.push(p.image);
     }
   }
   return byCollection;
