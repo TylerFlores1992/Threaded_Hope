@@ -16,17 +16,14 @@ export function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
     <footer className="mt-16 border-t border-border bg-sand">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">
         <div className="md:col-span-1">
-          <div className="flex items-center gap-2">
+          <Link href="/" aria-label={store.name} className="inline-block">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logoSrc}
               alt={store.name}
-              className="h-11 w-auto max-w-[8rem] object-contain"
+              className="h-14 w-auto max-w-[11rem] object-contain"
             />
-            <span className="font-serif text-lg font-semibold text-ink">
-              {store.name}
-            </span>
-          </div>
+          </Link>
           <p className="mt-3 text-sm text-ink-soft">{store.contact.location}</p>
           <div className="mt-4 flex gap-3">
             <SocialLink href={store.socials.instagram} label="Instagram">IG</SocialLink>

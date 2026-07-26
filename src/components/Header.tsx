@@ -80,7 +80,7 @@ export function Header({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products"
               aria-label="Search products"
-              className="w-32 bg-transparent px-2 text-sm outline-none placeholder:text-ink-soft focus:w-44 transition-[width]"
+              className="w-44 bg-transparent px-2 text-sm outline-none placeholder:text-ink-soft focus:w-56 transition-[width]"
             />
           </form>
 
