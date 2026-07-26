@@ -2,8 +2,14 @@ import Link from "next/link";
 import type { Collection } from "@/data/collections";
 import { placeholderImage } from "@/lib/placeholder";
 
-export function CollectionTile({ collection }: { collection: Collection }) {
-  const bg = placeholderImage(collection.name, collection.hue);
+export function CollectionTile({
+  collection,
+  image,
+}: {
+  collection: Collection;
+  image?: string;
+}) {
+  const bg = image ?? placeholderImage(collection.name, collection.hue);
   return (
     <Link
       href={`/collections/${collection.slug}`}

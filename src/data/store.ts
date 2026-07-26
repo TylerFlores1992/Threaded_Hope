@@ -26,6 +26,7 @@ export const store = {
 
   socials: {
     instagram: "https://instagram.com/threaded_hope_",
+    instagramHandle: "threaded_hope_",
     facebook: "",
     pinterest: "",
   },

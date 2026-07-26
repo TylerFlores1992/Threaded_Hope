@@ -44,6 +44,7 @@ cp .env.example .env.local
 | `DATABASE_POSTGRES_URL_NON_POOLING` | Migrations | Direct Postgres URL used for schema sync + seed. Added by the integration. |
 | `BLOB_READ_WRITE_TOKEN` | Photo upload | Vercel Blob read-write token for the product image uploader. |
 | `ADMIN_PASSWORD` | Admin login | Password that gates `/admin`. Choose any strong value. |
+| `INSTAGRAM_ACCESS_TOKEN` | Home IG strip | Long-lived Instagram Graph API user token. When set, the home page shows your latest 6 posts (auto-refreshing hourly); without it the strip falls back to recent product photos. |
 
 > The Neon integration adds several other `DATABASE_*` vars; only the two above
 > are read by the app. Without any database vars the site still runs on the
@@ -150,6 +151,30 @@ its Blob URL, and is safe to re-run (already-migrated products are skipped). Run
 it while the Shopify store is still up, since it pulls from Shopify's CDN. The
 `migrate:images` npm script runs the same file, but you must load the env as
 shown above.
+
+### Backfill collection memberships
+
+The static catalog (`src/data/products.ts`) carries each product's real
+multi-collection membership. To apply it to an existing database (so products
+show up in every collection they belong to), run — it updates the `collections`
+field by slug and touches nothing else, so it's safe to re-run:
+
+```bash
+node --env-file=.env.local --import tsx scripts/backfill-collections.ts
+```
+
+### Instagram feed (optional)
+
+The home page shows your latest 6 Instagram posts when `INSTAGRAM_ACCESS_TOKEN`
+is set; new posts appear and the oldest drops off automatically (it re-fetches
+hourly). Without a token, the strip falls back to recent product photos — the
+site never breaks on a missing or expired token.
+
+To get a token you need an **Instagram Business or Creator account** and a Meta
+app with **Instagram Graph API** access; generate a **long-lived user access
+token** (~60 days) and add it as `INSTAGRAM_ACCESS_TOKEN` in Vercel. Long-lived
+tokens must be refreshed before they expire (Meta's token-refresh endpoint), so
+plan to rotate it.
 
 ## Deploy to production
 
