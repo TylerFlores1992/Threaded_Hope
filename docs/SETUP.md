@@ -45,6 +45,7 @@ cp .env.example .env.local
 | `BLOB_READ_WRITE_TOKEN` | Photo upload | Vercel Blob read-write token for the product image uploader. |
 | `ADMIN_PASSWORD` | Admin login | Password that gates `/admin`. Choose any strong value. |
 | `INSTAGRAM_ACCESS_TOKEN` | Home IG strip | Long-lived Instagram Graph API user token. When set, the home page shows your latest 6 posts (auto-refreshing hourly); without it the strip falls back to recent product photos. |
+| `CRON_SECRET` | IG token refresh | Random secret that authenticates the weekly token-refresh cron (`/api/cron/refresh-instagram`). Vercel Cron sends it as a Bearer token. Any strong random string. |
 
 > The Neon integration adds several other `DATABASE_*` vars; only the two above
 > are read by the app. Without any database vars the site still runs on the
@@ -161,6 +162,16 @@ field by slug and touches nothing else, so it's safe to re-run:
 
 ```bash
 node --env-file=.env.local --import tsx scripts/backfill-collections.ts
+```
+
+### Clean emoji from product descriptions
+
+Descriptions imported from Shopify can contain emoji. To strip them from the
+descriptions already in the database (safe to re-run; only updates rows that
+change):
+
+```bash
+node --env-file=.env.local --import tsx scripts/clean-descriptions.ts
 ```
 
 ### Instagram feed (optional)

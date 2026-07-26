@@ -66,6 +66,7 @@ prisma/
 scripts/
   migrate-images.mjs             move product photos Shopify CDN → Vercel Blob
   backfill-collections.ts        apply static-catalog collection membership to DB
+  clean-descriptions.ts          strip emoji from product descriptions in the DB
 ```
 
 ### Catalog data layer (`src/lib/catalog.ts` + `src/data/`)
@@ -201,8 +202,10 @@ DB-managed.
   they offer text search, a collection filter, a status filter, and sorting.
 - **Home imagery is real, not placeholders.** `getCollectionImageOptions()`
   (catalog) yields distinct product photos per collection; the home page hands a
-  unique one to every slot so nothing repeats. The header shows the centered logo
-  alone (no wordmark text), sized to the header height (`h-14 w-auto`).
+  unique one to every slot so nothing repeats. The header is a 3-column layout
+  (nav · logo · search/cart) so the centered logo sits in-flow and can be enlarged
+  (`h-16` mobile / `h-20` desktop, natural width) without distortion; it shows the
+  logo alone (no wordmark text). The footer likewise shows just the logo.
 - **Admin-managed home images.** `/admin/home` (`HomeImagesForm`) uploads the
   logo, the 4 hero-collage images, and the story image to Vercel Blob, stored in
   the `Setting` table. `lib/home-images.ts` (`unstable_cache`, tag `home-images`)
@@ -242,6 +245,8 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
   sync/seed), plus the other `DATABASE_*` vars the integration adds.
 - **Blob** — `BLOB_READ_WRITE_TOKEN`
 - **Admin** — `ADMIN_PASSWORD`
+- **Instagram** — `INSTAGRAM_ACCESS_TOKEN` (bootstraps the home feed; then the
+  self-refreshing DB copy is preferred), `CRON_SECRET` (guards the refresh cron)
 
 Secrets live only in Vercel / `.env.local` (gitignored); `.env.example` is the
 committed template. **Never commit real keys.**
