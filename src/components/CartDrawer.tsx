@@ -123,7 +123,7 @@ export function CartDrawer() {
                 </p>
               ) : (
                 <p className="mb-3 text-center text-xs font-medium text-sage-deep">
-                  🌿 You&apos;ve unlocked free shipping!
+                  You&apos;ve unlocked free shipping!
                 </p>
               )}
               <div className="flex justify-between text-base font-semibold">
