@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { store } from "@/data/store";
 import { collections } from "@/data/collections";
-import { getFeaturedProducts } from "@/lib/catalog";
+import { getFeaturedProducts, getCollectionImages } from "@/lib/catalog";
+import { getInstagramPosts } from "@/lib/instagram";
 import { withInStockFirst } from "@/lib/sort";
 import { CollectionTile } from "@/components/CollectionTile";
 import { ProductCard } from "@/components/ProductCard";
@@ -13,6 +14,24 @@ export const revalidate = 300;
 export default async function HomePage() {
   const featuredCollections = collections.filter((c) => c.featured);
   const featured = withInStockFirst(await getFeaturedProducts()).slice(0, 8);
+  const collImages = await getCollectionImages();
+  const igPosts = await getInstagramPosts(6);
+
+  // Hero collage: a representative image from four different collections.
+  const heroCollage = featuredCollections.slice(0, 4).map((c) => ({
+    name: c.name,
+    slug: c.slug,
+    image: collImages[c.slug] ?? placeholderImage(c.name, c.hue),
+  }));
+
+  // Instagram strip falls back to recent product photos when no IG feed is
+  // configured, so the section always looks intentional.
+  const fallbackImages = Array.from(
+    new Set([
+      ...featured.map((p) => p.image).filter(Boolean),
+      ...Object.values(collImages),
+    ]),
+  ).slice(0, 6) as string[];
 
   return (
     <>
@@ -44,15 +63,22 @@ export default async function HomePage() {
           </div>
           <div className="relative">
             <div className="grid grid-cols-2 gap-3">
-              {featuredCollections.slice(0, 4).map((c, i) => (
-                <img
+              {heroCollage.map((c, i) => (
+                <Link
                   key={c.slug}
-                  src={placeholderImage(c.name, c.hue)}
-                  alt={c.name}
-                  className={`w-full rounded-2xl object-cover ring-1 ring-border ${
+                  href={`/collections/${c.slug}`}
+                  className={`group relative block aspect-square overflow-hidden rounded-2xl ring-1 ring-border ${
                     i % 2 === 0 ? "translate-y-4" : ""
                   }`}
-                />
+                  aria-label={c.name}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={c.image}
+                    alt={c.name}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                </Link>
               ))}
             </div>
           </div>
@@ -69,7 +95,11 @@ export default async function HomePage() {
         </div>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {featuredCollections.map((c) => (
-            <CollectionTile key={c.slug} collection={c} />
+            <CollectionTile
+              key={c.slug}
+              collection={c}
+              image={collImages[c.slug]}
+            />
           ))}
         </div>
       </section>
@@ -92,10 +122,11 @@ export default async function HomePage() {
       {/* Our Story teaser */}
       <section className="bg-sand">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={placeholderImage("Our Story", 40)}
-            alt="A cozy handmade workspace"
-            className="w-full rounded-2xl object-cover ring-1 ring-border"
+            src="/logo.png"
+            alt={store.name}
+            className="mx-auto w-full max-w-sm rounded-3xl"
           />
           <div>
             <h2 className="font-serif text-3xl text-ink">Stitched with hope</h2>
@@ -118,31 +149,58 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Instagram-style gallery strip */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="mb-6 text-center font-serif text-3xl text-ink">
-          @threadedhope on Instagram
-        </h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {collections.slice(0, 6).map((c) => (
+      {/* Instagram strip — latest posts (auto-updates), or recent product photos */}
+      {(igPosts.length > 0 || fallbackImages.length > 0) && (
+        <section className="mx-auto max-w-6xl px-4 py-12">
+          <h2 className="mb-6 text-center font-serif text-3xl text-ink">
             <a
-              key={c.slug}
               href={store.socials.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative aspect-square overflow-hidden rounded-lg ring-1 ring-border"
-              aria-label={`${c.name} on Instagram`}
+              className="hover:text-sage-deep"
             >
-              <img
-                src={placeholderImage(c.name, c.hue)}
-                alt=""
-                aria-hidden="true"
-                className="h-full w-full object-cover transition group-hover:scale-105"
-              />
+              @{store.socials.instagramHandle} on Instagram
             </a>
-          ))}
-        </div>
-      </section>
+          </h2>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {igPosts.length > 0
+              ? igPosts.map((post) => (
+                  <a
+                    key={post.id}
+                    href={post.permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative aspect-square overflow-hidden rounded-lg ring-1 ring-border"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={post.imageUrl}
+                      alt={post.caption?.slice(0, 100) ?? "Instagram post"}
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  </a>
+                ))
+              : fallbackImages.map((src, i) => (
+                  <a
+                    key={i}
+                    href={store.socials.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative aspect-square overflow-hidden rounded-lg ring-1 ring-border"
+                    aria-label="Threaded Hope on Instagram"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  </a>
+                ))}
+          </div>
+        </section>
+      )}
 
       {/* Newsletter */}
       <section className="mx-auto max-w-6xl px-4 py-16">

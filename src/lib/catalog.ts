@@ -113,6 +113,25 @@ export async function getFeaturedProducts(): Promise<Product[]> {
   return rows.map(mapRow);
 }
 
+/**
+ * One representative product image per collection slug — the first in-stock
+ * product with a photo (falling back to any product with a photo). Used to give
+ * collection tiles and the home hero real imagery instead of placeholders.
+ */
+export async function getCollectionImages(): Promise<Record<string, string>> {
+  const all = await getProducts();
+  const byCollection: Record<string, string> = {};
+  // In-stock, with-image products first so they win as the representative.
+  const ordered = [...all].sort((a, b) => Number(b.inStock) - Number(a.inStock));
+  for (const p of ordered) {
+    if (!p.image) continue;
+    for (const slug of p.collections) {
+      if (!byCollection[slug]) byCollection[slug] = p.image;
+    }
+  }
+  return byCollection;
+}
+
 export async function getRelatedProducts(
   product: Product,
   limit = 4,

@@ -65,6 +65,7 @@ prisma/
   deploy.mjs                     build step: db push + seed when a DB exists
 scripts/
   migrate-images.mjs             move product photos Shopify CDN → Vercel Blob
+  backfill-collections.ts        apply static-catalog collection membership to DB
 ```
 
 ### Catalog data layer (`src/lib/catalog.ts` + `src/data/`)
@@ -198,6 +199,14 @@ DB-managed.
 - **Admin products & inventory are searchable/filterable.** The tables are client
   components (`AdminProductsTable`, `AdminInventoryTable`) fed by the server pages;
   they offer text search, a collection filter, a status filter, and sorting.
+- **Home imagery is real, not placeholders.** `getCollectionImages()` (catalog)
+  picks a representative product photo per collection; the hero collage and the
+  "Shop by collection" tiles use it. The "Stitched with hope" section shows the
+  logo, and the header shows the centered logo alone (no wordmark text).
+- **Instagram strip.** `lib/instagram.ts` fetches the latest 6 posts via the
+  Instagram Graph API when `INSTAGRAM_ACCESS_TOKEN` is set (hourly `revalidate`,
+  so new posts surface and old ones drop off); it returns `[]` on missing/expired
+  token and the home page falls back to recent product photos.
 - **Server-action body limit.** `next.config.ts` sets
   `serverActions.bodySizeLimit = "8mb"` so product photo uploads fit.
 - **`package.json` is pinned for Vercel.** `name` is `threaded-hope`;

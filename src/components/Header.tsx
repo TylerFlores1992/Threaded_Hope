@@ -30,7 +30,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-cream/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+      <div className="relative mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
         <button
           type="button"
           className="rounded-lg p-2 text-ink hover:bg-sand lg:hidden"
@@ -41,16 +41,17 @@ export function Header() {
           <MenuIcon />
         </button>
 
-        <Link href="/" className="flex items-center gap-2" aria-label={store.name}>
+        <Link
+          href="/"
+          aria-label={store.name}
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt={store.name}
-            className="h-14 w-14 rounded-xl object-cover"
+            className="h-16 w-16 rounded-xl object-cover"
           />
-          <span className="font-serif text-xl font-semibold text-ink">
-            {store.name}
-          </span>
         </Link>
 
         <nav className="ml-6 hidden items-center gap-6 lg:flex" aria-label="Primary">
