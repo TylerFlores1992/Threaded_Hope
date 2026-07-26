@@ -94,28 +94,62 @@ Products (create/edit/delete with photo upload), Orders, Inventory, Discounts
 (Stripe promo codes), and Traffic. Storefront pages revalidate automatically when
 you save, so changes appear within moments.
 
-To work against the database locally, put the same `DATABASE_*` values in
-`.env.local`, then:
+To run the data scripts locally, first get the env vars into `.env.local`. The
+easiest way is the Vercel CLI:
 
 ```bash
-npm run db:push   # create/sync tables
-npm run db:seed   # seed the 116 starter products (skips if non-empty)
+npm i -g vercel
+vercel link                                    # select this project
+vercel env pull .env.local --environment=production
 ```
+
+> **Sensitive values pull back as `[SENSITIVE]`.** `vercel env pull` returns
+> secrets (e.g. `BLOB_READ_WRITE_TOKEN`, `STRIPE_SECRET_KEY`, `ADMIN_PASSWORD`)
+> as the literal placeholder `[SENSITIVE]`, not their real value. Copy the real
+> ones from the Vercel dashboard and paste them into `.env.local` — the Blob
+> token is shown on the **Storage → your Blob store** page (not under Settings →
+> Environment Variables, which only shows `[Sensitive]`).
+
+Unlike `npm run dev`, the standalone `seed.ts` and migration scripts (run via
+`tsx`/`node`) do **not** auto-load `.env.local`, so pass it explicitly with
+Node's `--env-file`. You usually don't need `db:push` locally — Vercel already
+provisions the schema on deploy (`prisma/deploy.mjs`) — it's only for setting up
+a brand-new empty database yourself.
+
+```bash
+# seed the 116 starter products (skips if the table already has rows)
+node --env-file=.env.local --import tsx prisma/seed.ts
+```
+
+> **Already have old rows?** Seeding is one-time-guarded (it skips a non-empty
+> catalog), so it won't refresh products already in the DB. To swap in the
+> current catalog, clear the products table first, then re-seed. This is safe —
+> orders keep their own item snapshots — but it **deletes all product rows**, so
+> do it deliberately:
+>
+> ```bash
+> node --env-file=.env.local -e 'const {PrismaClient}=require("@prisma/client"); const p=new PrismaClient(); p.product.deleteMany().then(r=>{console.log("deleted",r.count);return p.$disconnect();});'
+> node --env-file=.env.local --import tsx prisma/seed.ts
+> ```
 
 ### Migrate product photos into Vercel Blob
 
 The imported starter catalog references product photos on the Threaded Hope
 Shopify CDN. To move them onto your own Vercel Blob store (so the storefront no
-longer depends on Shopify), configure the database **and** `BLOB_READ_WRITE_TOKEN`,
-then run:
+longer depends on Shopify), make sure `.env.local` has a **real**
+`BLOB_READ_WRITE_TOKEN` (see the `[SENSITIVE]` note above) plus the `DATABASE_*`
+URLs, then:
 
 ```bash
-npm run migrate:images            # download from Shopify → upload to Blob → update DB
-npm run migrate:images -- --dry-run   # preview what would change, no writes
+node --env-file=.env.local scripts/migrate-images.mjs --dry-run   # preview, no writes
+node --env-file=.env.local scripts/migrate-images.mjs             # download → Blob → update DB
 ```
 
 It only touches products still pointing at `cdn.shopify.com`, rewrites each to
-its new Blob URL, and is safe to re-run (already-migrated products are skipped).
+its Blob URL, and is safe to re-run (already-migrated products are skipped). Run
+it while the Shopify store is still up, since it pulls from Shopify's CDN. The
+`migrate:images` npm script runs the same file, but you must load the env as
+shown above.
 
 ## Deploy to production
 
