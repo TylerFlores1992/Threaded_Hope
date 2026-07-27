@@ -79,14 +79,21 @@ accessors (`getProducts`, `getProductBySlug`, `getProductsByCollection`,
 - fall back to the **static seed** in `src/data/products.ts` when there's no DB.
 
 Either way they return the same `Product` object, so storefront components don't
-care where the data came from. `store.ts`, `collections.ts`, and `faqs.ts` remain
-static config (brand, the 14 collections, FAQs) — collections are not yet
-DB-managed.
+care where the data came from. `store.ts` and `faqs.ts` remain static config
+(brand, FAQs). **Collections are now DB-managed** too, with the static list as
+seed + fallback — see below.
 
 - `store.ts` — brand name, tagline, **Scripture line**, contact, socials,
   shipping thresholds (`freeThreshold`, `flatRate`).
-- `collections.ts` — 14 collections; each has a `slug`, `hue` (drives placeholder
-  color), and optional `featured`. Product records reference a collection by slug.
+- `collections.ts` — the static collection list (14): `slug`, `name`,
+  `description`, `hue`, optional `featured`/`hidden`. Seeds the DB `Collection`
+  table on first deploy and is the runtime fallback. At runtime, collections are
+  read through `lib/collections.ts` (`getVisibleCollections` / `getAllCollections`
+  / `getCollectionBySlug` / `getCollectionMap`), which prefers the DB (managed at
+  `/admin/collections` — add/edit/delete/hide) and falls back to this list.
+  `catalog.ts` maps product `collectionSlug`→name/hue via `getCollectionMap`. The
+  root layout passes visible collections to the Header; the shop passes them to
+  `ShopClient`. Deleting a collection is blocked while products still reference it.
 - `products.ts` — the 116-product `seed[]` (imported from the live Threaded Hope
   Shopify shop), used to seed the DB on first deploy and as the runtime fallback.
   Slugs derive from the product name; each entry carries a real `image` URL
@@ -94,8 +101,9 @@ DB-managed.
 
 ### Database (`prisma/schema.prisma`, `src/lib/db.ts`)
 
-- Models: **Product** (catalog), **Order** (paid orders, JSON `items` snapshot),
-  **Pageview** (traffic). `Product` has a primary `collectionSlug` plus a
+- Models: **Product** (catalog), **Collection** (categories, admin-managed),
+  **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic), and
+  **Setting** (key/value). `Product` has a primary `collectionSlug` plus a
   `collections` JSON list of every collection it appears in (see gotchas).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.

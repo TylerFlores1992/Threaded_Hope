@@ -36,6 +36,22 @@ model Product {
   @@index([featured])
 }
 
+/** Product collection (category). Seeded from the static list; managed in admin. */
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  hue         Int      @default(145)
+  featured    Boolean  @default(false)
+  hidden      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([hidden])
+}
+
 /** Small key/value store for app settings (e.g. the self-refreshing IG token). */
 model Setting {
   key       String   @id
