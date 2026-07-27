@@ -8,6 +8,7 @@ const helpLinks = [
   { href: "/shipping-returns", label: "Shipping & Returns" },
   { href: "/contact", label: "Contact" },
   { href: "/our-story", label: "Our Story" },
+  { href: "/blog", label: "Journal" },
 ];
 
 export async function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {

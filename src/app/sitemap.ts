@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getProducts } from "@/lib/catalog";
 import { getVisibleCollections } from "@/lib/collections";
+import { getAllPosts } from "@/data/blog";
 import { SITE_URL } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -15,6 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "", priority: 1, changeFrequency: "daily" },
     { path: "/shop", priority: 0.9, changeFrequency: "daily" },
     { path: "/gifting", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/blog", priority: 0.6, changeFrequency: "weekly" },
     { path: "/our-story", priority: 0.6, changeFrequency: "monthly" },
     { path: "/faqs", priority: 0.4, changeFrequency: "monthly" },
     { path: "/contact", priority: 0.4, changeFrequency: "monthly" },
@@ -26,6 +28,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: s.changeFrequency,
     priority: s.priority,
   }));
+
+  for (const post of getAllPosts()) {
+    entries.push({
+      url: `${SITE_URL}/blog/${post.slug}`,
+      lastModified: post.date,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    });
+  }
 
   try {
     const collections = await getVisibleCollections();
