@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { Collection } from "@/data/collections";
 import type { Variant } from "@/data/products";
+import { sizeAxisOf } from "@/lib/stock";
+
+type SizeRow = { label: string; price: string };
 
 export type ProductFormValues = {
   name: string;
@@ -46,14 +49,31 @@ export function ProductForm({
   submitLabel?: string;
 }) {
   const [preview, setPreview] = useState<string | undefined>(product?.image);
-  const variantsText = (product?.variants ?? [])
-    .map((v) => {
-      const opts = v.options
-        .map((o) => (v.prices?.[o] != null ? `${o}=${v.prices[o]}` : o))
-        .join(", ");
-      return `${v.name}: ${opts}`;
-    })
+
+  // Split existing variants into the size axis (structured editor below) and
+  // any other option groups (color, etc. — kept in the free-text field).
+  const allVariants = product?.variants ?? [];
+  const sizeAxis = sizeAxisOf({ variants: allVariants });
+  const [hasSizes, setHasSizes] = useState<boolean>(!!sizeAxis);
+  const [sizeRows, setSizeRows] = useState<SizeRow[]>(
+    sizeAxis
+      ? sizeAxis.options.map((o) => ({
+          label: o,
+          price: sizeAxis.prices?.[o] != null ? String(sizeAxis.prices[o]) : "",
+        }))
+      : [{ label: "", price: "" }],
+  );
+
+  const otherVariantsText = allVariants
+    .filter((v) => v !== sizeAxis)
+    .map((v) => `${v.name}: ${v.options.join(", ")}`)
     .join("\n");
+
+  const updateRow = (i: number, patch: Partial<SizeRow>) =>
+    setSizeRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const addRow = () => setSizeRows((rows) => [...rows, { label: "", price: "" }]);
+  const removeRow = (i: number) =>
+    setSizeRows((rows) => rows.filter((_, j) => j !== i));
 
   return (
     <form action={action} className="max-w-2xl space-y-5">
@@ -141,19 +161,82 @@ export function ProductForm({
         />
       </div>
 
+      {/* Sizes — structured editor. Feeds per-size price + per-size inventory. */}
+      <fieldset className="rounded-2xl bg-white/60 p-4 ring-1 ring-border">
+        <label className="flex items-center gap-2 text-sm font-medium text-ink">
+          <input
+            type="checkbox"
+            name="hasSizes"
+            checked={hasSizes}
+            onChange={(e) => setHasSizes(e.target.checked)}
+            className="h-4 w-4 accent-sage-deep"
+          />
+          This product comes in sizes
+        </label>
+
+        {hasSizes && (
+          <div className="mt-3 space-y-2">
+            <div className="flex gap-2 text-xs font-medium text-ink-soft">
+              <span className="flex-1">Size</span>
+              <span className="w-28">Price ($, optional)</span>
+              <span className="w-8" />
+            </div>
+            {sizeRows.map((row, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  name="sizeLabel"
+                  value={row.label}
+                  onChange={(e) => updateRow(i, { label: e.target.value })}
+                  placeholder="e.g. Small"
+                  className="flex-1 rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sage-deep"
+                />
+                <input
+                  name="sizePrice"
+                  value={row.price}
+                  onChange={(e) => updateRow(i, { price: e.target.value })}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="—"
+                  className="w-28 rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sage-deep"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  aria-label="Remove size"
+                  className="w-8 rounded-lg py-2 text-ink-soft hover:bg-sand hover:text-red-700"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addRow}
+              className="text-sm font-medium text-sage-deep hover:underline"
+            >
+              + Add size
+            </button>
+            <p className="text-xs text-ink-soft">
+              Leave a price blank to use the base price above. Stock for each size
+              is set on the Inventory page after saving.
+            </p>
+          </div>
+        )}
+      </fieldset>
+
       <div>
         <label className="block text-sm font-medium text-ink">
-          Variants{" "}
+          Other options{" "}
           <span className="font-normal text-ink-soft">
-            (one per line, e.g. <code>Color: Sage, Cream, Blush</code>; add{" "}
-            <code>=price</code> to charge per option, e.g.{" "}
-            <code>Size: S=13, M=14, L=15</code>)
+            (non-size choices like color — one group per line, e.g.{" "}
+            <code>Color: Sage, Cream, Blush</code>)
           </span>
         </label>
         <textarea
           name="variants"
           rows={2}
-          defaultValue={variantsText}
+          defaultValue={otherVariantsText}
           placeholder="Color: Sage, Cream, Blush"
           className={field}
         />
@@ -165,14 +248,21 @@ export function ProductForm({
             Stock{" "}
             <span className="font-normal text-ink-soft">(blank = untracked)</span>
           </label>
-          <input
-            name="stock"
-            type="number"
-            min="0"
-            step="1"
-            defaultValue={product?.stock ?? ""}
-            className={field}
-          />
+          {hasSizes ? (
+            <p className="mt-1 rounded-lg bg-sand px-3 py-2 text-sm text-ink-soft">
+              Stock is tracked per size on the{" "}
+              <span className="font-medium text-ink">Inventory</span> page.
+            </p>
+          ) : (
+            <input
+              name="stock"
+              type="number"
+              min="0"
+              step="1"
+              defaultValue={product?.stock ?? ""}
+              className={field}
+            />
+          )}
         </div>
         <div className="flex items-end gap-6 pb-2">
           <label className="flex items-center gap-2 text-sm text-ink">

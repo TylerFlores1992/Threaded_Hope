@@ -102,6 +102,33 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
     .filter((s) => s && validSlugs.has(s));
   const allCollections = Array.from(new Set([collectionSlug, ...extra]));
 
+  // Structured sizes → a "Size" variant with optional per-size prices.
+  const variants: Variant[] = [];
+  if (formData.get("hasSizes") === "on") {
+    const labels = formData.getAll("sizeLabel").map((v) => String(v).trim());
+    const prices = formData.getAll("sizePrice").map((v) => String(v).trim());
+    const options: string[] = [];
+    const priceMap: Record<string, number> = {};
+    labels.forEach((label, i) => {
+      if (!label || options.includes(label)) return;
+      options.push(label);
+      const raw = prices[i] ?? "";
+      const p = Number(raw);
+      if (raw !== "" && Number.isFinite(p) && p >= 0) priceMap[label] = p;
+    });
+    if (options.length > 0) {
+      const sizeVariant: Variant = { name: "Size", options };
+      if (Object.keys(priceMap).length > 0) sizeVariant.prices = priceMap;
+      variants.push(sizeVariant);
+    }
+  }
+  // Non-size option groups from the free-text field (color, etc.).
+  variants.push(
+    ...parseVariants(String(formData.get("variants") ?? "")).filter(
+      (v) => !/size/i.test(v.name),
+    ),
+  );
+
   return {
     name,
     description,
@@ -111,7 +138,7 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
     featured: formData.get("featured") === "on",
     inStock: formData.get("inStock") === "on",
     stock: stockRaw === "" ? null : Math.max(0, Math.floor(Number(stockRaw))),
-    variants: parseVariants(String(formData.get("variants") ?? "")),
+    variants,
   };
 }
 
