@@ -34,9 +34,6 @@ export const store = {
   shipping: {
     freeThreshold: 50, // free shipping over this US$ amount
     flatRate: 5.5,
-    // Weight of packaging (mailer/box + padding) added on top of item weights
-    // when estimating a shipment's total weight for label rates, in ounces.
-    packagingWeightOz: 2,
   },
 
   // Return / ship-FROM address used when buying carrier labels (Shippo).
