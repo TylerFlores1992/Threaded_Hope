@@ -150,6 +150,37 @@ export default async function BuyLabelPage({
     );
   }
 
+  // Estimate the shipment weight from the ordered products' unit weights plus
+  // packaging, so the parcel form is prefilled and you just verify it.
+  const orderItems = (Array.isArray(order.items) ? order.items : []) as {
+    slug?: string | null;
+    quantity?: number;
+  }[];
+  const slugs = orderItems
+    .map((it) => it.slug)
+    .filter((s): s is string => Boolean(s));
+  const weightBySlug = new Map<string, number>();
+  if (slugs.length > 0) {
+    const products = await prisma.product.findMany({
+      where: { slug: { in: slugs } },
+      select: { slug: true, weightOz: true },
+    });
+    for (const p of products) {
+      if (typeof p.weightOz === "number") weightBySlug.set(p.slug, p.weightOz);
+    }
+  }
+  const itemsWeight = orderItems.reduce((sum, it) => {
+    const w = it.slug ? (weightBySlug.get(it.slug) ?? 0) : 0;
+    return sum + w * (it.quantity ?? 1);
+  }, 0);
+  const anyWeightKnown = weightBySlug.size > 0;
+  const estimatedWeight = anyWeightKnown
+    ? Math.max(
+        1,
+        Math.round((itemsWeight + store.shipping.packagingWeightOz) * 10) / 10,
+      )
+    : null;
+
   // Parcel dims come through the query once the parcel form is submitted.
   const num = (v: string | string[] | undefined) =>
     typeof v === "string" ? Number(v) : NaN;
@@ -206,9 +237,14 @@ export default async function BuyLabelPage({
           </label>
           <label className="text-xs text-ink-soft">
             Weight (oz)
-            <input name="weight" type="number" min="1" step="0.1" defaultValue={typeof sp.weight === "string" ? sp.weight : "8"} className={field} />
+            <input name="weight" type="number" min="1" step="0.1" defaultValue={typeof sp.weight === "string" ? sp.weight : estimatedWeight != null ? String(estimatedWeight) : "8"} className={field} />
           </label>
         </div>
+        <p className="mt-2 text-xs text-ink-soft">
+          {estimatedWeight != null
+            ? `Weight prefilled from product weights (${itemsWeight} oz) + ${store.shipping.packagingWeightOz} oz packaging. Verify before buying.`
+            : "Tip: set per-product weights in the product editor to auto-fill this. Verify before buying."}
+        </p>
         <button
           type="submit"
           className="mt-4 rounded-lg bg-sage-deep px-4 py-2 text-sm font-medium text-white hover:opacity-90"

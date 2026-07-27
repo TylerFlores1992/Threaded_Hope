@@ -18,6 +18,7 @@ export type ProductFormValues = {
   inStock: boolean;
   featured: boolean;
   stock: number | null;
+  weightOz: number | null;
   image?: string;
 };
 
@@ -357,6 +358,22 @@ export function ProductForm({
               className={field}
             />
           )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Weight (oz){" "}
+            <span className="font-normal text-ink-soft">
+              (per unit, for shipping)
+            </span>
+          </label>
+          <input
+            name="weightOz"
+            type="number"
+            min="0"
+            step="0.1"
+            defaultValue={product?.weightOz ?? ""}
+            className={field}
+          />
         </div>
         <div className="flex items-end gap-6 pb-2">
           <label className="flex items-center gap-2 text-sm text-ink">
