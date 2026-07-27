@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/db";
 import { buyLabel, isShippoTestMode } from "@/lib/shipping";
@@ -65,11 +66,18 @@ export async function purchaseLabel(
   rateObjectId: string,
 ): Promise<void> {
   const prisma = getPrisma();
-  const { labelUrl, trackingNumber, carrier } = await buyLabel(rateObjectId);
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { labelUrl, trackingNumber, carrier },
-  });
+  try {
+    const { labelUrl, trackingNumber, carrier } = await buyLabel(rateObjectId);
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { labelUrl, trackingNumber, carrier },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Label purchase failed.";
+    redirect(
+      `/admin/orders/${orderId}/label?buyError=${encodeURIComponent(msg)}`,
+    );
+  }
   revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${orderId}/label`);
+  redirect(`/admin/orders/${orderId}/label`);
 }

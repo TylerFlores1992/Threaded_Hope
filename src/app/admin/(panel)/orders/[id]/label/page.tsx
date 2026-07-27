@@ -253,6 +253,12 @@ export default async function BuyLabelPage({
         </button>
       </form>
 
+      {typeof sp.buyError === "string" && sp.buyError && (
+        <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          Couldn’t buy the label: {sp.buyError}
+        </p>
+      )}
+
       {error && (
         <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {error}
