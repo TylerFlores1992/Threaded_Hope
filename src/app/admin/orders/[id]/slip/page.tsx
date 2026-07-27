@@ -84,7 +84,23 @@ export default async function PackingSlipPage({
             <p>{store.contact.email}</p>
             {store.contact.phone && <p>{store.contact.phone}</p>}
             {store.socials.instagramHandle && (
-              <p>@{store.socials.instagramHandle}</p>
+              <p className="flex items-center justify-end gap-1">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="2" y="2" width="20" height="20" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                </svg>
+                @{store.socials.instagramHandle}
+              </p>
             )}
           </div>
         </div>
