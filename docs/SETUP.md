@@ -177,6 +177,38 @@ change):
 node --env-file=.env.local --import tsx scripts/clean-descriptions.ts
 ```
 
+### Enrich product descriptions for SEO
+
+Give every product a keyword-relevant baseline description. The script appends a
+short, product-type-aware sentence (bag / pouch / tote / keychain …, plus a
+faith angle for faith-based items) — it never rewrites your copy, skips
+already-enriched rows, and varies the wording by product so it isn't duplicate
+text. Preview first, then apply:
+
+```bash
+node --env-file=.env.local --import tsx scripts/seo-descriptions.ts --dry-run
+node --env-file=.env.local --import tsx scripts/seo-descriptions.ts
+```
+
+Fine-tune individual descriptions in the admin afterward.
+
+### Blog / Journal
+
+The blog lives in `src/data/blog.ts` (no CMS, no database). Add a post by
+appending an entry to the `posts` array — `{ slug, title, excerpt, date,
+keywords, body }`, where `body` is an array of `{ type: "p" | "h2" | "ul" }`
+blocks. It appears on `/blog`, gets its own page with Article structured data,
+and is added to the sitemap automatically.
+
+### SEO checklist
+
+Structured metadata, a dynamic `sitemap.xml`, `robots.txt`, and JSON-LD are
+built in. The highest-impact manual step is to **submit the sitemap** in
+[Google Search Console](https://search.google.com/search-console) (and Bing
+Webmaster Tools): add `https://threaded-hope.com`, verify ownership, then submit
+`https://threaded-hope.com/sitemap.xml`. Keep product titles/descriptions
+specific and unique for the best results.
+
 ### Instagram feed (optional)
 
 The home page shows your latest 6 Instagram posts when `INSTAGRAM_ACCESS_TOKEN`
@@ -231,8 +263,9 @@ Notes / gotchas learned in practice:
   dashboard (**Settings → Carriers → Activate Account**). USPS works out of the
   box; buying an un-activated carrier's rate returns a "not yet registered" error.
 - **Parcel weight** is prefilled from each product's **Weight (oz)** (set in the
-  product editor) × quantity plus `store.shipping.packagingWeightOz`; if no
-  product weights are set you enter it manually. Always verify before buying.
+  product editor) × quantity plus the selected **packaging preset** (manage
+  presets at Orders → *Manage packaging*); if no product weights are set you enter
+  it manually. Always verify before buying.
 - **Test the flow before real orders exist:** while a `shippo_test_*` token is
   set, the Orders page shows a **"Create sample order"** button that inserts a
   realistic order to exercise labels + slips. It disappears on the live token.
