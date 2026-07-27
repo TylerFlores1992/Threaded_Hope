@@ -4,6 +4,7 @@ import { getStripe } from "@/lib/stripe";
 import { getProductBySlug } from "@/lib/catalog";
 import { resolveUnitPrice } from "@/lib/pricing";
 import { isAvailable, sizeAxisOf } from "@/lib/stock";
+import { getActiveDiscountRules, pickBestRule } from "@/lib/discounts";
 import { store } from "@/data/store";
 
 export const runtime = "nodejs";
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
 
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let subtotal = 0;
+  let totalQty = 0;
 
   for (const item of items) {
     const product = await getProductBySlug(item.slug);
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
     // tampered client price — or a mismatched variant — can't change the charge.
     const unitPrice = resolveUnitPrice(product, item.options);
     subtotal += unitPrice * quantity;
+    totalQty += quantity;
 
     const optionText =
       item.options && Object.keys(item.options).length > 0
@@ -98,11 +101,37 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_BASE_URL ??
     "http://localhost:3000";
 
+  // Automatic cart discounts (buy-N / spend thresholds). Stripe allows only one
+  // discount per session, so when an auto rule applies we use it and turn off
+  // the manual promo-code box; otherwise customers can type a code.
+  let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
+  try {
+    const rule = pickBestRule(await getActiveDiscountRules(), {
+      totalQty,
+      subtotalCents: Math.round(subtotal * 100),
+    });
+    if (rule) {
+      const coupon = await stripe.coupons.create(
+        rule.percentOff != null
+          ? { percent_off: rule.percentOff, duration: "once", name: rule.label }
+          : {
+              amount_off: rule.amountOffCents ?? 0,
+              currency: "usd",
+              duration: "once",
+              name: rule.label,
+            },
+      );
+      discounts = [{ coupon: coupon.id }];
+    }
+  } catch (err) {
+    console.error("Auto-discount error (continuing without it):", err);
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items,
-      allow_promotion_codes: true,
+      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
       shipping_address_collection: { allowed_countries: ["US"] },
       shipping_options: [
         {
