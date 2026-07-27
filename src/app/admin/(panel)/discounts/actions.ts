@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getPrisma } from "@/lib/db";
 
 export async function createDiscount(
   _prev: { error?: string; ok?: string } | undefined,
@@ -49,5 +50,62 @@ export async function toggleDiscount(
 ): Promise<void> {
   const stripe = getStripe();
   await stripe.promotionCodes.update(id, { active });
+  revalidatePath("/admin/discounts");
+}
+
+/* ── Automatic discount rules (DB-backed; applied at checkout, no code) ── */
+
+export async function createRule(
+  _prev: { error?: string; ok?: string } | undefined,
+  formData: FormData,
+): Promise<{ error?: string; ok?: string }> {
+  const label = String(formData.get("label") ?? "").trim();
+  const kind = String(formData.get("kind") ?? "quantity");
+  const thresholdRaw = Number(formData.get("threshold") ?? 0);
+  const discountType = String(formData.get("discountType") ?? "percent");
+  const value = Number(formData.get("value") ?? 0);
+
+  if (!label) return { error: "Give the rule a name." };
+  if (!Number.isFinite(thresholdRaw) || thresholdRaw <= 0) {
+    return { error: "Threshold must be greater than 0." };
+  }
+  if (!Number.isFinite(value) || value <= 0) {
+    return { error: "Discount value must be greater than 0." };
+  }
+  if (discountType === "percent" && value > 100) {
+    return { error: "Percent off must be 1–100." };
+  }
+
+  const threshold =
+    kind === "spend" ? Math.round(thresholdRaw * 100) : Math.floor(thresholdRaw);
+
+  try {
+    const prisma = getPrisma();
+    await prisma.discountRule.create({
+      data: {
+        label,
+        kind: kind === "spend" ? "spend" : "quantity",
+        threshold,
+        percentOff: discountType === "percent" ? Math.round(value) : null,
+        amountOffCents: discountType === "amount" ? Math.round(value * 100) : null,
+        active: true,
+      },
+    });
+    revalidatePath("/admin/discounts");
+    return { ok: `Created rule “${label}”.` };
+  } catch {
+    return { error: "Could not save the rule (is a database connected?)." };
+  }
+}
+
+export async function toggleRule(id: string, active: boolean): Promise<void> {
+  const prisma = getPrisma();
+  await prisma.discountRule.update({ where: { id }, data: { active } });
+  revalidatePath("/admin/discounts");
+}
+
+export async function deleteRule(id: string): Promise<void> {
+  const prisma = getPrisma();
+  await prisma.discountRule.delete({ where: { id } });
   revalidatePath("/admin/discounts");
 }

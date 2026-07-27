@@ -102,8 +102,9 @@ seed + fallback — see below.
 ### Database (`prisma/schema.prisma`, `src/lib/db.ts`)
 
 - Models: **Product** (catalog), **Collection** (categories, admin-managed),
-  **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic), and
-  **Setting** (key/value). `Product` has a primary `collectionSlug` plus a
+  **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic),
+  **DiscountRule** (automatic cart discounts), and **Setting** (key/value).
+  `Product` has a primary `collectionSlug` plus a
   `collections` JSON list of every collection it appears in (see gotchas).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
@@ -143,8 +144,15 @@ seed + fallback — see below.
 
 - **Stripe is still the authoritative record** for payments, receipts, and
   refunds. The app's `Order` table mirrors paid orders for the admin dashboard.
-- Admin **Discounts** creates a Stripe coupon + promotion code; customers redeem
-  the code at checkout.
+- Admin **Discounts** has two kinds. **Promo codes** (manual): a Stripe coupon +
+  promotion code the customer types at checkout. **Automatic discounts**
+  (`DiscountRule`, `lib/discounts.ts`): quantity (buy N+) or spend (subtotal ≥ $)
+  thresholds with a %/$ off, applied at checkout with no code. `api/checkout`
+  evaluates the active rules against the cart (`pickBestRule`), and when one
+  applies it creates a one-off Stripe coupon and passes it as the session
+  `discounts`. **Stripe allows one discount per session**, so an auto discount
+  and a typed code are mutually exclusive — the route sends `discounts` (auto) or
+  `allow_promotion_codes` (manual), never both.
 - **Traffic**: `TrafficTracker` (client) beacons each storefront navigation to
   `/api/track`, which stores a `Pageview` (admin routes excluded). The admin
   Traffic page aggregates 24h / 7d / all-time counts and top pages.
