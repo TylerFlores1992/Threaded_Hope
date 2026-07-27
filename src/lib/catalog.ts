@@ -10,6 +10,7 @@ import {
   type Variant,
 } from "@/data/products";
 import { collections } from "@/data/collections";
+import { computeInStock } from "@/lib/stock";
 
 /**
  * Catalog data-access layer.
@@ -34,6 +35,7 @@ type ProductRow = {
   collections?: unknown;
   image: string | null;
   variants: unknown;
+  sizeStock?: unknown;
   featured: boolean;
   inStock: boolean;
   createdAt: Date;
@@ -50,14 +52,20 @@ function mapRow(row: ProductRow): Product {
     stored.length > 0
       ? Array.from(new Set([row.collectionSlug, ...stored]))
       : [row.collectionSlug];
+  const variants = (Array.isArray(row.variants) ? row.variants : []) as Variant[];
+  const sizeStock =
+    row.sizeStock && typeof row.sizeStock === "object"
+      ? (row.sizeStock as Record<string, number>)
+      : {};
   return {
     collection: row.collectionSlug,
     collections,
     name: row.name,
     price: row.priceCents / 100,
     description: row.description,
-    variants: (Array.isArray(row.variants) ? row.variants : []) as Variant[],
-    inStock: row.inStock,
+    variants,
+    sizeStock,
+    inStock: computeInStock({ variants, sizeStock, inStock: row.inStock }, row.inStock),
     featured: row.featured,
     slug: row.slug,
     createdAt: row.createdAt.toISOString(),

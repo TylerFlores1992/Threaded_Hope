@@ -1,5 +1,7 @@
 import { prisma, isDbConfigured } from "@/lib/db";
 import { collections } from "@/data/collections";
+import { sizeAxisOf } from "@/lib/stock";
+import type { Variant } from "@/data/products";
 import {
   AdminInventoryTable,
   type AdminInventoryItem,
@@ -22,6 +24,12 @@ export default async function InventoryPage() {
 
   const items: AdminInventoryItem[] = rows.map((p) => {
     const stored = Array.isArray(p.collections) ? (p.collections as string[]) : [];
+    const variants = (Array.isArray(p.variants) ? p.variants : []) as Variant[];
+    const axis = sizeAxisOf({ variants });
+    const sizeStock =
+      p.sizeStock && typeof p.sizeStock === "object"
+        ? (p.sizeStock as Record<string, number>)
+        : {};
     return {
       id: p.id,
       name: p.name,
@@ -31,6 +39,10 @@ export default async function InventoryPage() {
           : [p.collectionSlug],
       stock: p.stock,
       inStock: p.inStock,
+      // Per-size rows when the product has a size axis (price-driving or "size").
+      sizes: axis
+        ? axis.options.map((o) => ({ label: o, count: sizeStock[o] ?? null }))
+        : null,
     };
   });
 
@@ -38,9 +50,9 @@ export default async function InventoryPage() {
     <div>
       <h1 className="font-serif text-3xl text-ink">Inventory</h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Set a stock count to track a product; leave blank for untracked. Stock
-        auto-decrements when an order is paid, and items hitting 0 are marked
-        sold out.
+        Set a stock count to track a product; leave blank for untracked. Products
+        with sizes show a count per size — a size at 0 shows as sold out on the
+        storefront. Stock auto-decrements when an order is paid.
       </p>
 
       <AdminInventoryTable

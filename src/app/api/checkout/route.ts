@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getProductBySlug } from "@/lib/catalog";
 import { resolveUnitPrice } from "@/lib/pricing";
+import { isAvailable, sizeAxisOf } from "@/lib/stock";
 import { store } from "@/data/store";
 
 export const runtime = "nodejs";
@@ -46,7 +47,11 @@ export async function POST(req: Request) {
 
   for (const item of items) {
     const product = await getProductBySlug(item.slug);
-    if (!product || !product.inStock) continue;
+    // Skip anything unavailable — including a specific size that's sold out.
+    if (!product || !isAvailable(product, item.options)) continue;
+
+    const sizeAxis = sizeAxisOf(product);
+    const selectedSize = sizeAxis ? item.options?.[sizeAxis.name] : undefined;
 
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));
     // Price is resolved server-side from the selected options (e.g. size), so a
@@ -69,9 +74,12 @@ export async function POST(req: Request) {
         product_data: {
           name: product.name,
           ...(optionText ? { description: optionText } : {}),
-          // slug lets the webhook map the paid line back to a product for
-          // order records and inventory decrement.
-          metadata: { slug: product.slug },
+          // slug (+ size) lets the webhook map the paid line back to a product
+          // and decrement the right per-size count.
+          metadata: {
+            slug: product.slug,
+            ...(selectedSize ? { size: selectedSize } : {}),
+          },
         },
       },
     });

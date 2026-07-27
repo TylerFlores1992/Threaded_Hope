@@ -48,6 +48,8 @@ export type Product = Required<
   createdAt: string;
   collectionName: string;
   hue: number;
+  /** Per-size stock counts ({ "S": 5, "M": 0 }); empty when not tracked per size. */
+  sizeStock: Record<string, number>;
   /** Real product photo URL; falls back to a generated placeholder. */
   image?: string;
 };
@@ -234,6 +236,7 @@ export const products: Product[] = seed.map((s, i) => {
     collections: allCollections,
     slug: slugify(s.name),
     variants: s.variants ?? [],
+    sizeStock: {},
     inStock: s.inStock ?? true,
     featured: s.featured ?? false,
     createdAt: s.createdAt ?? new Date(BASE + i * 86_400_000).toISOString(),

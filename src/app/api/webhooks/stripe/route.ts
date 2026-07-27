@@ -28,6 +28,10 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         product && typeof product === "object"
           ? (product.metadata?.slug ?? null)
           : null,
+      size:
+        product && typeof product === "object"
+          ? (product.metadata?.size ?? null)
+          : null,
       quantity: li.quantity ?? 1,
       unitAmountCents: li.price?.unit_amount ?? 0,
     };
@@ -58,7 +62,25 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     const product = await prisma.product.findUnique({
       where: { slug: it.slug },
     });
-    if (product && product.stock != null) {
+    if (!product) continue;
+
+    const sizeStock =
+      product.sizeStock && typeof product.sizeStock === "object"
+        ? ({ ...(product.sizeStock as Record<string, number>) })
+        : {};
+
+    if (it.size && typeof sizeStock[it.size] === "number") {
+      // Per-size product: decrement the purchased size, mark sold out at 0.
+      sizeStock[it.size] = Math.max(0, sizeStock[it.size] - it.quantity);
+      const anyLeft = Object.values(sizeStock).some((n) => n > 0);
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          sizeStock: sizeStock as Prisma.InputJsonValue,
+          inStock: anyLeft && product.inStock,
+        },
+      });
+    } else if (product.stock != null) {
       const newStock = Math.max(0, product.stock - it.quantity);
       await prisma.product.update({
         where: { id: product.id },
