@@ -50,5 +50,6 @@ export async function saveHomeImages(formData: FormData): Promise<void> {
 
   revalidateTag(HOME_IMAGES_TAG, "max");
   revalidatePath("/", "layout"); // header, footer, and home page
+  revalidatePath("/our-story"); // Our Story page image
   revalidatePath("/admin/home");
 }

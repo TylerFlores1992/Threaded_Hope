@@ -9,7 +9,7 @@ export default async function AdminHomePage() {
   if (!isDbConfigured()) {
     return (
       <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
-        Connect a database to manage home page images.
+        Connect a database to manage site photos.
       </p>
     );
   }
@@ -23,11 +23,12 @@ export default async function AdminHomePage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl text-ink">Home page</h1>
+      <h1 className="font-serif text-3xl text-ink">Photos</h1>
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-        Upload images for the storefront home page. Each slot falls back to a
-        sensible default when empty — the logo appears in the header, footer, and
-        story section; the hero images fill the collage beside the headline.
+        Upload the editable non-product photos across the site. Each slot falls
+        back to a sensible default when empty — the logo appears in the header,
+        footer, and story section; the hero images fill the home collage; the
+        story images sit beside the home blurb and atop the Our Story page.
         Changes appear on the site within a moment of saving.
       </p>
 
