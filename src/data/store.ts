@@ -19,7 +19,7 @@ export const store = {
   },
 
   contact: {
-    email: "hello@threadedhope.shop",
+    email: "Melinda@threaded-hope.com",
     phone: "",
     location: "Handmade in the USA",
   },
@@ -34,20 +34,22 @@ export const store = {
   shipping: {
     freeThreshold: 50, // free shipping over this US$ amount
     flatRate: 5.5,
+    // Weight of packaging (mailer/box + padding) added on top of item weights
+    // when estimating a shipment's total weight for label rates, in ounces.
+    packagingWeightOz: 2,
   },
 
   // Return / ship-FROM address used when buying carrier labels (Shippo).
-  // ── EDIT HERE ── with your real address before buying live labels.
   shipFrom: {
     name: "Threaded Hope",
     street1: "2179 Belhaven Ave",
     street2: "",
-    city: "Your City",
-    state: "CA", // 2-letter state
-    zip: "00000",
+    city: "Simi Valley",
+    state: "CA",
+    zip: "93063",
     country: "US",
     phone: "",
-    email: "hello@threadedhope.shop",
+    email: "Melinda@threaded-hope.com",
   },
 };
 

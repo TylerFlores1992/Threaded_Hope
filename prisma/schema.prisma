@@ -29,6 +29,7 @@ model Product {
   inStock        Boolean  @default(true)
   stock          Int? // null = untracked inventory (products without sizes)
   sizeStock      Json     @default("{}") // per-size counts, e.g. {"S":5,"M":0}; empty = not per-size
+  weightOz       Float? // shipping weight of one unit, in ounces (used for label rates)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

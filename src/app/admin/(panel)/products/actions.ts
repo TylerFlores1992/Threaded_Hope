@@ -44,6 +44,7 @@ type Parsed = {
   collections: string[];
   featured: boolean;
   stock: number | null;
+  weightOz: number | null;
   variants: Variant[];
 };
 
@@ -53,6 +54,7 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
   const price = Number(formData.get("price") ?? 0);
   const collectionSlug = String(formData.get("collectionSlug") ?? "").trim();
   const stockRaw = String(formData.get("stock") ?? "").trim();
+  const weightRaw = String(formData.get("weightOz") ?? "").trim();
 
   if (!name) throw new Error("Name is required.");
   if (!validSlugs.has(collectionSlug)) {
@@ -116,6 +118,10 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
     collections: allCollections,
     featured: formData.get("featured") === "on",
     stock: stockRaw === "" ? null : Math.max(0, Math.floor(Number(stockRaw))),
+    weightOz:
+      weightRaw === "" || !Number.isFinite(Number(weightRaw))
+        ? null
+        : Math.max(0, Number(weightRaw)),
     variants,
   };
 }
@@ -156,6 +162,7 @@ export async function createProduct(formData: FormData): Promise<void> {
       // take over from there. Unsized products follow their stock count.
       inStock: sizeAxisOf({ variants: data.variants }) ? true : derivedInStock(data),
       stock: data.stock,
+      weightOz: data.weightOz,
       variants: data.variants,
       ...(image ? { image } : {}),
     },
@@ -186,6 +193,7 @@ export async function updateProduct(
       collections: data.collections,
       featured: data.featured,
       variants: data.variants,
+      weightOz: data.weightOz,
       // stock / inStock are managed by the live inventory editors (on this page
       // and the Inventory page), so a product edit never overwrites them.
       ...(image ? { image } : {}),

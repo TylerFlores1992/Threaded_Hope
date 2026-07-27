@@ -38,6 +38,7 @@ export default async function EditProductPage({
     inStock: row.inStock,
     featured: row.featured,
     stock: row.stock,
+    weightOz: row.weightOz,
     image: row.image ?? undefined,
   };
 
