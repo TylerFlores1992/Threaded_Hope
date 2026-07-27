@@ -15,8 +15,13 @@ export const HOME_IMAGE_SLOTS = [
   { key: "home_hero_4", label: "Hero image 4", help: "Bottom-right of the hero collage." },
   {
     key: "home_story_image",
-    label: "“Stitched with hope” image",
-    help: "The image beside the story blurb. Defaults to the logo.",
+    label: "Home “Stitched with hope” image",
+    help: "The image beside the story blurb on the home page. Defaults to the logo.",
+  },
+  {
+    key: "our_story_image",
+    label: "Our Story page image",
+    help: "The large photo at the top of the Our Story page. Defaults to a placeholder.",
   },
 ] as const;
 

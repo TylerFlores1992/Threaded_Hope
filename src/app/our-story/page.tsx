@@ -3,13 +3,18 @@ import Link from "next/link";
 import { store } from "@/data/store";
 import { PageIntro } from "@/components/PageIntro";
 import { placeholderImage } from "@/lib/placeholder";
+import { getHomeImages } from "@/lib/home-images";
 
 export const metadata: Metadata = {
   title: "Our Story",
   description: "The faith, family, and mission behind Threaded Hope.",
 };
 
-export default function OurStoryPage() {
+export default async function OurStoryPage() {
+  const homeImages = await getHomeImages();
+  const storyImage =
+    homeImages.our_story_image ?? placeholderImage("Our Story", 40);
+
   return (
     <div>
       <PageIntro
@@ -18,8 +23,9 @@ export default function OurStoryPage() {
       />
 
       <article className="mx-auto max-w-3xl px-4 py-14">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={placeholderImage("Our Story", 40)}
+          src={storyImage}
           alt="A sunlit sewing table with fabric and thread"
           className="mb-10 w-full rounded-2xl object-cover ring-1 ring-border"
         />
