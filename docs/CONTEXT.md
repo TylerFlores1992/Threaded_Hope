@@ -24,6 +24,8 @@ payment/receipt record; the app's database mirrors orders and drives the catalog
   catalog + orders + traffic store. **The app still builds and runs with no
   database** — it falls back to the static seed (see "Catalog data layer").
 - **Vercel Blob** for product photo uploads.
+- **Shippo** (REST, no SDK) for buying + printing carrier shipping labels from
+  the admin — optional, gated on `SHIPPO_API_KEY`.
 
 ## Architecture
 
@@ -45,11 +47,13 @@ src/
       actions.ts                 login / logout server actions
       (panel)/                   authenticated admin (shared sidebar layout)
         page.tsx                 dashboard (stats + recent orders)
-        products/                list · new · [id]/edit · actions.ts
-        orders/                  recorded orders
+        products/                list · new · [id]/edit (+ live inventory) · actions.ts
+        orders/                  recorded orders (+ actions.ts: labels, sample order)
+        orders/[id]/label/       buy + print a Shippo shipping label
         inventory/               stock editing (+ actions.ts)
         discounts/               Stripe promo codes (+ actions.ts)
         traffic/                 page-view analytics
+      orders/[id]/slip/          printable packing slip (outside (panel), no chrome)
     our-story/ gifting/ faqs/ contact/ shipping-returns/  content pages
     not-found.tsx                themed 404
   middleware.ts                  gates /admin/* on the session cookie
@@ -58,9 +62,11 @@ src/
   data/                          store.ts, collections.ts, products.ts, faqs.ts
                                  (static seed + fallback catalog)
   lib/                           cart-context, format, placeholder, stripe,
-                                 db (Prisma), catalog (DB-or-static), pricing, auth
+                                 db (Prisma), catalog (DB-or-static), pricing, auth,
+                                 shipping (Shippo REST), stock, discounts, settings
 prisma/
-  schema.prisma                  Product, Order, Pageview models
+  schema.prisma                  Product, Collection, Order, Pageview,
+                                 DiscountRule, Setting models
   seed.ts                        one-time seed from the static catalog
   deploy.mjs                     build step: db push + seed when a DB exists
 scripts/
@@ -84,7 +90,9 @@ care where the data came from. `store.ts` and `faqs.ts` remain static config
 seed + fallback — see below.
 
 - `store.ts` — brand name, tagline, **Scripture line**, contact, socials,
-  shipping thresholds (`freeThreshold`, `flatRate`).
+  shipping thresholds (`freeThreshold`, `flatRate`, `packagingWeightOz`), and the
+  `shipFrom` return address used as the label sender (name/street/city/state/zip/
+  phone/email — edit before buying live labels; USPS requires both phone + email).
 - `collections.ts` — the static collection list (14): `slug`, `name`,
   `description`, `hue`, optional `featured`/`hidden`. Seeds the DB `Collection`
   table on first deploy and is the runtime fallback. At runtime, collections are
@@ -105,7 +113,10 @@ seed + fallback — see below.
   **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic),
   **DiscountRule** (automatic cart discounts), and **Setting** (key/value).
   `Product` has a primary `collectionSlug` plus a
-  `collections` JSON list of every collection it appears in (see gotchas).
+  `collections` JSON list of every collection it appears in (see gotchas), and a
+  `weightOz` (per-unit shipping weight, used to prefill label parcels). `Order`
+  carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
+  bought.
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
 - Tables + seed are **auto-provisioned at build time** by `prisma/deploy.mjs`
@@ -185,9 +196,33 @@ seed + fallback — see below.
   `isAvailable`/`sizeSoldOut`/`defaultOption`/`computeInStock` are shared: the
   product page disables sold-out sizes and defaults to an in-stock one, checkout
   skips a sold-out size, and the webhook decrements the purchased size (passed in
-  the line metadata). Edited per-size in the admin Inventory page; products
-  without a size axis keep the single `stock` field. `checkout`/`success` skip
+  the line metadata). Edited per-size via the live inventory controls, now shown
+  on **both** the Inventory page and the product edit page (`StockField` /
+  `SizeStockField`, shared as the `ProductForm` `inventoryEditor` slot); because
+  those write stock directly, `updateProduct` no longer touches `stock`/`inStock`.
+  Products without a size axis keep the single `stock` field. `checkout`/`success` skip
   applies; overall `inStock` is derived in the catalog layer.
+- **Fulfillment: packing slips + shipping labels.** Each recorded order has two
+  admin tools. **Packing slip** (`/admin/orders/[id]/slip`) is a print-friendly
+  page (logo, `store.contact` email + IG handle, ship-to, item/qty table, total,
+  thank-you + Scripture) — it lives *outside* the `(panel)` group so `ChromeGate`
+  strips the admin sidebar for a clean print; a `print:hidden` toolbar/button
+  triggers `window.print()`. **Buy label** (`/admin/orders/[id]/label`) uses
+  Shippo: `lib/shipping.ts` is a dependency-free REST client (`createShipment` →
+  live rates, `buyLabel` → PDF label + tracking), all gated on `SHIPPO_API_KEY`.
+  The page is a stateless two-step — a GET parcel form puts dims in the query,
+  the page fetches rates, and each rate's Buy is a server action
+  (`purchaseLabel`) that persists `labelUrl`/`trackingNumber`/`carrier`. Parcel
+  weight is prefilled from the ordered products' `weightOz` × qty +
+  `packagingWeightOz`, else left blank to force manual entry. Failures redirect
+  back with a `buyError` banner rather than throwing (so Shippo messages are
+  visible). Gotchas surfaced in testing: **non-USPS carriers (UPS, …) must be
+  activated** in the Shippo dashboard first; **USPS requires both a sender phone
+  and email** on `shipFrom`. When unconfigured the page shows a setup guide, and
+  local-pickup / address-less orders are skipped. A test-mode-only **"Create
+  sample order"** button (shown when the token is `shippo_test_*`, via
+  `isShippoTestMode()`) inserts a realistic order to exercise the flow before real
+  orders exist; it auto-hides on the live token.
 - **Product images can be migrated off Shopify.** Freshly-seeded products hotlink
   the Threaded Hope Shopify CDN. `scripts/migrate-images.mjs` downloads each photo
   into Vercel Blob and rewrites `product.image` — idempotent, and requires a
@@ -280,6 +315,8 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
   sync/seed), plus the other `DATABASE_*` vars the integration adds.
 - **Blob** — `BLOB_READ_WRITE_TOKEN`
 - **Admin** — `ADMIN_PASSWORD`
+- **Shipping (optional)** — `SHIPPO_API_KEY` (`shippo_test_*` or `shippo_live_*`);
+  enables buying labels in the admin. Absent → the label page shows a setup guide.
 - **Instagram** — `INSTAGRAM_ACCESS_TOKEN` (bootstraps the home feed; then the
   self-refreshing DB copy is preferred), `CRON_SECRET` (guards the refresh cron)
 

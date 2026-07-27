@@ -44,6 +44,7 @@ cp .env.example .env.local
 | `DATABASE_POSTGRES_URL_NON_POOLING` | Migrations | Direct Postgres URL used for schema sync + seed. Added by the integration. |
 | `BLOB_READ_WRITE_TOKEN` | Photo upload | Vercel Blob read-write token for the product image uploader. |
 | `ADMIN_PASSWORD` | Admin login | Password that gates `/admin`. Choose any strong value. |
+| `SHIPPO_API_KEY` | Shipping labels (optional) | Shippo API token for buying/printing labels in the admin. `shippo_test_…` for free test labels, `shippo_live_…` for real postage. From [apps.goshippo.com/settings/api](https://apps.goshippo.com/settings/api). Absent → the label page shows a setup guide. |
 | `INSTAGRAM_ACCESS_TOKEN` | Home IG strip | Long-lived Instagram Graph API user token. When set, the home page shows your latest 6 posts (auto-refreshing hourly); without it the strip falls back to recent product photos. |
 | `CRON_SECRET` | IG token refresh | Random secret that authenticates the weekly token-refresh cron (`/api/cron/refresh-instagram`). Vercel Cron sends it as a Bearer token. Any strong random string. |
 
@@ -92,9 +93,11 @@ tables and seeds the 116 starter products **once** (it skips seeding if the
 catalog already has rows, so it never overwrites admin edits).
 
 **Using the admin:** go to `/admin`, sign in with `ADMIN_PASSWORD`, then manage
-Products (create/edit/delete with photo upload), Orders, Inventory, Discounts
-(Stripe promo codes), and Traffic. Storefront pages revalidate automatically when
-you save, so changes appear within moments.
+Products (create/edit/delete with photo upload, including per-size/-unit stock and
+shipping weight), Orders (with printable packing slips and Shippo shipping
+labels — see below), Inventory, Discounts (Stripe promo codes), and Traffic.
+Storefront pages revalidate automatically when you save, so changes appear within
+moments.
 
 To run the data scripts locally, first get the env vars into `.env.local`. The
 easiest way is the Vercel CLI:
@@ -201,6 +204,38 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 
 If a refresh ever fails (e.g. the token fully expired first), just generate a new
 one and update `INSTAGRAM_ACCESS_TOKEN` — the cron re-bootstraps from it.
+
+### Shipping labels (Shippo, optional)
+
+The admin can buy and print carrier labels per order (**Orders → Buy**). It's
+optional — without a token the label page shows a setup guide, and packing slips
+(**Orders → Print**) work regardless.
+
+1. **Create a Shippo account** at [goshippo.com](https://goshippo.com)
+   (pay-per-label, no monthly fee). Add a payment method under **Settings →
+   Payment**.
+2. **Copy an API token** from **Settings → Advanced → API**
+   ([apps.goshippo.com/settings/api](https://apps.goshippo.com/settings/api)).
+   Start with the **test** token (`shippo_test_…`, free fake labels); switch to
+   the **live** token (`shippo_live_…`) when ready to buy real postage.
+3. **Add it in Vercel** as `SHIPPO_API_KEY` (Production; Preview/Dev if wanted),
+   then **redeploy** so it takes effect.
+4. **Set your return address** in `src/data/store.ts` → `shipFrom` (name, street,
+   city, state, zip, **phone**, email). This is the label sender.
+
+Notes / gotchas learned in practice:
+
+- **USPS requires both a sender phone and email** on `shipFrom` — a missing phone
+  makes USPS purchases fail.
+- **Non-USPS carriers (UPS, etc.) must be activated first** in the Shippo
+  dashboard (**Settings → Carriers → Activate Account**). USPS works out of the
+  box; buying an un-activated carrier's rate returns a "not yet registered" error.
+- **Parcel weight** is prefilled from each product's **Weight (oz)** (set in the
+  product editor) × quantity plus `store.shipping.packagingWeightOz`; if no
+  product weights are set you enter it manually. Always verify before buying.
+- **Test the flow before real orders exist:** while a `shippo_test_*` token is
+  set, the Orders page shows a **"Create sample order"** button that inserts a
+  realistic order to exercise labels + slips. It disappears on the live token.
 
 ## Deploy to production
 
