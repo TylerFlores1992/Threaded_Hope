@@ -18,6 +18,11 @@ export function isShippingConfigured(): boolean {
   return Boolean(process.env.SHIPPO_API_KEY);
 }
 
+/** True while a Shippo TEST token is configured — gates test-only tooling. */
+export function isShippoTestMode(): boolean {
+  return Boolean(process.env.SHIPPO_API_KEY?.startsWith("shippo_test_"));
+}
+
 function authHeaders(): HeadersInit {
   return {
     Authorization: `ShippoToken ${process.env.SHIPPO_API_KEY}`,
