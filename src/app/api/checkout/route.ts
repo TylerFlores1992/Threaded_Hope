@@ -111,6 +111,18 @@ export async function POST(req: Request) {
             },
           },
         },
+        {
+          // Free local pickup — customer collects the order, no shipping charge.
+          shipping_rate_data: {
+            type: "fixed_amount",
+            display_name: "Local pickup (free)",
+            fixed_amount: { amount: 0, currency: "usd" },
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 3 },
+            },
+          },
+        },
       ],
       phone_number_collection: { enabled: true },
       success_url: `${origin}/checkout/success`,
