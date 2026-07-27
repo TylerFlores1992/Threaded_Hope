@@ -46,6 +46,7 @@ export default async function OrdersPage() {
                 <th className="px-4 py-3 font-medium">Items</th>
                 <th className="px-4 py-3 font-medium text-right">Total</th>
                 <th className="px-4 py-3 font-medium text-right">Slip</th>
+                <th className="px-4 py-3 font-medium text-right">Label</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -89,6 +90,14 @@ export default async function OrdersPage() {
                         className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
                       >
                         Print
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/admin/orders/${o.id}/label`}
+                        className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
+                      >
+                        {o.labelUrl ? "View" : "Buy"}
                       </Link>
                     </td>
                   </tr>
