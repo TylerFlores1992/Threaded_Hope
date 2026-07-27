@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPrisma } from "@/lib/db";
-import { collections } from "@/data/collections";
+import { getAllCollections } from "@/lib/collections";
 import type { Variant } from "@/data/products";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { updateProduct } from "../../actions";
@@ -18,6 +18,7 @@ export default async function EditProductPage({
   const row = await prisma.product.findUnique({ where: { id } });
   if (!row) notFound();
 
+  const collections = await getAllCollections();
   const storedCollections = Array.isArray(row.collections)
     ? (row.collections as string[])
     : [];

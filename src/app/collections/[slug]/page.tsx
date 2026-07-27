@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { collections, collectionBySlug } from "@/data/collections";
+import { getVisibleCollections, getCollectionBySlug } from "@/lib/collections";
 import { getProductsByCollection } from "@/lib/catalog";
 import { withInStockFirst } from "@/lib/sort";
 import { ProductCard } from "@/components/ProductCard";
@@ -8,8 +8,8 @@ import { placeholderImage } from "@/lib/placeholder";
 
 export const revalidate = 300;
 
-export function generateStaticParams() {
-  return collections.map((c) => ({ slug: c.slug }));
+export async function generateStaticParams() {
+  return (await getVisibleCollections()).map((c) => ({ slug: c.slug }));
 }
 
 export async function generateMetadata({
@@ -18,7 +18,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const collection = collectionBySlug(slug);
+  // Include hidden so a direct link to a hidden collection still has metadata.
+  const collection = await getCollectionBySlug(slug, { includeHidden: true });
   if (!collection) return {};
   return { title: collection.name, description: collection.description };
 }
@@ -29,7 +30,8 @@ export default async function CollectionPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const collection = collectionBySlug(slug);
+  // Hidden collections aren't listed but remain reachable by direct URL.
+  const collection = await getCollectionBySlug(slug, { includeHidden: true });
   if (!collection) notFound();
 
   const items = withInStockFirst(await getProductsByCollection(slug));

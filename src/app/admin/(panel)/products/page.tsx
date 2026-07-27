@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
-import { collections } from "@/data/collections";
+import { getAllCollections } from "@/lib/collections";
 import {
   AdminProductsTable,
   type AdminProduct,
@@ -17,6 +17,7 @@ export default async function AdminProductsPage() {
     );
   }
 
+  const collections = await getAllCollections();
   const rows = await prisma.product.findMany({
     orderBy: { createdAt: "asc" },
   });

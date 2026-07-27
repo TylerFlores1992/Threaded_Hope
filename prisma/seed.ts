@@ -6,10 +6,37 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { products } from "../src/data/products";
+import { collections } from "../src/data/collections";
 
 const prisma = new PrismaClient();
 
+async function seedCollections() {
+  // One-time: only seed when empty, so admin edits are never clobbered.
+  const existing = await prisma.collection.count();
+  if (existing > 0) {
+    console.log(`Collections table already has ${existing} rows — skipping.`);
+    return;
+  }
+  console.log(`Seeding ${collections.length} collections…`);
+  for (let i = 0; i < collections.length; i++) {
+    const c = collections[i];
+    await prisma.collection.create({
+      data: {
+        slug: c.slug,
+        name: c.name,
+        description: c.description,
+        hue: c.hue,
+        featured: c.featured ?? false,
+        hidden: c.hidden ?? false,
+        sortOrder: i,
+      },
+    });
+  }
+}
+
 async function main() {
+  await seedCollections();
+
   // One-time: only seed when the catalog is empty, so redeploys never clobber
   // products created or edited in the admin.
   const existing = await prisma.product.count();

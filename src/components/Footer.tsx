@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { store } from "@/data/store";
-import { collections } from "@/data/collections";
+import { getVisibleCollections } from "@/lib/collections";
 import { Newsletter } from "./Newsletter";
 
-const shopLinks = collections.slice(0, 6);
 const helpLinks = [
   { href: "/faqs", label: "FAQs" },
   { href: "/shipping-returns", label: "Shipping & Returns" },
@@ -11,7 +10,8 @@ const helpLinks = [
   { href: "/our-story", label: "Our Story" },
 ];
 
-export function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
+export async function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
+  const shopLinks = (await getVisibleCollections()).slice(0, 6);
   return (
     <footer className="mt-16 border-t border-border bg-sand">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">

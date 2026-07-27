@@ -3,6 +3,7 @@ import { Fraunces, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { store } from "@/data/store";
 import { getHomeImages } from "@/lib/home-images";
+import { getVisibleCollections } from "@/lib/collections";
 import { CartProvider } from "@/lib/cart-context";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -44,6 +45,7 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const homeImages = await getHomeImages();
   const logoSrc = homeImages.home_logo ?? "/logo.png";
+  const navCollections = await getVisibleCollections();
   return (
     <html
       lang="en"
@@ -55,7 +57,7 @@ export default async function RootLayout({
             Skip to content
           </a>
           <ChromeGate>
-            <Header logoSrc={logoSrc} />
+            <Header logoSrc={logoSrc} collections={navCollections} />
           </ChromeGate>
           <main id="main" className="flex-1">
             {children}

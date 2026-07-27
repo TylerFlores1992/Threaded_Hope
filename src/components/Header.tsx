@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { store } from "@/data/store";
-import { collections } from "@/data/collections";
+import type { Collection } from "@/data/collections";
 import { useCart } from "@/lib/cart-context";
 
 const primaryNav = [
@@ -15,7 +15,13 @@ const primaryNav = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function Header({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
+export function Header({
+  logoSrc = "/logo.png",
+  collections = [],
+}: {
+  logoSrc?: string;
+  collections?: Collection[];
+}) {
   const { count, openCart } = useCart();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);

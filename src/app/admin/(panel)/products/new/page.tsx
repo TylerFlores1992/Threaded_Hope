@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { collections } from "@/data/collections";
+import { getAllCollections } from "@/lib/collections";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { createProduct } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
+  const collections = await getAllCollections();
   return (
     <div>
       <Link href="/admin/products" className="text-sm text-ink-soft">

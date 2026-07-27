@@ -9,7 +9,7 @@ import {
   type Product,
   type Variant,
 } from "@/data/products";
-import { collections } from "@/data/collections";
+import { getCollectionMap } from "@/lib/collections";
 import { computeInStock } from "@/lib/stock";
 
 /**
@@ -24,7 +24,7 @@ import { computeInStock } from "@/lib/stock";
  * storefront components don't care where the data came from.
  */
 
-const collectionMap = new Map(collections.map((c) => [c.slug, c]));
+type CollectionMap = Map<string, { name: string; hue: number }>;
 
 type ProductRow = {
   slug: string;
@@ -41,7 +41,7 @@ type ProductRow = {
   createdAt: Date;
 };
 
-function mapRow(row: ProductRow): Product {
+function mapRow(row: ProductRow, collectionMap: CollectionMap): Product {
   const collection = collectionMap.get(row.collectionSlug);
   // Fall back to the primary slug when the collections list is empty (e.g. rows
   // seeded before multi-collection support, or not yet backfilled).
@@ -80,7 +80,8 @@ export async function getProducts(): Promise<Product[]> {
   const rows = await prisma.product.findMany({ orderBy: { createdAt: "asc" } });
   // Safety: never render an empty storefront if the DB exists but isn't seeded.
   if (rows.length === 0) return staticProducts;
-  return rows.map(mapRow);
+  const collMap = await getCollectionMap();
+  return rows.map((r) => mapRow(r, collMap));
 }
 
 export async function getProductBySlug(
@@ -88,7 +89,7 @@ export async function getProductBySlug(
 ): Promise<Product | undefined> {
   if (!prisma) return staticProductBySlug(slug);
   const row = await prisma.product.findUnique({ where: { slug } });
-  return row ? mapRow(row) : undefined;
+  return row ? mapRow(row, await getCollectionMap()) : undefined;
 }
 
 export async function getProductsByCollection(
@@ -104,7 +105,8 @@ export async function getProductsByCollection(
     },
     orderBy: { createdAt: "asc" },
   });
-  return rows.map(mapRow);
+  const collMap = await getCollectionMap();
+  return rows.map((r) => mapRow(r, collMap));
 }
 
 export async function getFeaturedProducts(): Promise<Product[]> {
@@ -118,7 +120,8 @@ export async function getFeaturedProducts(): Promise<Product[]> {
     const total = await prisma.product.count();
     if (total === 0) return staticFeatured;
   }
-  return rows.map(mapRow);
+  const collMap = await getCollectionMap();
+  return rows.map((r) => mapRow(r, collMap));
 }
 
 /**
@@ -158,5 +161,6 @@ export async function getRelatedProducts(
     take: limit,
     orderBy: [{ inStock: "desc" }, { createdAt: "asc" }], // in-stock first
   });
-  return rows.map(mapRow);
+  const collMap = await getCollectionMap();
+  return rows.map((r) => mapRow(r, collMap));
 }

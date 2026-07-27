@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from "react";
 import type { Product } from "@/data/products";
-import { collections } from "@/data/collections";
+import type { Collection } from "@/data/collections";
 import { ProductCard } from "./ProductCard";
 
 type Sort = "newest" | "price-asc" | "price-desc";
 
 export function ShopClient({
   products,
+  collections,
   initialQuery = "",
 }: {
   products: Product[];
+  collections: Collection[];
   initialQuery?: string;
 }) {
   const [activeCollections, setActiveCollections] = useState<string[]>([]);

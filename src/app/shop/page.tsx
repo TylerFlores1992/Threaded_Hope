@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getProducts } from "@/lib/catalog";
+import { getVisibleCollections } from "@/lib/collections";
 import { ShopClient } from "@/components/ShopClient";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default async function ShopPage({
 }) {
   const { q } = await searchParams;
   const products = await getProducts();
+  const collections = await getVisibleCollections();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -27,7 +29,11 @@ export default async function ShopPage({
           Handmade fabric accessories, made in small batches with care.
         </p>
       </header>
-      <ShopClient products={products} initialQuery={q ?? ""} />
+      <ShopClient
+        products={products}
+        collections={collections}
+        initialQuery={q ?? ""}
+      />
     </div>
   );
 }

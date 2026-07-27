@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { store } from "@/data/store";
-import { collections } from "@/data/collections";
+import { getVisibleCollections } from "@/lib/collections";
 import { getFeaturedProducts, getCollectionImageOptions } from "@/lib/catalog";
 import { getInstagramPosts } from "@/lib/instagram";
 import { getHomeImages } from "@/lib/home-images";
@@ -13,7 +13,9 @@ import { placeholderImage } from "@/lib/placeholder";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const featuredCollections = collections.filter((c) => c.featured);
+  const featuredCollections = (await getVisibleCollections()).filter(
+    (c) => c.featured,
+  );
   const collImages = await getCollectionImageOptions();
   const igPosts = await getInstagramPosts(6);
   const homeImages = await getHomeImages();

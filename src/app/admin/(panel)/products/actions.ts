@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { put } from "@vercel/blob";
 import { getPrisma } from "@/lib/db";
-import { collections } from "@/data/collections";
+import { getAllCollections } from "@/lib/collections";
 import type { Variant } from "@/data/products";
 
 const slugify = (s: string) =>
@@ -79,7 +79,7 @@ type Parsed = {
   variants: Variant[];
 };
 
-function parseForm(formData: FormData): Parsed {
+function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const price = Number(formData.get("price") ?? 0);
@@ -87,7 +87,7 @@ function parseForm(formData: FormData): Parsed {
   const stockRaw = String(formData.get("stock") ?? "").trim();
 
   if (!name) throw new Error("Name is required.");
-  if (!collections.some((c) => c.slug === collectionSlug)) {
+  if (!validSlugs.has(collectionSlug)) {
     throw new Error("Please choose a valid collection.");
   }
   if (!Number.isFinite(price) || price < 0) {
@@ -99,7 +99,7 @@ function parseForm(formData: FormData): Parsed {
   const extra = formData
     .getAll("collections")
     .map((v) => String(v).trim())
-    .filter((s) => s && collections.some((c) => c.slug === s));
+    .filter((s) => s && validSlugs.has(s));
   const allCollections = Array.from(new Set([collectionSlug, ...extra]));
 
   return {
@@ -117,7 +117,8 @@ function parseForm(formData: FormData): Parsed {
 
 export async function createProduct(formData: FormData): Promise<void> {
   const prisma = getPrisma();
-  const data = parseForm(formData);
+  const validSlugs = new Set((await getAllCollections()).map((c) => c.slug));
+  const data = parseForm(formData, validSlugs);
   const image = await uploadImage(formData.get("image") as File | null);
 
   // Ensure a unique slug.
@@ -153,7 +154,8 @@ export async function updateProduct(
   formData: FormData,
 ): Promise<void> {
   const prisma = getPrisma();
-  const data = parseForm(formData);
+  const validSlugs = new Set((await getAllCollections()).map((c) => c.slug));
+  const data = parseForm(formData, validSlugs);
   const image = await uploadImage(formData.get("image") as File | null);
   const existing = await prisma.product.findUnique({ where: { id } });
   if (!existing) throw new Error("Product not found.");

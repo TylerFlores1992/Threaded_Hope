@@ -1,5 +1,5 @@
 import { prisma, isDbConfigured } from "@/lib/db";
-import { collections } from "@/data/collections";
+import { getAllCollections } from "@/lib/collections";
 import { sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import {
@@ -18,6 +18,7 @@ export default async function InventoryPage() {
     );
   }
 
+  const collections = await getAllCollections();
   const rows = await prisma.product.findMany({
     orderBy: [{ stock: { sort: "asc", nulls: "last" } }, { name: "asc" }],
   });

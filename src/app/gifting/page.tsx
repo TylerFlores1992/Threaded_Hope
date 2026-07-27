@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { collections } from "@/data/collections";
+import { getVisibleCollections } from "@/lib/collections";
 import type { Product } from "@/data/products";
 import { getProducts } from "@/lib/catalog";
 import { withInStockFirst } from "@/lib/sort";
@@ -43,8 +43,8 @@ export const revalidate = 300;
 
 export default async function GiftingPage() {
   const products = await getProducts();
-  const giftCollections = collections.filter((c) =>
-    ["gifts-for-parents", "faith-based", "fur-babies", "kiddos"].includes(c.slug),
+  const giftCollections = (await getVisibleCollections()).filter((c) =>
+    ["for-the-parents", "faith-based", "fur-babies", "kiddos"].includes(c.slug),
   );
 
   return (
