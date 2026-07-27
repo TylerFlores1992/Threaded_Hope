@@ -4,8 +4,11 @@ import { getVisibleCollections } from "@/lib/collections";
 import { ShopClient } from "@/components/ShopClient";
 
 export const metadata: Metadata = {
-  title: "Shop All Products",
-  description: "Browse all handmade fabric accessories from Threaded Hope.",
+  title: "Shop Handmade Bags, Pouches & Gifts",
+  description:
+    "Browse every handmade piece from Threaded Hope — bags, zipper pouches, " +
+    "tote bags, keychains, and faith-based gifts, each sewn in small batches.",
+  alternates: { canonical: "/shop" },
 };
 
 // Revalidate periodically so catalog edits in the admin appear; admin mutations
