@@ -91,6 +91,11 @@ model Order {
   status           String   @default("paid")
   shipping         Json?
   items            Json     @default("[]")
+  subtotalCents    Int? // pre-discount, pre-shipping line total (for receipts)
+  discountCents    Int? // total discount applied (promo/auto)
+  shippingCents    Int? // shipping charged
+  isGift           Boolean  @default(false)
+  giftMessage      String?
   labelUrl         String?
   trackingNumber   String?
   carrier          String?

@@ -11,7 +11,7 @@ import { buyLabel, isShippoTestMode } from "@/lib/shipping";
  * before real orders exist. Guarded to Shippo test mode only. Uses a real
  * product slug (if any) so per-product weight prefill works on the label page.
  */
-export async function createTestOrder(): Promise<void> {
+export async function createTestOrder(isGift = false): Promise<void> {
   if (!isShippoTestMode()) {
     throw new Error("Sample orders can only be created in Shippo test mode.");
   }
@@ -30,7 +30,9 @@ export async function createTestOrder(): Promise<void> {
       unitAmountCents: product?.priceCents ?? 2500,
     },
   ];
-  const amountTotalCents = items[0].unitAmountCents + 550; // + sample shipping
+  const subtotalCents = items[0].unitAmountCents;
+  const shippingCents = 550;
+  const amountTotalCents = subtotalCents + shippingCents;
 
   await prisma.order.create({
     data: {
@@ -38,6 +40,12 @@ export async function createTestOrder(): Promise<void> {
       email: "sample.customer@example.com",
       customerName: "Sample Customer",
       amountTotalCents,
+      subtotalCents,
+      shippingCents,
+      isGift,
+      giftMessage: isGift
+        ? "Happy birthday! Hope this brings a little joy to your day. 💛"
+        : null,
       currency: "usd",
       status: "paid",
       shipping: {

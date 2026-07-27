@@ -38,12 +38,18 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   });
 
   const details = session.customer_details;
+  const meta = session.metadata ?? {};
   await prisma.order.create({
     data: {
       stripeSessionId: session.id,
       email: details?.email ?? null,
       customerName: details?.name ?? null,
       amountTotalCents: session.amount_total ?? 0,
+      subtotalCents: session.amount_subtotal ?? null,
+      discountCents: session.total_details?.amount_discount ?? null,
+      shippingCents: session.total_details?.amount_shipping ?? null,
+      isGift: meta.isGift === "1",
+      giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
       currency: session.currency ?? "usd",
       status: "paid",
       shipping: details?.address

@@ -43,17 +43,27 @@ export default async function OrdersPage() {
       </div>
 
       {isShippoTestMode() && (
-        <form action={createTestOrder} className="mt-4">
-          <button
-            type="submit"
-            className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
-          >
-            + Create sample order (test mode)
-          </button>
-          <span className="ml-2 text-xs text-ink-soft">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <form action={createTestOrder.bind(null, false)}>
+            <button
+              type="submit"
+              className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
+            >
+              + Create sample order (test mode)
+            </button>
+          </form>
+          <form action={createTestOrder.bind(null, true)}>
+            <button
+              type="submit"
+              className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
+            >
+              + Create sample gift order
+            </button>
+          </form>
+          <span className="text-xs text-ink-soft">
             Only shown while a Shippo test token is set.
           </span>
-        </form>
+        </div>
       )}
 
       {orders.length === 0 ? (
