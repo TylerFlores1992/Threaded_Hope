@@ -48,7 +48,7 @@ export const store = {
     state: "CA",
     zip: "93063",
     country: "US",
-    phone: "",
+    phone: "8054047195",
     email: "Melinda@threaded-hope.com",
   },
 };
