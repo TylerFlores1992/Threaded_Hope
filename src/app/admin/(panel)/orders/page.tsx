@@ -33,6 +33,15 @@ export default async function OrdersPage() {
         in your Stripe Dashboard.
       </p>
 
+      <div className="mt-3">
+        <Link
+          href="/admin/orders/packaging"
+          className="text-sm font-medium text-sage-deep hover:underline"
+        >
+          Manage packaging →
+        </Link>
+      </div>
+
       {isShippoTestMode() && (
         <form action={createTestOrder} className="mt-4">
           <button

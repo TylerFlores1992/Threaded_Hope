@@ -8,12 +8,11 @@ import {
   type ShipToAddress,
   type Rate,
 } from "@/lib/shipping";
+import { getPackagingOptions } from "@/lib/packaging";
+import { ParcelForm } from "@/components/admin/ParcelForm";
 import { purchaseLabel } from "../../actions";
 
 export const dynamic = "force-dynamic";
-
-const field =
-  "mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink";
 
 type ShipJson = {
   name?: string | null;
@@ -174,12 +173,7 @@ export default async function BuyLabelPage({
     return sum + w * (it.quantity ?? 1);
   }, 0);
   const anyWeightKnown = weightBySlug.size > 0;
-  const estimatedWeight = anyWeightKnown
-    ? Math.max(
-        1,
-        Math.round((itemsWeight + store.shipping.packagingWeightOz) * 10) / 10,
-      )
-    : null;
+  const packagingOptions = await getPackagingOptions();
 
   // Parcel dims come through the query once the parcel form is submitted.
   const num = (v: string | string[] | undefined) =>
@@ -220,38 +214,18 @@ export default async function BuyLabelPage({
       </p>
 
       {/* Parcel form (GET → puts dims in the query, page fetches rates) */}
-      <form method="get" className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
-        <p className="mb-3 text-sm font-medium text-ink">Parcel</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <label className="text-xs text-ink-soft">
-            Length (in)
-            <input name="length" type="number" min="1" step="0.1" defaultValue={typeof sp.length === "string" ? sp.length : "9"} className={field} />
-          </label>
-          <label className="text-xs text-ink-soft">
-            Width (in)
-            <input name="width" type="number" min="1" step="0.1" defaultValue={typeof sp.width === "string" ? sp.width : "6"} className={field} />
-          </label>
-          <label className="text-xs text-ink-soft">
-            Height (in)
-            <input name="height" type="number" min="1" step="0.1" defaultValue={typeof sp.height === "string" ? sp.height : "2"} className={field} />
-          </label>
-          <label className="text-xs text-ink-soft">
-            Weight (oz)
-            <input name="weight" type="number" min="1" step="0.1" placeholder="Enter oz" defaultValue={typeof sp.weight === "string" ? sp.weight : estimatedWeight != null ? String(estimatedWeight) : ""} className={field} />
-          </label>
-        </div>
-        <p className="mt-2 text-xs text-ink-soft">
-          {estimatedWeight != null
-            ? `Weight prefilled from product weights (${itemsWeight} oz) + ${store.shipping.packagingWeightOz} oz packaging. Verify before buying.`
-            : "Tip: set per-product weights in the product editor to auto-fill this. Verify before buying."}
-        </p>
-        <button
-          type="submit"
-          className="mt-4 rounded-lg bg-sage-deep px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          Get rates
-        </button>
-      </form>
+      <ParcelForm
+        itemsWeight={itemsWeight}
+        anyWeightKnown={anyWeightKnown}
+        packagingOptions={packagingOptions}
+        initial={{
+          length: typeof sp.length === "string" ? sp.length : "",
+          width: typeof sp.width === "string" ? sp.width : "",
+          height: typeof sp.height === "string" ? sp.height : "",
+          weight: typeof sp.weight === "string" ? sp.weight : "",
+          packaging: typeof sp.packaging === "string" ? sp.packaging : "",
+        }}
+      />
 
       {typeof sp.buyError === "string" && sp.buyError && (
         <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
