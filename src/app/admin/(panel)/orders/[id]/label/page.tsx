@@ -237,7 +237,7 @@ export default async function BuyLabelPage({
           </label>
           <label className="text-xs text-ink-soft">
             Weight (oz)
-            <input name="weight" type="number" min="1" step="0.1" defaultValue={typeof sp.weight === "string" ? sp.weight : estimatedWeight != null ? String(estimatedWeight) : "8"} className={field} />
+            <input name="weight" type="number" min="1" step="0.1" placeholder="Enter oz" defaultValue={typeof sp.weight === "string" ? sp.weight : estimatedWeight != null ? String(estimatedWeight) : ""} className={field} />
           </label>
         </div>
         <p className="mt-2 text-xs text-ink-soft">
