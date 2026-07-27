@@ -167,11 +167,16 @@ seed + fallback — see below.
   `resolveUnitPrice(product, options)` is shared by the client (live price on the
   product page) and the server (the charged amount at checkout), so they always
   agree. `priceRange`/`hasVariablePricing` drive the "From $X" labels on cards
-  and product pages. In the admin, sizes are built with a structured editor
-  (`ProductForm` — a "comes in sizes" toggle + rows of size + optional price);
-  non-size options (color, etc.) stay in the free-text "Other options" field.
-  The editor emits a `Size` variant (with a `prices` map when priced), which is
-  the price/stock axis.
+  and product pages. In the admin, `ProductForm` builds variants with structured
+  editors — a "comes in sizes" toggle with rows of size + optional price, and an
+  "Other options" builder of named groups (color, etc.) each with value rows
+  (serialized to the `otherOptions` JSON field). The size rows emit a `Size`
+  variant (with a `prices` map when priced) — the price/stock axis.
+- **`inStock` is derived, not a manual toggle.** The product form has no in-stock
+  checkbox; availability comes from inventory. Unsized products follow their
+  `stock` count (0 → sold out, blank → untracked/available); sized products get
+  it from per-size counts, so a product edit never overwrites a size's sold-out
+  state (only Inventory does).
 - **Per-size stock** (`lib/stock.ts`). Stock can be tracked per size on the
   product's "size axis" (the price-driving variant, else a variant named like
   "size"), stored in `Product.sizeStock` (`{"S":5,"M":0}`). A size is sold out

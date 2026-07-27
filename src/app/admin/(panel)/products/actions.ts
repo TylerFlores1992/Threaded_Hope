@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { put } from "@vercel/blob";
 import { getPrisma } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
+import { sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 
 const slugify = (s: string) =>
@@ -14,38 +15,6 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-/**
- * Parse the variants textarea: one line per group, e.g. "Color: Sage, Cream".
- * An option may carry a price with `=`, e.g. "Size: S=13, M=14, L=15" — those
- * become a `prices` map so the option's selection drives the charged price.
- */
-function parseVariants(raw: string): Variant[] {
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const idx = line.indexOf(":");
-      const name = (idx === -1 ? line : line.slice(0, idx)).trim();
-      const optsRaw = idx === -1 ? "" : line.slice(idx + 1);
-      const options: string[] = [];
-      const prices: Record<string, number> = {};
-      for (const part of optsRaw.split(",")) {
-        const [label, priceStr] = part.split("=");
-        const opt = label.trim();
-        if (!opt) continue;
-        options.push(opt);
-        if (priceStr !== undefined) {
-          const price = Number(priceStr.trim());
-          if (Number.isFinite(price) && price >= 0) prices[opt] = price;
-        }
-      }
-      const variant: Variant = { name, options };
-      if (Object.keys(prices).length > 0) variant.prices = prices;
-      return variant;
-    })
-    .filter((v) => v.name && v.options.length > 0);
-}
 
 function revalidateStorefront(slug?: string) {
   revalidatePath("/");
@@ -74,7 +43,6 @@ type Parsed = {
   collectionSlug: string;
   collections: string[];
   featured: boolean;
-  inStock: boolean;
   stock: number | null;
   variants: Variant[];
 };
@@ -122,12 +90,23 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
       variants.push(sizeVariant);
     }
   }
-  // Non-size option groups from the free-text field (color, etc.).
-  variants.push(
-    ...parseVariants(String(formData.get("variants") ?? "")).filter(
-      (v) => !/size/i.test(v.name),
-    ),
-  );
+  // Non-size option groups (color, style, …) from the structured editor JSON.
+  try {
+    const parsed = JSON.parse(
+      String(formData.get("otherOptions") ?? "[]"),
+    ) as { name?: unknown; options?: unknown }[];
+    for (const g of Array.isArray(parsed) ? parsed : []) {
+      const gname = typeof g.name === "string" ? g.name.trim() : "";
+      const opts = Array.isArray(g.options)
+        ? g.options.map((o) => String(o).trim()).filter(Boolean)
+        : [];
+      if (gname && !/size/i.test(gname) && opts.length > 0) {
+        variants.push({ name: gname, options: Array.from(new Set(opts)) });
+      }
+    }
+  } catch {
+    /* ignore malformed option JSON */
+  }
 
   return {
     name,
@@ -136,10 +115,18 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
     collectionSlug,
     collections: allCollections,
     featured: formData.get("featured") === "on",
-    inStock: formData.get("inStock") === "on",
     stock: stockRaw === "" ? null : Math.max(0, Math.floor(Number(stockRaw))),
     variants,
   };
+}
+
+/**
+ * In-stock is derived from inventory, not a manual toggle. Sized products get
+ * their flag from per-size counts (managed in Inventory), so we leave it alone
+ * on update and default new ones to available; unsized products follow `stock`.
+ */
+function derivedInStock(data: Parsed): boolean {
+  return data.stock == null ? true : data.stock > 0;
 }
 
 export async function createProduct(formData: FormData): Promise<void> {
@@ -165,7 +152,9 @@ export async function createProduct(formData: FormData): Promise<void> {
       collectionSlug: data.collectionSlug,
       collections: data.collections,
       featured: data.featured,
-      inStock: data.inStock,
+      // Sized products start available; per-size counts (set in Inventory)
+      // take over from there. Unsized products follow their stock count.
+      inStock: sizeAxisOf({ variants: data.variants }) ? true : derivedInStock(data),
       stock: data.stock,
       variants: data.variants,
       ...(image ? { image } : {}),
@@ -187,6 +176,7 @@ export async function updateProduct(
   const existing = await prisma.product.findUnique({ where: { id } });
   if (!existing) throw new Error("Product not found.");
 
+  const sized = !!sizeAxisOf({ variants: data.variants });
   await prisma.product.update({
     where: { id },
     data: {
@@ -196,9 +186,11 @@ export async function updateProduct(
       collectionSlug: data.collectionSlug,
       collections: data.collections,
       featured: data.featured,
-      inStock: data.inStock,
       stock: data.stock,
       variants: data.variants,
+      // Unsized: derive from stock. Sized: leave inStock to Inventory's per-size
+      // counts so a product edit can't accidentally un-sell-out a size.
+      ...(sized ? {} : { inStock: derivedInStock(data) }),
       ...(image ? { image } : {}),
     },
   });

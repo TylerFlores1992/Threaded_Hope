@@ -64,16 +64,54 @@ export function ProductForm({
       : [{ label: "", price: "" }],
   );
 
-  const otherVariantsText = allVariants
-    .filter((v) => v !== sizeAxis)
-    .map((v) => `${v.name}: ${v.options.join(", ")}`)
-    .join("\n");
-
   const updateRow = (i: number, patch: Partial<SizeRow>) =>
     setSizeRows((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const addRow = () => setSizeRows((rows) => [...rows, { label: "", price: "" }]);
   const removeRow = (i: number) =>
     setSizeRows((rows) => rows.filter((_, j) => j !== i));
+
+  // Non-size option groups (color, style, …) — structured, no prices.
+  const [optionGroups, setOptionGroups] = useState<
+    { name: string; values: string[] }[]
+  >(
+    allVariants
+      .filter((v) => v !== sizeAxis)
+      .map((v) => ({ name: v.name, values: v.options.length ? v.options : [""] })),
+  );
+  const setGroupName = (gi: number, name: string) =>
+    setOptionGroups((gs) => gs.map((g, i) => (i === gi ? { ...g, name } : g)));
+  const addGroup = () =>
+    setOptionGroups((gs) => [...gs, { name: "", values: [""] }]);
+  const removeGroup = (gi: number) =>
+    setOptionGroups((gs) => gs.filter((_, i) => i !== gi));
+  const setValue = (gi: number, vi: number, val: string) =>
+    setOptionGroups((gs) =>
+      gs.map((g, i) =>
+        i === gi
+          ? { ...g, values: g.values.map((v, j) => (j === vi ? val : v)) }
+          : g,
+      ),
+    );
+  const addValue = (gi: number) =>
+    setOptionGroups((gs) =>
+      gs.map((g, i) => (i === gi ? { ...g, values: [...g.values, ""] } : g)),
+    );
+  const removeValue = (gi: number, vi: number) =>
+    setOptionGroups((gs) =>
+      gs.map((g, i) =>
+        i === gi ? { ...g, values: g.values.filter((_, j) => j !== vi) } : g,
+      ),
+    );
+
+  // Serialized for the server action (drop empty names/values).
+  const otherOptionsJson = JSON.stringify(
+    optionGroups
+      .map((g) => ({
+        name: g.name.trim(),
+        options: g.values.map((v) => v.trim()).filter(Boolean),
+      }))
+      .filter((g) => g.name && g.options.length > 0),
+  );
 
   return (
     <form action={action} className="max-w-2xl space-y-5">
@@ -225,22 +263,72 @@ export function ProductForm({
         )}
       </fieldset>
 
-      <div>
-        <label className="block text-sm font-medium text-ink">
+      {/* Other options (color, style, …) — structured groups, no prices. */}
+      <fieldset className="rounded-2xl bg-white/60 p-4 ring-1 ring-border">
+        <legend className="px-1 text-sm font-medium text-ink">
           Other options{" "}
           <span className="font-normal text-ink-soft">
-            (non-size choices like color — one group per line, e.g.{" "}
-            <code>Color: Sage, Cream, Blush</code>)
+            (non-size choices like color)
           </span>
-        </label>
-        <textarea
-          name="variants"
-          rows={2}
-          defaultValue={otherVariantsText}
-          placeholder="Color: Sage, Cream, Blush"
-          className={field}
-        />
-      </div>
+        </legend>
+        <input type="hidden" name="otherOptions" value={otherOptionsJson} />
+
+        <div className="mt-2 space-y-4">
+          {optionGroups.map((group, gi) => (
+            <div key={gi} className="rounded-lg border border-border p-3">
+              <div className="flex items-center gap-2">
+                <input
+                  value={group.name}
+                  onChange={(e) => setGroupName(gi, e.target.value)}
+                  placeholder="Option name (e.g. Color)"
+                  className="flex-1 rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-sage-deep"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeGroup(gi)}
+                  className="rounded-lg px-2 py-2 text-xs text-ink-soft hover:bg-sand hover:text-red-700"
+                >
+                  Remove group
+                </button>
+              </div>
+              <div className="mt-2 space-y-2 pl-1">
+                {group.values.map((val, vi) => (
+                  <div key={vi} className="flex items-center gap-2">
+                    <input
+                      value={val}
+                      onChange={(e) => setValue(gi, vi, e.target.value)}
+                      placeholder="e.g. Sage"
+                      className="flex-1 rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-sage-deep"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeValue(gi, vi)}
+                      aria-label="Remove value"
+                      className="w-8 rounded-lg py-1.5 text-ink-soft hover:bg-sand hover:text-red-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => addValue(gi)}
+                  className="text-sm font-medium text-sage-deep hover:underline"
+                >
+                  + Add choice
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addGroup}
+            className="text-sm font-medium text-sage-deep hover:underline"
+          >
+            + Add option group
+          </button>
+        </div>
+      </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -265,14 +353,6 @@ export function ProductForm({
           )}
         </div>
         <div className="flex items-end gap-6 pb-2">
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="inStock"
-              defaultChecked={product ? product.inStock : true}
-            />
-            In stock
-          </label>
           <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
