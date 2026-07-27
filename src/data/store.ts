@@ -35,6 +35,20 @@ export const store = {
     freeThreshold: 50, // free shipping over this US$ amount
     flatRate: 5.5,
   },
+
+  // Return / ship-FROM address used when buying carrier labels (Shippo).
+  // ── EDIT HERE ── with your real address before buying live labels.
+  shipFrom: {
+    name: "Threaded Hope",
+    street1: "2179 Belhaven Ave",
+    street2: "",
+    city: "Your City",
+    state: "CA", // 2-letter state
+    zip: "00000",
+    country: "US",
+    phone: "",
+    email: "hello@threadedhope.shop",
+  },
 };
 
 export type Store = typeof store;
