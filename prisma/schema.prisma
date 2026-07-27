@@ -99,6 +99,9 @@ model Order {
   labelUrl         String?
   trackingNumber   String?
   carrier          String?
+  fulfillmentStatus String  @default("unfulfilled") // unfulfilled | shipped | delivered
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
   createdAt        DateTime @default(now())
 
   @@index([createdAt])

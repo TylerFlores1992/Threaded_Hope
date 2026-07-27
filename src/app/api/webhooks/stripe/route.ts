@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { Prisma } from "@prisma/client";
 import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
+import { sendOrderConfirmation, sendOwnerNewOrder } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,8 @@ async function recordOrder(session: Stripe.Checkout.Session) {
 
   const details = session.customer_details;
   const meta = session.metadata ?? {};
-  await prisma.order.create({
+  const isGift = meta.isGift === "1";
+  const order = await prisma.order.create({
     data: {
       stripeSessionId: session.id,
       email: details?.email ?? null,
@@ -48,7 +50,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       subtotalCents: session.amount_subtotal ?? null,
       discountCents: session.total_details?.amount_discount ?? null,
       shippingCents: session.total_details?.amount_shipping ?? null,
-      isGift: meta.isGift === "1",
+      isGift,
       giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
       currency: session.currency ?? "usd",
       status: "paid",
@@ -61,6 +63,25 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       items: items as unknown as Prisma.InputJsonValue,
     },
   });
+
+  // Transactional emails — best-effort; never let a mail failure fail the
+  // webhook (that would make Stripe retry and double-process). The senders
+  // no-op when RESEND_API_KEY isn't set.
+  const emailOrder = {
+    id: order.id,
+    email: order.email,
+    customerName: order.customerName,
+    amountTotalCents: order.amountTotalCents,
+    subtotalCents: order.subtotalCents,
+    discountCents: order.discountCents,
+    shippingCents: order.shippingCents,
+    isGift: order.isGift,
+    items,
+  };
+  await Promise.allSettled([
+    sendOrderConfirmation(emailOrder),
+    sendOwnerNewOrder(emailOrder),
+  ]);
 
   // Decrement tracked inventory.
   for (const it of items) {
