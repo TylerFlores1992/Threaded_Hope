@@ -35,10 +35,12 @@ src/
     page.tsx                     home
     shop/                        all products (client filter/sort/search)
     collections/[slug]/          one page per collection (ISR)
-    products/[slug]/             product detail (ISR)
+    products/[slug]/             product detail (ISR, Product/Breadcrumb JSON-LD)
+    blog/                        file-based "Journal" (list + [slug], Article JSON-LD)
     cart/                        cart page
-    checkout/                    order review → Stripe redirect
+    checkout/                    order review → Stripe redirect (+ gift option)
     checkout/success/            post-payment, clears cart
+    sitemap.ts / robots.ts       dynamic sitemap + robots
     api/checkout/route.ts        creates Stripe Checkout Session (server)
     api/webhooks/stripe/route.ts records paid orders + decrements inventory
     api/track/route.ts           records storefront page views
@@ -50,6 +52,8 @@ src/
         products/                list · new · [id]/edit (+ live inventory) · actions.ts
         orders/                  recorded orders (+ actions.ts: labels, sample order)
         orders/[id]/label/       buy + print a Shippo shipping label
+        orders/packaging/        manage packaging presets (name + weight)
+        home/                    "Photos" tab — all editable non-product images
         inventory/               stock editing (+ actions.ts)
         discounts/               Stripe promo codes (+ actions.ts)
         traffic/                 page-view analytics
@@ -59,11 +63,12 @@ src/
   middleware.ts                  gates /admin/* on the session cookie
   components/                    Header, Footer, CartDrawer, ProductCard,
                                  ChromeGate, TrafficTracker, admin/*
-  data/                          store.ts, collections.ts, products.ts, faqs.ts
-                                 (static seed + fallback catalog)
+  data/                          store.ts, collections.ts, products.ts, faqs.ts,
+                                 blog.ts (static seed + fallback catalog + blog)
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
-                                 shipping (Shippo REST), stock, discounts, settings
+                                 shipping (Shippo REST), packaging, stock, discounts,
+                                 settings, seo (SITE_URL + keywords)
 prisma/
   schema.prisma                  Product, Collection, Order, Pageview,
                                  DiscountRule, Setting models
@@ -72,6 +77,7 @@ prisma/
 scripts/
   migrate-images.mjs             move product photos Shopify CDN → Vercel Blob
   backfill-collections.ts        apply static-catalog collection membership to DB
+  seo-descriptions.ts            append keyword-aware SEO lines to descriptions
   clean-descriptions.ts          strip emoji from product descriptions in the DB
 ```
 
@@ -90,9 +96,10 @@ care where the data came from. `store.ts` and `faqs.ts` remain static config
 seed + fallback — see below.
 
 - `store.ts` — brand name, tagline, **Scripture line**, contact, socials,
-  shipping thresholds (`freeThreshold`, `flatRate`, `packagingWeightOz`), and the
-  `shipFrom` return address used as the label sender (name/street/city/state/zip/
-  phone/email — edit before buying live labels; USPS requires both phone + email).
+  shipping thresholds (`freeThreshold`, `flatRate`), and the `shipFrom` return
+  address used as the label sender (name/street/city/state/zip/phone/email — edit
+  before buying live labels; USPS requires both phone + email). Packaging weights
+  are now presets in the DB (`lib/packaging.ts`), not in `store.ts`.
 - `collections.ts` — the static collection list (14): `slug`, `name`,
   `description`, `hue`, optional `featured`/`hidden`. Seeds the DB `Collection`
   table on first deploy and is the runtime fallback. At runtime, collections are
@@ -116,7 +123,9 @@ seed + fallback — see below.
   `collections` JSON list of every collection it appears in (see gotchas), and a
   `weightOz` (per-unit shipping weight, used to prefill label parcels). `Order`
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
-  bought.
+  bought, a receipt breakdown (`subtotalCents` / `discountCents` /
+  `shippingCents`, captured from Stripe in the webhook), and gift fields
+  (`isGift` / `giftMessage`).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
 - Tables + seed are **auto-provisioned at build time** by `prisma/deploy.mjs`
@@ -213,16 +222,44 @@ seed + fallback — see below.
   The page is a stateless two-step — a GET parcel form puts dims in the query,
   the page fetches rates, and each rate's Buy is a server action
   (`purchaseLabel`) that persists `labelUrl`/`trackingNumber`/`carrier`. Parcel
-  weight is prefilled from the ordered products' `weightOz` × qty +
-  `packagingWeightOz`, else left blank to force manual entry. Failures redirect
-  back with a `buyError` banner rather than throwing (so Shippo messages are
-  visible). Gotchas surfaced in testing: **non-USPS carriers (UPS, …) must be
-  activated** in the Shippo dashboard first; **USPS requires both a sender phone
-  and email** on `shipFrom`. When unconfigured the page shows a setup guide, and
-  local-pickup / address-less orders are skipped. A test-mode-only **"Create
-  sample order"** button (shown when the token is `shippo_test_*`, via
-  `isShippoTestMode()`) inserts a realistic order to exercise the flow before real
-  orders exist; it auto-hides on the live token.
+  weight is prefilled from the ordered products' `weightOz` × qty plus the chosen
+  **packaging preset** (see below), else left blank to force manual entry.
+  Failures redirect back with a `buyError` banner rather than throwing (so Shippo
+  messages are visible). Gotchas surfaced in testing: **non-USPS carriers (UPS, …)
+  must be activated** in the Shippo dashboard first; **USPS requires both a sender
+  phone and email** on `shipFrom`. When unconfigured the page shows a setup guide,
+  and local-pickup / address-less orders are skipped. Test-mode-only **"Create
+  sample order"** / **"Create sample gift order"** buttons (shown when the token
+  is `shippo_test_*`, via `isShippoTestMode()`) insert realistic orders to
+  exercise the flow before real orders exist; they auto-hide on the live token.
+- **Packaging presets** (`lib/packaging.ts`). Named mailer/box presets (name +
+  tare weight) stored as JSON in the `Setting` table, with sensible defaults when
+  unset. Managed at `/admin/orders/packaging` (add/delete). On the buy-label page
+  the `ParcelForm` (client) offers a packaging dropdown whose tare weight is added
+  to the item weights to prefill the parcel weight, with a "Manage packaging"
+  link beside it. Replaced the old fixed `store.shipping.packagingWeightOz`.
+- **Packing slip doubles as a receipt / gift receipt.** Non-gift orders show a
+  full breakdown (per-line price + amount, then subtotal / discount / shipping /
+  total) from the `Order` receipt columns. **Gift orders** (`Order.isGift`, set
+  from a checkout "This is a gift" option carried through Stripe session
+  `metadata`) hide every price, and when a `giftMessage` was left it prints on its
+  own page-break sheet as a decorative card to tuck in the parcel.
+- **Editable photos are consolidated** in the admin **"Photos"** tab
+  (`/admin/home`, still that route). `HOME_IMAGE_SLOTS` drives both the uploader
+  and the cached reader (`getHomeImages`); slots cover the logo, hero collage,
+  home story image, and the **Our Story page image** (`our_story_image`). The
+  save action busts the `home-images` tag and revalidates `/` and `/our-story`.
+- **SEO.** `lib/seo.ts` centralizes `SITE_URL` (from `NEXT_PUBLIC_BASE_URL`) and a
+  shared keyword list. Dynamic `app/sitemap.ts` (static pages + collections +
+  products + blog, degrades to static-only if the DB is down) and `app/robots.ts`
+  (disallow `/admin` `/checkout` `/cart` `/api`). JSON-LD via `components/JsonLd`:
+  Store + WebSite site-wide (root layout), Product + BreadcrumbList on product
+  pages, Article on blog posts. Metadata is keyword-rich + canonicalized with OG /
+  Twitter cards. `scripts/seo-descriptions.ts` appends a keyword-aware, per-type,
+  per-slug-varied sentence to product descriptions (non-destructive, idempotent).
+- **Blog ("Journal").** File-based in `src/data/blog.ts` (structured blocks, no
+  markdown lib). `/blog` list + `/blog/[slug]` posts (statically generated),
+  linked from the footer and the sitemap. Add a post by appending to the array.
 - **Product images can be migrated off Shopify.** Freshly-seeded products hotlink
   the Threaded Hope Shopify CDN. `scripts/migrate-images.mjs` downloads each photo
   into Vercel Blob and rewrites `product.image` — idempotent, and requires a
