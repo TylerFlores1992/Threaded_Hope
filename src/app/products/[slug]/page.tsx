@@ -11,6 +11,9 @@ import { priceRange, hasVariablePricing } from "@/lib/pricing";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCard } from "@/components/ProductCard";
 import { AddToCart } from "@/components/AddToCart";
+import { JsonLd } from "@/components/JsonLd";
+import { SITE_URL } from "@/lib/seo";
+import { store } from "@/data/store";
 
 export const revalidate = 300;
 
@@ -27,7 +30,22 @@ export async function generateMetadata({
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) return {};
-  return { title: product.name, description: product.description };
+  const description =
+    product.description?.slice(0, 160) ||
+    `${product.name} — handmade in small batches by ${store.name}.`;
+  const url = `${SITE_URL}/products/${product.slug}`;
+  return {
+    title: product.name,
+    description,
+    alternates: { canonical: `/products/${product.slug}` },
+    openGraph: {
+      title: `${product.name} · ${store.name}`,
+      description,
+      url,
+      type: "website",
+      ...(product.image ? { images: [{ url: product.image }] } : {}),
+    },
+  };
 }
 
 export default async function ProductPage({
@@ -41,8 +59,46 @@ export default async function ProductPage({
 
   const related = await getRelatedProducts(product);
 
+  const url = `${SITE_URL}/products/${product.slug}`;
+  const { min } = priceRange(product);
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description,
+    ...(product.image ? { image: [product.image] } : {}),
+    brand: { "@type": "Brand", name: store.name },
+    category: product.collectionName,
+    offers: {
+      "@type": "Offer",
+      url,
+      priceCurrency: "USD",
+      price: (min ?? product.price).toFixed(2),
+      availability: product.inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      seller: { "@type": "Organization", name: store.name },
+    },
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Shop", item: `${SITE_URL}/shop` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: product.collectionName,
+        item: `${SITE_URL}/collections/${product.collection}`,
+      },
+      { "@type": "ListItem", position: 3, name: product.name, item: url },
+    ],
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      <JsonLd data={productSchema} />
+      <JsonLd data={breadcrumbSchema} />
       <nav className="mb-6 text-sm text-ink-soft" aria-label="Breadcrumb">
         <Link href="/shop" className="hover:text-sage-deep">
           Shop

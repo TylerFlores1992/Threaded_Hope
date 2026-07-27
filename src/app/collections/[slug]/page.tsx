@@ -21,7 +21,19 @@ export async function generateMetadata({
   // Include hidden so a direct link to a hidden collection still has metadata.
   const collection = await getCollectionBySlug(slug, { includeHidden: true });
   if (!collection) return {};
-  return { title: collection.name, description: collection.description };
+  const description =
+    collection.description ||
+    `Shop handmade ${collection.name.toLowerCase()} from Threaded Hope — sewn in small batches.`;
+  return {
+    title: collection.name,
+    description,
+    alternates: { canonical: `/collections/${collection.slug}` },
+    openGraph: {
+      title: `${collection.name} · Threaded Hope`,
+      description,
+      type: "website",
+    },
+  };
 }
 
 export default async function CollectionPage({
