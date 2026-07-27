@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 
@@ -44,6 +45,7 @@ export default async function OrdersPage() {
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Items</th>
                 <th className="px-4 py-3 font-medium text-right">Total</th>
+                <th className="px-4 py-3 font-medium text-right">Slip</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -80,6 +82,14 @@ export default async function OrdersPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-sage-deep">
                       {formatPrice(o.amountTotalCents / 100)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/admin/orders/${o.id}/slip`}
+                        className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
+                      >
+                        Print
+                      </Link>
                     </td>
                   </tr>
                 );
