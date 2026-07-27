@@ -2,8 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPrisma } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
+import { sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import { ProductForm } from "@/components/admin/ProductForm";
+import { StockField } from "@/components/admin/StockField";
+import { SizeStockField } from "@/components/admin/SizeStockField";
 import { updateProduct } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +43,23 @@ export default async function EditProductPage({
 
   const action = updateProduct.bind(null, id);
 
+  // Live inventory editor (same controls as the Inventory page) so stock can be
+  // set from here too. Per-size for sized products, single count otherwise.
+  const sizeAxis = sizeAxisOf({ variants: values.variants });
+  const sizeStock =
+    row.sizeStock && typeof row.sizeStock === "object"
+      ? (row.sizeStock as Record<string, number>)
+      : {};
+  const inventoryEditor = sizeAxis ? (
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
+      {sizeAxis.options.map((o) => (
+        <SizeStockField key={o} id={id} size={o} initial={sizeStock[o] ?? null} />
+      ))}
+    </div>
+  ) : (
+    <StockField id={id} initial={row.stock} />
+  );
+
   return (
     <div>
       <Link href="/admin/products" className="text-sm text-ink-soft">
@@ -53,6 +73,7 @@ export default async function EditProductPage({
         collections={collections}
         product={values}
         submitLabel="Save changes"
+        inventoryEditor={inventoryEditor}
       />
     </div>
   );

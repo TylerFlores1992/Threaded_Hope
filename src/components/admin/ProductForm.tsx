@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import type { Collection } from "@/data/collections";
 import type { Variant } from "@/data/products";
@@ -42,11 +42,14 @@ export function ProductForm({
   collections,
   product,
   submitLabel = "Save product",
+  inventoryEditor,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   collections: Collection[];
   product?: ProductFormValues;
   submitLabel?: string;
+  /** Live inventory controls (edit page) rendered in place of the stock field. */
+  inventoryEditor?: ReactNode;
 }) {
   const [preview, setPreview] = useState<string | undefined>(product?.image);
 
@@ -333,13 +336,16 @@ export function ProductForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-ink">
-            Stock{" "}
+            {inventoryEditor ? "Inventory" : "Stock"}{" "}
             <span className="font-normal text-ink-soft">(blank = untracked)</span>
           </label>
-          {hasSizes ? (
+          {inventoryEditor ? (
+            <div className="mt-1">{inventoryEditor}</div>
+          ) : hasSizes ? (
             <p className="mt-1 rounded-lg bg-sand px-3 py-2 text-sm text-ink-soft">
-              Stock is tracked per size on the{" "}
-              <span className="font-medium text-ink">Inventory</span> page.
+              Set per-size stock on the{" "}
+              <span className="font-medium text-ink">Inventory</span> page after
+              saving.
             </p>
           ) : (
             <input

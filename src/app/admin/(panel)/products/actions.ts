@@ -176,7 +176,6 @@ export async function updateProduct(
   const existing = await prisma.product.findUnique({ where: { id } });
   if (!existing) throw new Error("Product not found.");
 
-  const sized = !!sizeAxisOf({ variants: data.variants });
   await prisma.product.update({
     where: { id },
     data: {
@@ -186,11 +185,9 @@ export async function updateProduct(
       collectionSlug: data.collectionSlug,
       collections: data.collections,
       featured: data.featured,
-      stock: data.stock,
       variants: data.variants,
-      // Unsized: derive from stock. Sized: leave inStock to Inventory's per-size
-      // counts so a product edit can't accidentally un-sell-out a size.
-      ...(sized ? {} : { inStock: derivedInStock(data) }),
+      // stock / inStock are managed by the live inventory editors (on this page
+      // and the Inventory page), so a product edit never overwrites them.
       ...(image ? { image } : {}),
     },
   });
