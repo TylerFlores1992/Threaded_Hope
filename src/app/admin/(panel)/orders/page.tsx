@@ -3,6 +3,7 @@ import { prisma, isDbConfigured } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 import { createTestOrder } from "./actions";
 import { isShippoTestMode } from "@/lib/shipping";
+import { FulfillmentControl } from "@/components/admin/FulfillmentControl";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,7 @@ export default async function OrdersPage() {
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Items</th>
                 <th className="px-4 py-3 font-medium text-right">Total</th>
+                <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium text-right">Slip</th>
                 <th className="px-4 py-3 font-medium text-right">Label</th>
               </tr>
@@ -118,6 +120,12 @@ export default async function OrdersPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-sage-deep">
                       {formatPrice(o.amountTotalCents / 100)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <FulfillmentControl
+                        orderId={o.id}
+                        status={o.fulfillmentStatus}
+                      />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

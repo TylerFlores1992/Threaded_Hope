@@ -2,9 +2,27 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
+import type { Order, Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/db";
 import { buyLabel, isShippoTestMode } from "@/lib/shipping";
+import { sendShippingNotification, type EmailItem } from "@/lib/email";
+
+/** Build the email payload from a stored order row. */
+function toEmailOrder(order: Order) {
+  return {
+    id: order.id,
+    email: order.email,
+    customerName: order.customerName,
+    amountTotalCents: order.amountTotalCents,
+    subtotalCents: order.subtotalCents,
+    discountCents: order.discountCents,
+    shippingCents: order.shippingCents,
+    isGift: order.isGift,
+    carrier: order.carrier,
+    trackingNumber: order.trackingNumber,
+    items: (Array.isArray(order.items) ? order.items : []) as EmailItem[],
+  };
+}
 
 /**
  * Insert a realistic sample order so the label / packing-slip flow can be tried
@@ -74,11 +92,21 @@ export async function purchaseLabel(
   rateObjectId: string,
 ): Promise<void> {
   const prisma = getPrisma();
+  let updated: Order | null = null;
   try {
     const { labelUrl, trackingNumber, carrier } = await buyLabel(rateObjectId);
-    await prisma.order.update({
+    const existing = await prisma.order.findUnique({ where: { id: orderId } });
+    updated = await prisma.order.update({
       where: { id: orderId },
-      data: { labelUrl, trackingNumber, carrier },
+      data: {
+        labelUrl,
+        trackingNumber,
+        carrier,
+        // Buying a label marks the order shipped (once) and timestamps it.
+        ...(existing?.shippedAt
+          ? {}
+          : { fulfillmentStatus: "shipped", shippedAt: new Date() }),
+      },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Label purchase failed.";
@@ -86,6 +114,39 @@ export async function purchaseLabel(
       `/admin/orders/${orderId}/label?buyError=${encodeURIComponent(msg)}`,
     );
   }
+
+  // Notify the customer with tracking — best-effort, never blocks the redirect.
+  if (updated) await sendShippingNotification(toEmailOrder(updated));
+
   revalidatePath("/admin/orders");
   redirect(`/admin/orders/${orderId}/label`);
+}
+
+/**
+ * Manually set an order's fulfillment status. Transitioning to "shipped" the
+ * first time sends the customer a shipping email (with tracking if a label was
+ * bought). "delivered" timestamps delivery.
+ */
+export async function setFulfillment(
+  orderId: string,
+  status: "unfulfilled" | "shipped" | "delivered",
+): Promise<void> {
+  const prisma = getPrisma();
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return;
+
+  const firstShip = status === "shipped" && !order.shippedAt;
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      fulfillmentStatus: status,
+      ...(status === "shipped" && !order.shippedAt ? { shippedAt: new Date() } : {}),
+      ...(status === "delivered" && !order.deliveredAt
+        ? { deliveredAt: new Date() }
+        : {}),
+    },
+  });
+
+  if (firstShip) await sendShippingNotification(toEmailOrder(updated));
+  revalidatePath("/admin/orders");
 }
