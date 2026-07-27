@@ -153,6 +153,17 @@ DB-managed.
   agree. `priceRange`/`hasVariablePricing` drive the "From $X" labels on cards
   and product pages. In the admin, per-option prices use `Size: S=13, M=14`
   syntax in the variants field.
+- **Per-size stock** (`lib/stock.ts`). Stock can be tracked per size on the
+  product's "size axis" (the price-driving variant, else a variant named like
+  "size"), stored in `Product.sizeStock` (`{"S":5,"M":0}`). A size is sold out
+  only when its count is an explicit 0 — a size with no entry is untracked
+  (always available), so partial tracking never sells out a size by accident.
+  `isAvailable`/`sizeSoldOut`/`defaultOption`/`computeInStock` are shared: the
+  product page disables sold-out sizes and defaults to an in-stock one, checkout
+  skips a sold-out size, and the webhook decrements the purchased size (passed in
+  the line metadata). Edited per-size in the admin Inventory page; products
+  without a size axis keep the single `stock` field. `checkout`/`success` skip
+  applies; overall `inStock` is derived in the catalog layer.
 - **Product images can be migrated off Shopify.** Freshly-seeded products hotlink
   the Threaded Hope Shopify CDN. `scripts/migrate-images.mjs` downloads each photo
   into Vercel Blob and rewrites `product.image` — idempotent, and requires a

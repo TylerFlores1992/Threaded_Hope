@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { StockField } from "./StockField";
+import { SizeStockField } from "./SizeStockField";
 
 export type AdminInventoryItem = {
   id: string;
@@ -9,6 +10,8 @@ export type AdminInventoryItem = {
   collections: string[];
   stock: number | null;
   inStock: boolean;
+  /** Per-size rows when the product has a size axis; null otherwise. */
+  sizes: { label: string; count: number | null }[] | null;
 };
 
 type Status = "all" | "in" | "low" | "out" | "tracked" | "untracked";
@@ -158,13 +161,28 @@ export function AdminInventoryTable({
                     {p.collections.map(nameOf).join(", ")}
                   </td>
                   <td className="px-4 py-3">
-                    <StockField id={p.id} initial={p.stock} />
+                    {p.sizes ? (
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {p.sizes.map((s) => (
+                          <SizeStockField
+                            key={s.label}
+                            id={p.id}
+                            size={s.label}
+                            initial={s.count}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <StockField id={p.id} initial={p.stock} />
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {!p.inStock ? (
                       <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
                         Sold out
                       </span>
+                    ) : p.sizes ? (
+                      <span className="text-xs text-ink-soft">In stock</span>
                     ) : isLow ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
                         Low

@@ -27,7 +27,8 @@ model Product {
   variants       Json     @default("[]")
   featured       Boolean  @default(false)
   inStock        Boolean  @default(true)
-  stock          Int? // null = untracked inventory
+  stock          Int? // null = untracked inventory (products without sizes)
+  sizeStock      Json     @default("{}") // per-size counts, e.g. {"S":5,"M":0}; empty = not per-size
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

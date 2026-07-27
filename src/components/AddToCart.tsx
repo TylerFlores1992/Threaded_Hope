@@ -4,23 +4,27 @@ import { useState } from "react";
 import type { Product } from "@/data/products";
 import { useCart, makeLineId } from "@/lib/cart-context";
 import { resolveUnitPrice } from "@/lib/pricing";
+import { sizeAxisOf, sizeSoldOut, isAvailable, defaultOption } from "@/lib/stock";
 import { formatPrice } from "@/lib/format";
 import { QtyStepper } from "./CartDrawer";
 
 export function AddToCart({ product }: { product: Product }) {
   const { add } = useCart();
 
-  // Default each variant to its first option.
+  const sizeAxis = sizeAxisOf(product);
+
+  // Default each variant to its first option (first in-stock one on the size axis).
   const [selected, setSelected] = useState<Record<string, string>>(() =>
-    Object.fromEntries(product.variants.map((v) => [v.name, v.options[0]])),
+    Object.fromEntries(product.variants.map((v) => [v.name, defaultOption(product, v)])),
   );
   const [qty, setQty] = useState(1);
 
   // Live price for the current selection (mirrors the server's checkout math).
   const unitPrice = resolveUnitPrice(product, selected);
+  const available = isAvailable(product, selected);
 
   const addToCart = () => {
-    if (!product.inStock) return;
+    if (!available) return;
     add(
       {
         id: makeLineId(product.slug, selected),
@@ -43,27 +47,33 @@ export function AddToCart({ product }: { product: Product }) {
             {variant.options.map((option) => {
               const active = selected[variant.name] === option;
               const optionPrice = variant.prices?.[option];
+              const soldOut =
+                sizeAxis?.name === variant.name && sizeSoldOut(product, option);
               return (
                 <button
                   key={option}
                   type="button"
                   aria-pressed={active}
+                  disabled={soldOut}
                   onClick={() =>
                     setSelected((prev) => ({ ...prev, [variant.name]: option }))
                   }
                   className={`rounded-full border px-4 py-1.5 text-sm transition ${
-                    active
-                      ? "border-sage-deep bg-sage-deep text-white"
-                      : "border-border bg-white text-ink hover:border-sage"
+                    soldOut
+                      ? "cursor-not-allowed border-border bg-sand text-ink-soft line-through opacity-60"
+                      : active
+                        ? "border-sage-deep bg-sage-deep text-white"
+                        : "border-border bg-white text-ink hover:border-sage"
                   }`}
                 >
                   {option}
                   {optionPrice != null && (
-                    <span className={active ? "text-white/80" : "text-ink-soft"}>
+                    <span className={active && !soldOut ? "text-white/80" : "text-ink-soft"}>
                       {" "}
                       · {formatPrice(optionPrice)}
                     </span>
                   )}
+                  {soldOut && <span className="ml-1 text-xs">(sold out)</span>}
                 </button>
               );
             })}
@@ -71,7 +81,7 @@ export function AddToCart({ product }: { product: Product }) {
         </div>
       ))}
 
-      {product.inStock && (
+      {available && (
         <p className="text-lg font-semibold text-sage-deep" aria-live="polite">
           {formatPrice(unitPrice)}
         </p>
@@ -85,10 +95,10 @@ export function AddToCart({ product }: { product: Product }) {
         <button
           type="button"
           onClick={addToCart}
-          disabled={!product.inStock}
+          disabled={!available}
           className="flex-1 rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:cursor-not-allowed disabled:bg-taupe"
         >
-          {product.inStock ? "Add to cart" : "Sold out"}
+          {available ? "Add to cart" : "Sold out"}
         </button>
       </div>
     </div>
