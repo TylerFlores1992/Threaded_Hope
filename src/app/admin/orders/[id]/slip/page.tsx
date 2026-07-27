@@ -47,6 +47,12 @@ export default async function PackingSlipPage({
   const shipName = shipping?.name ?? order.customerName ?? order.email ?? "—";
   const itemCount = items.reduce((n, it) => n + (it.quantity ?? 1), 0);
 
+  // Gift orders hide every price (it doubles as a gift receipt). Otherwise the
+  // slip shows a full receipt breakdown.
+  const isGift = order.isGift;
+  const showPrices = !isGift;
+  const cents = (n: number) => formatPrice(n / 100);
+
   const orderDate = order.createdAt.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -105,7 +111,9 @@ export default async function PackingSlipPage({
           </div>
         </div>
 
-        <h1 className="mt-6 font-serif text-2xl text-ink">Packing Slip</h1>
+        <h1 className="mt-6 font-serif text-2xl text-ink">
+          {isGift ? "Gift Receipt" : "Packing Slip"}
+        </h1>
 
         {/* Order + ship-to */}
         <div className="mt-4 grid grid-cols-2 gap-6 text-sm">
@@ -147,39 +155,84 @@ export default async function PackingSlipPage({
             <tr>
               <th className="py-2 font-medium">Item</th>
               <th className="py-2 text-center font-medium">Qty</th>
+              {showPrices && (
+                <>
+                  <th className="py-2 text-right font-medium">Price</th>
+                  <th className="py-2 text-right font-medium">Amount</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {items.map((it, i) => (
-              <tr key={i}>
-                <td className="py-2 text-ink">
-                  {it.name}
-                  {it.size && (
-                    <span className="block text-xs text-ink-soft">
-                      Size: {it.size}
-                    </span>
+            {items.map((it, i) => {
+              const qty = it.quantity ?? 1;
+              const unit = it.unitAmountCents ?? 0;
+              return (
+                <tr key={i}>
+                  <td className="py-2 text-ink">
+                    {it.name}
+                    {it.size && (
+                      <span className="block text-xs text-ink-soft">
+                        Size: {it.size}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 text-center text-ink">{qty}</td>
+                  {showPrices && (
+                    <>
+                      <td className="py-2 text-right text-ink-soft">
+                        {cents(unit)}
+                      </td>
+                      <td className="py-2 text-right text-ink">
+                        {cents(unit * qty)}
+                      </td>
+                    </>
                   )}
-                </td>
-                <td className="py-2 text-center text-ink">
-                  {it.quantity ?? 1}
-                </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-border font-medium text-ink">
               <td className="py-2">Total items</td>
               <td className="py-2 text-center">{itemCount}</td>
+              {showPrices && <td colSpan={2} />}
             </tr>
           </tfoot>
         </table>
 
-        <p className="mt-6 text-sm text-ink-soft">
-          Order total:{" "}
-          <span className="font-medium text-ink">
-            {formatPrice(order.amountTotalCents / 100)}
-          </span>
-        </p>
+        {showPrices ? (
+          <div className="mt-4 ml-auto max-w-xs space-y-1 text-sm">
+            {order.subtotalCents != null && (
+              <div className="flex justify-between text-ink-soft">
+                <span>Subtotal</span>
+                <span>{cents(order.subtotalCents)}</span>
+              </div>
+            )}
+            {order.discountCents != null && order.discountCents > 0 && (
+              <div className="flex justify-between text-ink-soft">
+                <span>Discount</span>
+                <span>−{cents(order.discountCents)}</span>
+              </div>
+            )}
+            {order.shippingCents != null && (
+              <div className="flex justify-between text-ink-soft">
+                <span>Shipping</span>
+                <span>
+                  {order.shippingCents === 0 ? "Free" : cents(order.shippingCents)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-border pt-1 font-semibold text-ink">
+              <span>Total</span>
+              <span>{cents(order.amountTotalCents)}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg bg-sand px-3 py-2 text-xs text-ink-soft">
+            🎁 Gift order — prices are intentionally left off this slip.
+          </p>
+        )}
 
         {/* Thank-you note */}
         <div className="mt-8 border-t border-border pt-6 text-center text-sm text-ink-soft">
@@ -193,6 +246,34 @@ export default async function PackingSlipPage({
           <p className="text-xs">{store.scripture.reference}</p>
         </div>
       </div>
+
+      {/* Gift message — its own page (prints on a fresh sheet to tuck in). */}
+      {isGift && order.giftMessage && (
+        <div
+          style={{ breakBefore: "page" }}
+          className="mt-10 print:mt-0"
+        >
+          <div className="relative mx-auto max-w-md overflow-hidden rounded-3xl bg-cream p-10 text-center ring-1 ring-border print:ring-0">
+            {/* decorative corners */}
+            <div className="pointer-events-none absolute inset-3 rounded-2xl border border-dashed border-sage-deep/40" />
+            <p className="relative text-3xl">🎁</p>
+            <p className="relative mt-3 font-serif text-2xl text-sage-deep">
+              A little gift for you
+            </p>
+            <p className="relative mx-auto mt-6 max-w-sm whitespace-pre-wrap font-serif text-lg italic leading-relaxed text-ink">
+              “{order.giftMessage}”
+            </p>
+            <div className="relative mt-8 flex items-center justify-center gap-2 text-sm text-ink-soft">
+              <span className="h-px w-8 bg-border" />
+              <span>with love, {store.name}</span>
+              <span className="h-px w-8 bg-border" />
+            </div>
+            <p className="relative mt-4 text-xs text-ink-soft">
+              {store.scripture.text}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

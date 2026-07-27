@@ -18,6 +18,8 @@ export default function CheckoutPage() {
   const { items, subtotal } = useCart();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isGift, setIsGift] = useState(false);
+  const [giftMessage, setGiftMessage] = useState("");
 
   const shippingCost =
     subtotal >= store.shipping.freeThreshold ? 0 : store.shipping.flatRate;
@@ -36,6 +38,8 @@ export default function CheckoutPage() {
             quantity: i.quantity,
             options: i.options,
           })),
+          isGift,
+          giftMessage: isGift ? giftMessage : "",
         }),
       });
       const data = await res.json();
@@ -122,6 +126,41 @@ export default function CheckoutPage() {
           <p className="mt-2 text-xs text-ink-soft">
             Taxes calculated by our payment partner at checkout.
           </p>
+
+          {/* Gift option */}
+          <div className="mt-4 border-t border-border pt-4">
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={isGift}
+                onChange={(e) => setIsGift(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                This is a gift
+                <span className="block text-xs text-ink-soft">
+                  We’ll leave prices off the packing slip and can include a note.
+                </span>
+              </span>
+            </label>
+            {isGift && (
+              <div className="mt-3">
+                <label className="text-xs text-ink-soft">
+                  Gift message (optional)
+                  <textarea
+                    value={giftMessage}
+                    onChange={(e) => setGiftMessage(e.target.value.slice(0, 450))}
+                    rows={3}
+                    placeholder="Add a little note to include with the gift…"
+                    className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-sage-deep"
+                  />
+                  <span className="mt-1 block text-right text-[11px] text-ink-soft">
+                    {giftMessage.length}/450
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
 
           {error && (
             <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
