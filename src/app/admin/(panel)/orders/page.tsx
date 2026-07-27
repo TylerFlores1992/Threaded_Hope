@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
+import { createTestOrder } from "./actions";
+import { isShippoTestMode } from "@/lib/shipping";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,20 @@ export default async function OrdersPage() {
         Recorded from Stripe on payment. Full details (receipts, refunds) live
         in your Stripe Dashboard.
       </p>
+
+      {isShippoTestMode() && (
+        <form action={createTestOrder} className="mt-4">
+          <button
+            type="submit"
+            className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
+          >
+            + Create sample order (test mode)
+          </button>
+          <span className="ml-2 text-xs text-ink-soft">
+            Only shown while a Shippo test token is set.
+          </span>
+        </form>
+      )}
 
       {orders.length === 0 ? (
         <p className="mt-6 rounded-lg bg-sand p-4 text-sm text-ink-soft">
