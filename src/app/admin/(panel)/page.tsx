@@ -13,6 +13,89 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+type Tone = "live" | "test" | "off";
+
+/** One integration's status — shows mode only, never the secret value. */
+function StatusRow({
+  label,
+  value,
+  tone,
+  note,
+}: {
+  label: string;
+  value: string;
+  tone: Tone;
+  note?: string;
+}) {
+  const dot =
+    tone === "live"
+      ? "bg-sage-deep"
+      : tone === "test"
+        ? "bg-amber-500"
+        : "bg-taupe";
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+      <span className="text-ink-soft">{label}</span>
+      <span className="flex items-center gap-2">
+        {note && <span className="text-xs text-ink-soft">{note}</span>}
+        <span className={`h-2 w-2 rounded-full ${dot}`} />
+        <span className="font-medium text-ink">{value}</span>
+      </span>
+    </div>
+  );
+}
+
+/** Read-only config health — reads env server-side, exposes only the mode. */
+function setupStatus() {
+  const stripe = process.env.STRIPE_SECRET_KEY ?? "";
+  const shippo = process.env.SHIPPO_API_KEY ?? "";
+  const rows: {
+    label: string;
+    value: string;
+    tone: Tone;
+    note?: string;
+  }[] = [
+    {
+      label: "Payments (Stripe)",
+      value: stripe.startsWith("sk_live_")
+        ? "Live"
+        : stripe.startsWith("sk_test_")
+          ? "Test"
+          : "Not set",
+      tone: stripe.startsWith("sk_live_")
+        ? "live"
+        : stripe.startsWith("sk_test_")
+          ? "test"
+          : "off",
+    },
+    {
+      label: "Stripe webhook secret",
+      value: process.env.STRIPE_WEBHOOK_SECRET ? "Set" : "Not set",
+      tone: process.env.STRIPE_WEBHOOK_SECRET ? "live" : "off",
+    },
+    {
+      label: "Shipping labels (Shippo)",
+      value: shippo.startsWith("shippo_live_")
+        ? "Live"
+        : shippo.startsWith("shippo_test_")
+          ? "Test"
+          : "Not set",
+      tone: shippo.startsWith("shippo_live_")
+        ? "live"
+        : shippo.startsWith("shippo_test_")
+          ? "test"
+          : "off",
+    },
+    {
+      label: "Order emails (Resend)",
+      value: process.env.RESEND_API_KEY ? "On" : "Off",
+      tone: process.env.RESEND_API_KEY ? "live" : "off",
+      note: process.env.EMAIL_FROM,
+    },
+  ];
+  return rows;
+}
+
 export default async function AdminDashboard() {
   if (!isDbConfigured() || !prisma) {
     return (
@@ -133,6 +216,19 @@ export default async function AdminDashboard() {
           )}
         </section>
       </div>
+
+      <section className="mt-10">
+        <h2 className="mb-3 font-serif text-xl text-ink">Setup status</h2>
+        <div className="divide-y divide-border rounded-2xl bg-white/70 ring-1 ring-border">
+          {setupStatus().map((r) => (
+            <StatusRow key={r.label} {...r} />
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-ink-soft">
+          Green = live · amber = test mode · grey = not set. Modes only — no keys
+          are shown.
+        </p>
+      </section>
 
       <section className="mt-10">
         <div className="mb-3 flex items-center justify-between">
