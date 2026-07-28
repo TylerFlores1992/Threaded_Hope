@@ -95,6 +95,7 @@ model Order {
   subtotalCents    Int? // pre-discount, pre-shipping line total (for receipts)
   discountCents    Int? // total discount applied (promo/auto)
   shippingCents    Int? // shipping charged
+  taxCents         Int? // sales tax (Stripe Tax)
   isGift           Boolean  @default(false)
   giftMessage      String?
   pickup           Boolean  @default(false) // local pickup chosen at checkout

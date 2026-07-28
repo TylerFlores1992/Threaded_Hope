@@ -90,9 +90,13 @@ export async function POST(req: Request) {
       price_data: {
         currency: "usd",
         unit_amount: Math.round(unitPrice * 100),
+        // Tax is added on top of the listed price when Stripe Tax is on.
+        tax_behavior: "exclusive",
         product_data: {
           name: product.name,
           ...(optionText ? { description: optionText } : {}),
+          // General tangible goods tax category (Stripe Tax).
+          tax_code: "txcd_99999999",
           // slug (+ size) lets the webhook map the paid line back to a product
           // and decrement the right per-size count.
           metadata: {
@@ -154,6 +158,7 @@ export async function POST(req: Request) {
           shipping_rate_data: {
             type: "fixed_amount",
             display_name: freeShipping ? "Free shipping" : "Standard shipping",
+            tax_behavior: "exclusive",
             fixed_amount: {
               amount: freeShipping ? 0 : Math.round(store.shipping.flatRate * 100),
               currency: "usd",
@@ -169,6 +174,7 @@ export async function POST(req: Request) {
           shipping_rate_data: {
             type: "fixed_amount",
             display_name: "Local pickup (free)",
+            tax_behavior: "exclusive",
             fixed_amount: { amount: 0, currency: "usd" },
             delivery_estimate: {
               minimum: { unit: "business_day", value: 1 },
@@ -177,6 +183,12 @@ export async function POST(req: Request) {
           },
         },
       ],
+      // Automatic sales tax — only when explicitly enabled, since it errors if
+      // Stripe Tax isn't configured (origin address + registrations) in the
+      // dashboard. Enable STRIPE_TAX_ENABLED=1 after setting that up.
+      ...(process.env.STRIPE_TAX_ENABLED === "1"
+        ? { automatic_tax: { enabled: true } }
+        : {}),
       phone_number_collection: { enabled: true },
       metadata: {
         isGift: isGift ? "1" : "0",

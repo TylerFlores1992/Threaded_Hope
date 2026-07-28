@@ -17,6 +17,7 @@ function toEmailOrder(order: Order) {
     subtotalCents: order.subtotalCents,
     discountCents: order.discountCents,
     shippingCents: order.shippingCents,
+    taxCents: order.taxCents,
     isGift: order.isGift,
     carrier: order.carrier,
     trackingNumber: order.trackingNumber,

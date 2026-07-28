@@ -92,6 +92,11 @@ function setupStatus() {
       tone: process.env.RESEND_API_KEY ? "live" : "off",
       note: process.env.EMAIL_FROM,
     },
+    {
+      label: "Sales tax (Stripe Tax)",
+      value: process.env.STRIPE_TAX_ENABLED === "1" ? "On" : "Off",
+      tone: process.env.STRIPE_TAX_ENABLED === "1" ? "live" : "off",
+    },
   ];
   return rows;
 }

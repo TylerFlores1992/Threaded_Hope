@@ -71,6 +71,7 @@ export type EmailOrder = {
   subtotalCents?: number | null;
   discountCents?: number | null;
   shippingCents?: number | null;
+  taxCents?: number | null;
   isGift?: boolean;
   items: EmailItem[];
   carrier?: string | null;
@@ -134,6 +135,7 @@ function totals(order: EmailOrder): string {
   if (order.discountCents) parts.push(line("Discount", `−${money(order.discountCents)}`));
   if (order.shippingCents != null)
     parts.push(line("Shipping", order.shippingCents === 0 ? "Free" : money(order.shippingCents)));
+  if (order.taxCents) parts.push(line("Tax", money(order.taxCents)));
   parts.push(
     `<tr><td style="padding:6px 0 0;font-weight:bold">Total</td><td style="padding:6px 0 0;text-align:right;font-weight:bold">${money(order.amountTotalCents)}</td></tr>`,
   );
