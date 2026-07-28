@@ -41,6 +41,8 @@ export default async function OrdersPage() {
         >
           Manage packaging →
         </Link>
+        {/* Route handler returning a file download — a plain <a> is correct. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/admin/orders/export"
           className="text-sm font-medium text-sage-deep hover:underline"
@@ -119,7 +121,12 @@ export default async function OrdersPage() {
                       })}
                     </td>
                     <td className="px-4 py-3 text-ink">
-                      {o.customerName ?? o.email ?? "—"}
+                      <Link
+                        href={`/admin/orders/${o.id}`}
+                        className="font-medium text-sage-deep hover:underline"
+                      >
+                        {o.customerName ?? o.email ?? "—"}
+                      </Link>
                       {o.customerName && o.email && (
                         <span className="block text-xs text-ink-soft">
                           {o.email}
