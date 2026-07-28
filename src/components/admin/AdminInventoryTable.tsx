@@ -14,7 +14,7 @@ export type AdminInventoryItem = {
   sizes: { label: string; count: number | null }[] | null;
 };
 
-type Status = "all" | "in" | "low" | "out" | "tracked" | "untracked";
+type Status = "all" | "in" | "out" | "tracked" | "untracked";
 type Sort = "name-asc" | "name-desc" | "stock-asc" | "stock-desc";
 
 const LOW_STOCK = 3;
@@ -53,11 +53,9 @@ export function AdminInventoryTable({
         p.collections.some((c) => nameOf(c).toLowerCase().includes(q));
       const matchCollection =
         collection === "all" || p.collections.includes(collection);
-      const isLow = p.stock != null && p.stock <= LOW_STOCK;
       const matchStatus =
         status === "all" ||
         (status === "in" && p.inStock) ||
-        (status === "low" && isLow) ||
         (status === "out" && !p.inStock) ||
         (status === "tracked" && p.stock != null) ||
         (status === "untracked" && p.stock == null);
@@ -119,7 +117,6 @@ export function AdminInventoryTable({
         >
           <option value="all">Any status</option>
           <option value="in">In stock</option>
-          <option value="low">Low stock</option>
           <option value="out">Sold out</option>
           <option value="tracked">Tracked</option>
           <option value="untracked">Untracked</option>
