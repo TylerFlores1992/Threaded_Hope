@@ -45,6 +45,8 @@ cp .env.example .env.local
 | `BLOB_READ_WRITE_TOKEN` | Photo upload | Vercel Blob read-write token for the product image uploader. |
 | `ADMIN_PASSWORD` | Admin login | Password that gates `/admin`. Choose any strong value. |
 | `SHIPPO_API_KEY` | Shipping labels (optional) | Shippo API token for buying/printing labels in the admin. `shippo_test_…` for free test labels, `shippo_live_…` for real postage. From [apps.goshippo.com/settings/api](https://apps.goshippo.com/settings/api). Absent → the label page shows a setup guide. |
+| `RESEND_API_KEY` | Emails (optional) | Resend API key for order confirmation + shipping emails. Without it, emails are skipped and orders still record. From [resend.com](https://resend.com). |
+| `EMAIL_FROM` | Emails (optional) | From address, e.g. `Threaded Hope <orders@threaded-hope.com>`. The sending domain must be verified in Resend; the mailbox itself need not exist (replies route to your contact email). |
 | `INSTAGRAM_ACCESS_TOKEN` | Home IG strip | Long-lived Instagram Graph API user token. When set, the home page shows your latest 6 posts (auto-refreshing hourly); without it the strip falls back to recent product photos. |
 | `CRON_SECRET` | IG token refresh | Random secret that authenticates the weekly token-refresh cron (`/api/cron/refresh-instagram`). Vercel Cron sends it as a Bearer token. Any strong random string. |
 
@@ -208,6 +210,31 @@ built in. The highest-impact manual step is to **submit the sitemap** in
 Webmaster Tools): add `https://threaded-hope.com`, verify ownership, then submit
 `https://threaded-hope.com/sitemap.xml`. Keep product titles/descriptions
 specific and unique for the best results.
+
+### Order emails (Resend, optional)
+
+The store sends **order confirmation** (to the customer), a **new-order alert**
+(to you), and a **shipping notification with tracking** (when an order ships).
+All are optional — without `RESEND_API_KEY` they're simply skipped and orders
+still record normally.
+
+1. **Create a Resend account** at [resend.com](https://resend.com).
+2. **Verify your sending domain.** Resend → **Domains → Add Domain** → enter your
+   root domain (e.g. `threaded-hope.com`) so mail sends from `orders@` on it. It
+   shows DNS records (a DKIM `TXT` on `resend._domainkey`, plus an MX and SPF
+   `TXT` on a `send` subdomain, and an optional `_dmarc` TXT). Add each at your
+   DNS host. These live on the `send` subdomain, so they **don't conflict with an
+   existing mailbox provider** (e.g. Zoho) on the root domain — leave those
+   records alone. Click **Verify**.
+3. **Create an API key** (Resend → API Keys) and add it in Vercel as
+   `RESEND_API_KEY`, plus `EMAIL_FROM` (e.g.
+   `Threaded Hope <orders@threaded-hope.com>`). Redeploy.
+
+The `from` mailbox doesn't need to exist — replies are routed to
+`store.contact.email` via a reply-to header. Emails and fulfillment status:
+buying a shipping label (or clicking **Mark shipped** on the Orders page)
+flips the order to *Shipped* and emails the customer their tracking. Resend's
+**Logs** tab shows every send with delivery status.
 
 ### Instagram feed (optional)
 

@@ -124,8 +124,9 @@ seed + fallback — see below.
   `weightOz` (per-unit shipping weight, used to prefill label parcels). `Order`
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
-  `shippingCents`, captured from Stripe in the webhook), and gift fields
-  (`isGift` / `giftMessage`).
+  `shippingCents`, captured from Stripe in the webhook), gift fields
+  (`isGift` / `giftMessage`), and fulfillment state (`fulfillmentStatus`
+  unfulfilled|shipped|delivered, `shippedAt`, `deliveredAt`).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
 - Tables + seed are **auto-provisioned at build time** by `prisma/deploy.mjs`
@@ -260,6 +261,18 @@ seed + fallback — see below.
 - **Blog ("Journal").** File-based in `src/data/blog.ts` (structured blocks, no
   markdown lib). `/blog` list + `/blog/[slug]` posts (statically generated),
   linked from the footer and the sitemap. Add a post by appending to the array.
+- **Transactional email** (`lib/email.ts`). Dependency-free **Resend** REST
+  client with branded, inline-styled HTML templates, gated on `RESEND_API_KEY`
+  (from `EMAIL_FROM`; reply-to is `store.contact.email`). Sends are **best-effort
+  and never throw into the order flow** — a mail failure must not 500 the webhook
+  (Stripe would retry and double-process). The webhook sends an **order
+  confirmation** (customer) + **new-order alert** (owner) after recording; a
+  **shipping notification** with tracking goes out when an order first becomes
+  shipped. When unset, everything runs as before with emails skipped.
+- **Fulfillment status.** `Order.fulfillmentStatus` (unfulfilled → shipped →
+  delivered). Buying a label auto-marks the order shipped (once) + emails
+  tracking; the Orders table's `FulfillmentControl` (client) sets status inline
+  via the `setFulfillment` action, which emails the customer on the first ship.
 - **Product images can be migrated off Shopify.** Freshly-seeded products hotlink
   the Threaded Hope Shopify CDN. `scripts/migrate-images.mjs` downloads each photo
   into Vercel Blob and rewrites `product.image` — idempotent, and requires a
@@ -354,6 +367,9 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
 - **Admin** — `ADMIN_PASSWORD`
 - **Shipping (optional)** — `SHIPPO_API_KEY` (`shippo_test_*` or `shippo_live_*`);
   enables buying labels in the admin. Absent → the label page shows a setup guide.
+- **Email (optional)** — `RESEND_API_KEY` and `EMAIL_FROM` (e.g.
+  `Threaded Hope <orders@threaded-hope.com>`); enables order/shipping emails.
+  Absent → emails are skipped, orders still record.
 - **Instagram** — `INSTAGRAM_ACCESS_TOKEN` (bootstraps the home feed; then the
   self-refreshing DB copy is preferred), `CRON_SECRET` (guards the refresh cron)
 
