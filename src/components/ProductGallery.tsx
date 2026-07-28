@@ -23,12 +23,13 @@ export function ProductGallery({
 
   return (
     <div>
-      <div className="overflow-hidden rounded-2xl ring-1 ring-border">
+      <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-border">
+        {/* object-contain so the full photo shows — never cropped. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={current}
           alt={name}
-          className="aspect-square w-full object-cover"
+          className="aspect-square w-full object-contain"
           loading="eager"
           decoding="async"
         />
@@ -53,7 +54,7 @@ export function ProductGallery({
               <img
                 src={src}
                 alt={`${name} thumbnail ${i + 1}`}
-                className="aspect-square w-full object-cover"
+                className="aspect-square w-full bg-white object-contain"
                 loading="lazy"
                 decoding="async"
               />
