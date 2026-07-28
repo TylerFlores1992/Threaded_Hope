@@ -48,12 +48,20 @@ export default async function AdminProductsPage() {
           Products{" "}
           <span className="text-lg text-ink-soft">({products.length})</span>
         </h1>
-        <Link
-          href="/admin/products/new"
-          className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
-        >
-          + New product
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/products/import-photos"
+            className="rounded-full border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
+          >
+            Import photos
+          </Link>
+          <Link
+            href="/admin/products/new"
+            className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
+          >
+            + New product
+          </Link>
+        </div>
       </div>
 
       <AdminProductsTable

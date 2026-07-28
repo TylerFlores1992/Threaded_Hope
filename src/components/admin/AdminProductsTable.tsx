@@ -19,7 +19,7 @@ export type AdminProduct = {
   createdAt: number;
 };
 
-type Status = "all" | "in" | "out" | "low" | "featured";
+type Status = "all" | "in" | "out" | "featured";
 type Sort =
   | "newest"
   | "name-asc"
@@ -27,8 +27,6 @@ type Sort =
   | "price-asc"
   | "price-desc"
   | "stock-asc";
-
-const LOW_STOCK = 3;
 
 const selectClass =
   "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
@@ -83,12 +81,10 @@ export function AdminProductsTable({
         p.collections.some((c) => nameOf(c).toLowerCase().includes(q));
       const matchCollection =
         collection === "all" || p.collections.includes(collection);
-      const isLow = p.stock != null && p.stock <= LOW_STOCK;
       const matchStatus =
         status === "all" ||
         (status === "in" && p.inStock) ||
         (status === "out" && !p.inStock) ||
-        (status === "low" && isLow) ||
         (status === "featured" && p.featured);
       return matchQuery && matchCollection && matchStatus;
     });
@@ -144,7 +140,6 @@ export function AdminProductsTable({
           <option value="all">Any status</option>
           <option value="in">In stock</option>
           <option value="out">Sold out</option>
-          <option value="low">Low stock</option>
           <option value="featured">Featured</option>
         </select>
         <select
