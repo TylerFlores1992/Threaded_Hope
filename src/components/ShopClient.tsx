@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Product } from "@/data/products";
 import type { Collection } from "@/data/collections";
 import { ProductCard } from "./ProductCard";
@@ -19,6 +19,18 @@ export function ShopClient({
   const [activeCollections, setActiveCollections] = useState<string[]>([]);
   const [sort, setSort] = useState<Sort>("newest");
   const [query, setQuery] = useState(initialQuery);
+
+  // Keep the URL in sync with the search box (debounced) so a search is
+  // shareable/bookmarkable — updated with history.replaceState to avoid a
+  // server round-trip (all products are already client-side).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const q = query.trim();
+      const url = q ? `/shop?q=${encodeURIComponent(q)}` : "/shop";
+      window.history.replaceState(null, "", url);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
 
   const toggleCollection = (slug: string) =>
     setActiveCollections((prev) =>
