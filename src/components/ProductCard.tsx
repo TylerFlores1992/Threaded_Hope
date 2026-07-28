@@ -10,7 +10,7 @@ export function ProductCard({ product }: { product: Product }) {
       href={`/products/${product.slug}`}
       className="group flex flex-col overflow-hidden rounded-2xl bg-white/70 ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-taupe/20"
     >
-      <div className="relative aspect-square overflow-hidden">
+      <div className="relative aspect-[4/5] overflow-hidden bg-white">
         <ProductImage
           name={product.name}
           hue={product.hue}

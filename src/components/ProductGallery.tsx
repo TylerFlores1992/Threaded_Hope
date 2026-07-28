@@ -24,12 +24,13 @@ export function ProductGallery({
   return (
     <div>
       <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-border">
-        {/* object-contain so the full photo shows — never cropped. */}
+        {/* Natural height (h-auto) shows the full photo with no crop and no
+            letterbox bars — the frame adapts to the image. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={current}
           alt={name}
-          className="aspect-square w-full object-contain"
+          className="h-auto w-full"
           loading="eager"
           decoding="async"
         />
@@ -54,7 +55,7 @@ export function ProductGallery({
               <img
                 src={src}
                 alt={`${name} thumbnail ${i + 1}`}
-                className="aspect-square w-full bg-white object-contain"
+                className="aspect-[4/5] w-full bg-white object-cover"
                 loading="lazy"
                 decoding="async"
               />
