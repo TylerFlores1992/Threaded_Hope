@@ -27,6 +27,7 @@ export default async function AdminProductsPage() {
     return {
       id: p.id,
       name: p.name,
+      image: p.image ?? undefined,
       collectionSlug: p.collectionSlug,
       collections:
         stored.length > 0

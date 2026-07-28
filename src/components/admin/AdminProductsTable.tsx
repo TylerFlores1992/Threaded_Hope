@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
+import { placeholderImage } from "@/lib/placeholder";
 import { DeleteProductButton } from "./DeleteProductButton";
 
 export type AdminProduct = {
   id: string;
   name: string;
+  image?: string;
   collectionSlug: string;
   collections: string[];
   priceCents: number;
@@ -38,10 +40,34 @@ export function AdminProductsTable({
   products: AdminProduct[];
   collections: { slug: string; name: string }[];
 }) {
-  const [query, setQuery] = useState("");
-  const [collection, setCollection] = useState("all");
-  const [status, setStatus] = useState<Status>("all");
-  const [sort, setSort] = useState<Sort>("newest");
+  // Persist filters across navigation (e.g. edit a product, come back) via
+  // sessionStorage so the list stays where you left it.
+  const STORE_KEY = "admin-products-filters";
+  const saved =
+    typeof window !== "undefined"
+      ? (() => {
+          try {
+            return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? "{}");
+          } catch {
+            return {};
+          }
+        })()
+      : {};
+  const [query, setQuery] = useState<string>(saved.query ?? "");
+  const [collection, setCollection] = useState<string>(saved.collection ?? "all");
+  const [status, setStatus] = useState<Status>(saved.status ?? "all");
+  const [sort, setSort] = useState<Sort>(saved.sort ?? "newest");
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        STORE_KEY,
+        JSON.stringify({ query, collection, status, sort }),
+      );
+    } catch {
+      /* ignore storage errors (private mode, etc.) */
+    }
+  }, [query, collection, status, sort]);
 
   const nameOf = useMemo(() => {
     const m = new Map(collections.map((c) => [c.slug, c.name]));
@@ -145,6 +171,7 @@ export function AdminProductsTable({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-ink-soft">
             <tr>
+              <th className="px-4 py-3 font-medium">Photo</th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Collections</th>
               <th className="px-4 py-3 font-medium">Price</th>
@@ -156,6 +183,15 @@ export function AdminProductsTable({
           <tbody className="divide-y divide-border">
             {filtered.map((p) => (
               <tr key={p.id}>
+                <td className="px-4 py-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.image || placeholderImage(p.name, 145)}
+                    alt=""
+                    className="h-10 w-10 rounded-md object-cover ring-1 ring-border"
+                    loading="lazy"
+                  />
+                </td>
                 <td className="px-4 py-3 text-ink">{p.name}</td>
                 <td className="px-4 py-3 text-ink-soft">
                   {p.collections.map(nameOf).join(", ")}
@@ -191,7 +227,7 @@ export function AdminProductsTable({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-ink-soft">
+                <td colSpan={7} className="px-4 py-10 text-center text-ink-soft">
                   No products match your filters.
                 </td>
               </tr>
