@@ -81,6 +81,14 @@ export async function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
           <p className="mt-1 text-sm text-ink-soft">— {store.scripture.reference}</p>
           <p className="mt-4 text-xs text-ink-soft">
             © {new Date().getFullYear()} {store.name}. Handmade with love.
+            {" · "}
+            <Link
+              href="/admin"
+              rel="nofollow"
+              className="text-ink-soft/70 hover:text-sage-deep"
+            >
+              Admin
+            </Link>
           </p>
         </div>
       </div>
