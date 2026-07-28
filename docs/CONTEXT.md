@@ -49,10 +49,10 @@ src/
       login/                     password login (bare, no admin chrome)
       actions.ts                 login / logout server actions
       (panel)/                   authenticated admin (shared sidebar layout)
-        page.tsx                 dashboard (stats + recent orders)
+        page.tsx                 dashboard (stats + revenue chart + best sellers)
         products/                list · new · [id]/edit (+ live inventory) · actions.ts
-        products/import-photos/  batch re-import photos from Shopify (server-run)
         orders/                  recorded orders (+ actions.ts: labels, sample order)
+        orders/export/route.ts   CSV export of all orders
         orders/[id]/label/       buy + print a Shippo shipping label
         orders/packaging/        manage packaging presets (name + weight)
         home/                    "Photos" tab — all editable non-product images
@@ -71,8 +71,7 @@ src/
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
                                  shipping (Shippo REST), packaging, stock, discounts,
-                                 settings, email (Resend), shopify-import,
-                                 seo (SITE_URL + keywords)
+                                 settings, email (Resend), seo (SITE_URL + keywords)
 prisma/
   schema.prisma                  Product, Collection, Order, Pageview,
                                  DiscountRule, Setting models
@@ -166,7 +165,9 @@ seed + fallback — see below.
   item with the product `slug` in `price_data.product_data.metadata`.
 - `api/webhooks/stripe` verifies `checkout.session.completed`, then **records an
   Order** (idempotent per session id) and **decrements tracked inventory** using
-  the slug metadata, marking items sold out at 0.
+  the slug metadata, marking items sold out at 0 — the create + all decrements
+  run in one `prisma.$transaction`, so a partial failure rolls back and Stripe's
+  retry re-runs cleanly. Emails send after commit.
 
 ## Commerce model
 
@@ -319,13 +320,12 @@ seed + fallback — see below.
   (`h-auto`) — square/`object-cover` framing cropped them and square/`contain`
   left side bars. The storefront renders plain `<img>`, so there are intentional
   `@next/next/no-img-element` lint **warnings** (not errors).
-- **Re-import photos from Shopify.** Two paths, both matching by product title and
-  writing full-res multi-image galleries to `Product.images` (via `lib/shopify-
-  import.ts`, pulling every image from the store's `/products.json`): a CLI script
-  (`scripts/scrape-shopify-images.mjs`, needs local DB + Blob env) and an in-admin
-  **`/admin/products/import-photos`** page that runs the same import **server-side
-  on Vercel** in client-driven batches (`maxDuration = 60`) so it works from a
-  phone with no local setup. Reports name-unmatched products.
+- **Re-import photos from Shopify.** `scripts/scrape-shopify-images.mjs` matches
+  each product by title and writes full-res multi-image galleries to
+  `Product.images`, pulling every image from the store's `/products.json` (needs
+  local DB + Blob env). An in-admin batch importer existed while the initial
+  import was pending and was removed once it ran; the script remains for future
+  re-imports.
 - **Google Merchant feed.** `app/feed.xml/route.ts` emits an RSS 2.0 + `g:`
   product feed (id/title/price/availability/brand + gallery images) for free
   Google Shopping listings. Products without a real hosted image are skipped.
@@ -349,6 +349,28 @@ seed + fallback — see below.
   across navigation via `sessionStorage` (returning from an edit keeps them). The
   low-stock *filter option* was removed; the dashboard's old "Low stock" stat is
   now **"To ship"** (count of `fulfillmentStatus = "unfulfilled"` orders).
+- **Dashboard analytics.** Beyond the four stat tiles, the dashboard shows a
+  **30-day daily revenue** bar chart (pure CSS, no chart lib) and a **best-sellers**
+  list (units sold, last 90 days) aggregated from order item snapshots — both from
+  a single 90-day order query.
+- **CSV order export.** `GET /admin/orders/export` (route handler under `/admin`,
+  so middleware-gated) streams a downloadable CSV of all orders with proper
+  quoting. Linked from the Orders page.
+- **Shop search is URL-driven.** `/shop?q=…` filters on landing (feeds the SEO
+  `SearchAction`); `ShopClient` also writes the query back to the URL as you type
+  (debounced, `history.replaceState` — no server round-trip) so searches are
+  shareable.
+- **Discreet admin link.** The footer copyright bar has a low-contrast `Admin`
+  link (`rel="nofollow"`) for quick owner access; `/admin` is password-gated,
+  sitemap-excluded, and robots-disallowed, so exposing it is low-risk.
+- **Input-hardening (money paths).** Emails HTML-escape all customer-controlled
+  fields before interpolation (no injection into confirmation/owner mail).
+  Checkout rejects a submitted size that isn't one of the product's real
+  size-axis options. `purchaseLabel` short-circuits if the order already has a
+  label so a re-submit can't buy a second (paid) Shippo label. **Note:** the admin
+  session key is `SHA-256(ADMIN_PASSWORD)`, so use a high-entropy password; and
+  there is no hard stock reservation between checkout and payment (acceptable for
+  low volume — two buyers could both pay for the last unit).
 - **Home imagery is real, not placeholders.** `getCollectionImageOptions()`
   (catalog) yields distinct product photos per collection; the home page hands a
   unique one to every slot so nothing repeats. The header is a 3-column layout

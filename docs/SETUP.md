@@ -97,9 +97,12 @@ catalog already has rows, so it never overwrites admin edits).
 **Using the admin:** go to `/admin`, sign in with `ADMIN_PASSWORD`, then manage
 Products (create/edit/delete with photo upload, including per-size/-unit stock and
 shipping weight), Orders (with printable packing slips and Shippo shipping
-labels — see below), Inventory, Discounts (Stripe promo codes), and Traffic.
-Storefront pages revalidate automatically when you save, so changes appear within
-moments.
+labels — see below), Inventory, Discounts (Stripe promo codes), and Traffic. The
+dashboard shows a 30-day revenue chart + best sellers, and the Orders page has a
+**CSV export** for bookkeeping. Storefront pages revalidate automatically when you
+save, so changes appear within moments. A discreet **Admin** link in the site
+footer gives quick access; keep `ADMIN_PASSWORD` strong since it also derives the
+admin session key.
 
 To run the data scripts locally, first get the env vars into `.env.local`. The
 easiest way is the Vercel CLI:
@@ -161,28 +164,22 @@ shown above.
 ### Re-import full product photos from Shopify (multiple per product)
 
 Products support a photo **gallery** (`Product.images`; the first is the main
-image). The original import pulled a single, cropped photo per product; to
-replace them with the **full-resolution originals — including multiple photos
-per product — from each product's own Shopify page**, use either path. Both
-match products by title and pull every image from the store's public
-`/products.json`.
+image). To (re)pull the **full-resolution originals — including multiple photos
+per product — from each product's own Shopify page**, run the script (needs
+`.env.local` with the DB + `BLOB_READ_WRITE_TOKEN`, and the Shopify store still
+up). It matches products by title and pulls every image from the store's public
+`/products.json`:
 
-- **From a phone / no local setup (recommended):** open **Admin → Products →
-  Import photos**, then **Start import**. It runs on Vercel (where the DB + Blob
-  token already are) in small batches with a progress bar, and lists any products
-  that didn't match a Shopify product by name. Safe to re-run; an optional toggle
-  limits it to products with fewer than 2 photos.
-- **Locally via script** (needs `.env.local` with the DB + `BLOB_READ_WRITE_TOKEN`,
-  and the Shopify store still up):
+```bash
+node --env-file=.env.local scripts/scrape-shopify-images.mjs --dry-run   # preview matches + counts
+node --env-file=.env.local scripts/scrape-shopify-images.mjs             # download → Blob → save
+```
 
-  ```bash
-  node --env-file=.env.local scripts/scrape-shopify-images.mjs --dry-run   # preview matches + counts
-  node --env-file=.env.local scripts/scrape-shopify-images.mjs             # download → Blob → save
-  ```
-
-  Flags: `--only-missing` (only products with <2 photos), `--store <domain>`.
+Flags: `--only-missing` (only products with <2 photos), `--store <domain>`.
 
 In the admin, edit a product to add/remove/reorder photos manually (first = main).
+(An in-admin batch importer existed while the first import was pending; it was
+removed after running.)
 
 ### Backfill collection memberships
 
