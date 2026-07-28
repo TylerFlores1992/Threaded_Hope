@@ -41,6 +41,7 @@ src/
     checkout/                    order review → Stripe redirect (+ gift option)
     checkout/success/            post-payment, clears cart
     sitemap.ts / robots.ts       dynamic sitemap + robots
+    feed.xml/route.ts            Google Merchant Center product feed
     api/checkout/route.ts        creates Stripe Checkout Session (server)
     api/webhooks/stripe/route.ts records paid orders + decrements inventory
     api/track/route.ts           records storefront page views
@@ -50,6 +51,7 @@ src/
       (panel)/                   authenticated admin (shared sidebar layout)
         page.tsx                 dashboard (stats + recent orders)
         products/                list · new · [id]/edit (+ live inventory) · actions.ts
+        products/import-photos/  batch re-import photos from Shopify (server-run)
         orders/                  recorded orders (+ actions.ts: labels, sample order)
         orders/[id]/label/       buy + print a Shippo shipping label
         orders/packaging/        manage packaging presets (name + weight)
@@ -62,13 +64,15 @@ src/
     not-found.tsx                themed 404
   middleware.ts                  gates /admin/* on the session cookie
   components/                    Header, Footer, CartDrawer, ProductCard,
-                                 ChromeGate, TrafficTracker, admin/*
+                                 ProductGallery, JsonLd, ChromeGate,
+                                 TrafficTracker, admin/*
   data/                          store.ts, collections.ts, products.ts, faqs.ts,
                                  blog.ts (static seed + fallback catalog + blog)
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
                                  shipping (Shippo REST), packaging, stock, discounts,
-                                 settings, seo (SITE_URL + keywords)
+                                 settings, email (Resend), shopify-import,
+                                 seo (SITE_URL + keywords)
 prisma/
   schema.prisma                  Product, Collection, Order, Pageview,
                                  DiscountRule, Setting models
@@ -78,6 +82,7 @@ scripts/
   migrate-images.mjs             move product photos Shopify CDN → Vercel Blob
   backfill-collections.ts        apply static-catalog collection membership to DB
   seo-descriptions.ts            append keyword-aware SEO lines to descriptions
+  scrape-shopify-images.mjs      re-pull full/multiple photos from Shopify → Blob
   clean-descriptions.ts          strip emoji from product descriptions in the DB
 ```
 
@@ -120,8 +125,9 @@ seed + fallback — see below.
   **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic),
   **DiscountRule** (automatic cart discounts), and **Setting** (key/value).
   `Product` has a primary `collectionSlug` plus a
-  `collections` JSON list of every collection it appears in (see gotchas), and a
-  `weightOz` (per-unit shipping weight, used to prefill label parcels). `Order`
+  `collections` JSON list of every collection it appears in (see gotchas), a
+  `weightOz` (per-unit shipping weight, used to prefill label parcels), and an
+  `images` JSON array (gallery; `image` mirrors the primary `images[0]`). `Order`
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
   `shippingCents`, captured from Stripe in the webhook), gift fields
@@ -297,13 +303,27 @@ seed + fallback — see below.
   header/footer on `/admin` without opting storefront pages out of static
   rendering. The `(panel)` route group carries the admin sidebar; `/admin/login`
   sits outside it so it renders bare.
-- **Product images.** Each product has an optional `image` rendered by
-  `components/ProductImage.tsx`, falling back to a **generated SVG placeholder**
-  (`lib/placeholder.ts`). Seeded products ship with a real photo URL and `seed.ts`
-  writes `image`, so DB-backed catalogs keep their photos (moved to Vercel Blob by
-  the migration above). The storefront renders plain `<img>` (also the brand logo
-  below), so there are intentional `@next/next/no-img-element` lint **warnings**
-  (not errors).
+- **Product images & gallery.** Products carry an ordered `images` array (Blob
+  URLs); `image` mirrors the primary (`images[0]`) for cards/cart. The product
+  page renders `ProductGallery` (main photo + thumbnail strip); cards use
+  `ProductImage`, both falling back to a **generated SVG placeholder**
+  (`lib/placeholder.ts`). The admin product form manages the gallery — keep/remove
+  existing photos (checkboxes, first = Main) + multi-upload; create/update persist
+  the ordered list and set `image`. Photos are **portrait**, so **grid tiles use a
+  4:5 `object-cover` frame** and the **detail image renders at natural height**
+  (`h-auto`) — square/`object-cover` framing cropped them and square/`contain`
+  left side bars. The storefront renders plain `<img>`, so there are intentional
+  `@next/next/no-img-element` lint **warnings** (not errors).
+- **Re-import photos from Shopify.** Two paths, both matching by product title and
+  writing full-res multi-image galleries to `Product.images` (via `lib/shopify-
+  import.ts`, pulling every image from the store's `/products.json`): a CLI script
+  (`scripts/scrape-shopify-images.mjs`, needs local DB + Blob env) and an in-admin
+  **`/admin/products/import-photos`** page that runs the same import **server-side
+  on Vercel** in client-driven batches (`maxDuration = 60`) so it works from a
+  phone with no local setup. Reports name-unmatched products.
+- **Google Merchant feed.** `app/feed.xml/route.ts` emits an RSS 2.0 + `g:`
+  product feed (id/title/price/availability/brand + gallery images) for free
+  Google Shopping listings. Products without a real hosted image are skipped.
 - **Brand logo & favicon.** The wordmark lives at `public/logo.png`, shown in the
   Header and Footer; `src/app/icon.png` + `apple-icon.png` supply the favicon and
   Apple touch icon via Next.js file-based metadata.
@@ -319,7 +339,11 @@ seed + fallback — see below.
   0 (via the webhook or an inventory edit) flips `inStock` to false.
 - **Admin products & inventory are searchable/filterable.** The tables are client
   components (`AdminProductsTable`, `AdminInventoryTable`) fed by the server pages;
-  they offer text search, a collection filter, a status filter, and sorting.
+  they offer text search, a collection filter, a status filter, and sorting. The
+  products table shows a per-row **photo thumbnail** and **persists its filters**
+  across navigation via `sessionStorage` (returning from an edit keeps them). The
+  low-stock *filter option* was removed; the dashboard's old "Low stock" stat is
+  now **"To ship"** (count of `fulfillmentStatus = "unfulfilled"` orders).
 - **Home imagery is real, not placeholders.** `getCollectionImageOptions()`
   (catalog) yields distinct product photos per collection; the home page hands a
   unique one to every slot so nothing repeats. The header is a 3-column layout
