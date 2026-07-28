@@ -26,12 +26,12 @@ export default async function AdminDashboard() {
     );
   }
 
-  const [productCount, orderCount, revenue, lowStock, recent] =
+  const [productCount, orderCount, revenue, toShip, recent] =
     await Promise.all([
       prisma.product.count(),
       prisma.order.count(),
       prisma.order.aggregate({ _sum: { amountTotalCents: true } }),
-      prisma.product.count({ where: { stock: { lte: 3, not: null } } }),
+      prisma.order.count({ where: { fulfillmentStatus: "unfulfilled" } }),
       prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
     ]);
 
@@ -44,7 +44,7 @@ export default async function AdminDashboard() {
         <Stat label="Products" value={String(productCount)} />
         <Stat label="Orders" value={String(orderCount)} />
         <Stat label="Revenue" value={formatPrice(revenueDollars)} />
-        <Stat label="Low stock" value={String(lowStock)} />
+        <Stat label="To ship" value={String(toShip)} />
       </div>
 
       <section className="mt-10">
