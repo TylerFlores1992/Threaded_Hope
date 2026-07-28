@@ -50,8 +50,10 @@ export type Product = Required<
   hue: number;
   /** Per-size stock counts ({ "S": 5, "M": 0 }); empty when not tracked per size. */
   sizeStock: Record<string, number>;
-  /** Real product photo URL; falls back to a generated placeholder. */
+  /** Real product photo URL (primary); falls back to a generated placeholder. */
   image?: string;
+  /** All photo URLs for the gallery; the first is the primary (`image`). */
+  images: string[];
 };
 
 // prettier-ignore
@@ -236,6 +238,7 @@ export const products: Product[] = seed.map((s, i) => {
     collections: allCollections,
     slug: slugify(s.name),
     variants: s.variants ?? [],
+    images: s.image ? [s.image] : [],
     sizeStock: {},
     inStock: s.inStock ?? true,
     featured: s.featured ?? false,

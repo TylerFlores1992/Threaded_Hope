@@ -20,6 +20,7 @@ export type ProductFormValues = {
   stock: number | null;
   weightOz: number | null;
   image?: string;
+  images?: string[];
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -52,7 +53,13 @@ export function ProductForm({
   /** Live inventory controls (edit page) rendered in place of the stock field. */
   inventoryEditor?: ReactNode;
 }) {
-  const [preview, setPreview] = useState<string | undefined>(product?.image);
+  const existingImages =
+    product?.images && product.images.length > 0
+      ? product.images
+      : product?.image
+        ? [product.image]
+        : [];
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
 
   // Split existing variants into the size axis (structured editor below) and
   // any other option groups (color, etc. — kept in the free-text field).
@@ -388,29 +395,69 @@ export function ProductForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-ink">Photo</label>
+        <label className="block text-sm font-medium text-ink">Photos</label>
         <p className="text-xs text-ink-soft">
-          Optional. Leave blank to keep the current image / use a placeholder.
+          The first photo is the main image. Add several to build a gallery.
+          Uncheck a photo to remove it on save.
         </p>
-        <div className="mt-2 flex items-center gap-4">
-          {preview && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={preview}
-              alt=""
-              className="h-20 w-20 rounded-lg object-cover ring-1 ring-border"
-            />
-          )}
+
+        {existingImages.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-3">
+            {existingImages.map((url, i) => (
+              <label
+                key={url}
+                className="relative block cursor-pointer"
+                title="Uncheck to remove"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt=""
+                  className="h-20 w-20 rounded-lg object-cover ring-1 ring-border"
+                />
+                {i === 0 && (
+                  <span className="absolute left-1 top-1 rounded bg-sage-deep px-1 text-[10px] font-medium text-white">
+                    Main
+                  </span>
+                )}
+                {/* Checked = keep. Its value is the URL to keep, in order. */}
+                <input
+                  type="checkbox"
+                  name="keepImage"
+                  value={url}
+                  defaultChecked
+                  className="absolute right-1 top-1 h-4 w-4"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3">
           <input
-            name="image"
+            name="images"
             type="file"
             accept="image/*"
+            multiple
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              setPreview(f ? URL.createObjectURL(f) : product?.image);
+              const files = Array.from(e.target.files ?? []);
+              setNewPreviews(files.map((f) => URL.createObjectURL(f)));
             }}
             className="text-sm text-ink-soft"
           />
+          {newPreviews.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {newPreviews.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt=""
+                  className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

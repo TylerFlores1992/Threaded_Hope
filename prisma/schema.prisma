@@ -23,7 +23,8 @@ model Product {
   priceCents     Int
   collectionSlug String // primary collection (breadcrumb, hue, related)
   collections    Json    @default("[]") // all collection slugs this product appears in
-  image          String? // Vercel Blob URL; falls back to a generated placeholder
+  image          String? // primary photo (Blob URL); falls back to a placeholder
+  images         Json     @default("[]") // all photo URLs (gallery); image = images[0]
   variants       Json     @default("[]")
   featured       Boolean  @default(false)
   inStock        Boolean  @default(true)

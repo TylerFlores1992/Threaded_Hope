@@ -32,8 +32,33 @@ async function uploadImage(file: File | null): Promise<string | undefined> {
   const ext = file.name.match(/\.[^.]+$/)?.[0] ?? "";
   const blob = await put(`products/${safe}-${Date.now()}${ext}`, file, {
     access: "public",
+    addRandomSuffix: true,
   });
   return blob.url;
+}
+
+/** Upload every non-empty file from a multi-file field, preserving order. */
+async function uploadImages(files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const f of files) {
+    const url = await uploadImage(f);
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
+/**
+ * Resolve the final gallery from the form: kept existing URLs (in their checkbox
+ * order) followed by any newly uploaded files. The first entry is the primary.
+ */
+async function resolveImages(formData: FormData): Promise<string[]> {
+  const kept = formData
+    .getAll("keepImage")
+    .map((v) => String(v))
+    .filter(Boolean);
+  const files = formData.getAll("images").filter((f): f is File => f instanceof File);
+  const uploaded = await uploadImages(files);
+  return [...kept, ...uploaded];
 }
 
 type Parsed = {
@@ -139,7 +164,7 @@ export async function createProduct(formData: FormData): Promise<void> {
   const prisma = getPrisma();
   const validSlugs = new Set((await getAllCollections()).map((c) => c.slug));
   const data = parseForm(formData, validSlugs);
-  const image = await uploadImage(formData.get("image") as File | null);
+  const images = await resolveImages(formData);
 
   // Ensure a unique slug.
   const base = slugify(data.name);
@@ -164,7 +189,8 @@ export async function createProduct(formData: FormData): Promise<void> {
       stock: data.stock,
       weightOz: data.weightOz,
       variants: data.variants,
-      ...(image ? { image } : {}),
+      images,
+      ...(images[0] ? { image: images[0] } : {}),
     },
   });
 
@@ -179,9 +205,10 @@ export async function updateProduct(
   const prisma = getPrisma();
   const validSlugs = new Set((await getAllCollections()).map((c) => c.slug));
   const data = parseForm(formData, validSlugs);
-  const image = await uploadImage(formData.get("image") as File | null);
   const existing = await prisma.product.findUnique({ where: { id } });
   if (!existing) throw new Error("Product not found.");
+  // Kept existing photos (in checkbox order) + any newly uploaded ones.
+  const images = await resolveImages(formData);
 
   await prisma.product.update({
     where: { id },
@@ -194,9 +221,10 @@ export async function updateProduct(
       featured: data.featured,
       variants: data.variants,
       weightOz: data.weightOz,
+      images,
+      image: images[0] ?? null,
       // stock / inStock are managed by the live inventory editors (on this page
       // and the Inventory page), so a product edit never overwrites them.
-      ...(image ? { image } : {}),
     },
   });
 
