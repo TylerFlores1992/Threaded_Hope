@@ -47,10 +47,11 @@ export default async function PackingSlipPage({
   const shipName = shipping?.name ?? order.customerName ?? order.email ?? "—";
   const itemCount = items.reduce((n, it) => n + (it.quantity ?? 1), 0);
 
-  // Gift orders hide every price (it doubles as a gift receipt). Otherwise the
-  // slip shows a full receipt breakdown.
+  // Gift and local-pickup orders hide every price (the slip goes to the
+  // customer). Otherwise the slip shows a full receipt breakdown.
   const isGift = order.isGift;
-  const showPrices = !isGift;
+  const isPickup = order.pickup;
+  const showPrices = !isGift && !isPickup;
   const cents = (n: number) => formatPrice(n / 100);
 
   const orderDate = order.createdAt.toLocaleDateString("en-US", {
@@ -112,7 +113,7 @@ export default async function PackingSlipPage({
         </div>
 
         <h1 className="mt-6 font-serif text-2xl text-ink">
-          {isGift ? "Gift Receipt" : "Packing Slip"}
+          {isGift ? "Gift Receipt" : isPickup ? "Pickup Slip" : "Packing Slip"}
         </h1>
 
         {/* Order + ship-to */}
@@ -127,10 +128,12 @@ export default async function PackingSlipPage({
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-              Ship to
+              {isPickup ? "Pickup" : "Ship to"}
             </p>
             <p className="mt-1 text-ink">{shipName}</p>
-            {addr ? (
+            {isPickup ? (
+              <p className="text-ink-soft">Local pickup — no shipping.</p>
+            ) : addr ? (
               <div className="text-ink-soft">
                 {addr.line1 && <p>{addr.line1}</p>}
                 {addr.line2 && <p>{addr.line2}</p>}
@@ -230,7 +233,9 @@ export default async function PackingSlipPage({
           </div>
         ) : (
           <p className="mt-4 rounded-lg bg-sand px-3 py-2 text-xs text-ink-soft">
-            🎁 Gift order — prices are intentionally left off this slip.
+            {isGift
+              ? "🎁 Gift order — prices are intentionally left off this slip."
+              : "🏠 Local pickup — prices are intentionally left off this slip."}
           </p>
         )}
 
