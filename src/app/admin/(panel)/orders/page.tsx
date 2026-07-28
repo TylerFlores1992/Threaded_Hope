@@ -34,13 +34,19 @@ export default async function OrdersPage() {
         in your Stripe Dashboard.
       </p>
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap gap-4">
         <Link
           href="/admin/orders/packaging"
           className="text-sm font-medium text-sage-deep hover:underline"
         >
           Manage packaging →
         </Link>
+        <a
+          href="/admin/orders/export"
+          className="text-sm font-medium text-sage-deep hover:underline"
+        >
+          Export CSV ↓
+        </a>
       </div>
 
       {isShippoTestMode() && (
