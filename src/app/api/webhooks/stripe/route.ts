@@ -72,6 +72,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         subtotalCents: session.amount_subtotal ?? null,
         discountCents: session.total_details?.amount_discount ?? null,
         shippingCents: session.total_details?.amount_shipping ?? null,
+        taxCents: session.total_details?.amount_tax ?? null,
         isGift,
         giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
         pickup,
@@ -131,6 +132,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     subtotalCents: order.subtotalCents,
     discountCents: order.discountCents,
     shippingCents: order.shippingCents,
+    taxCents: order.taxCents,
     isGift: order.isGift,
     items,
   };

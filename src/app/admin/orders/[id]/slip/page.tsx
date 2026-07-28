@@ -226,6 +226,12 @@ export default async function PackingSlipPage({
                 </span>
               </div>
             )}
+            {order.taxCents != null && order.taxCents > 0 && (
+              <div className="flex justify-between text-ink-soft">
+                <span>Tax</span>
+                <span>{cents(order.taxCents)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-border pt-1 font-semibold text-ink">
               <span>Total</span>
               <span>{cents(order.amountTotalCents)}</span>
