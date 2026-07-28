@@ -393,6 +393,37 @@ only on `localhost`.
 > real orders to fulfill. Sales tax is the store owner's responsibility. It's
 > safe to stay in test mode as long as you like.
 
+### Going-live checklist
+
+The admin **Dashboard → Setup status** panel shows each integration's mode
+(green = live, amber = test, grey = not set) without exposing any secret — use it
+to verify each step below. Redeploy after any env change.
+
+- [ ] **Domain live** — `https://threaded-hope.com` serves over HTTPS; `www`
+      redirects to it (see "Connect the domain").
+- [ ] **Stripe key = Live** — `STRIPE_SECRET_KEY` is `sk_live_…`.
+- [ ] **Stripe webhook (LIVE) set** — endpoint added in Stripe **live mode** →
+      `…/api/webhooks/stripe`, event `checkout.session.completed`; its `whsec_…`
+      is in `STRIPE_WEBHOOK_SECRET`. (A test-mode webhook secret with a live key
+      means paid orders never record — the panel can't detect the mismatch, so
+      double-check the endpoint was created in live mode.)
+- [ ] **Place one real order** (you can refund it) and confirm: order appears in
+      admin, confirmation + owner emails arrive, best-sellers/revenue update.
+- [ ] **Shippo = Live** — swap `SHIPPO_API_KEY` to `shippo_live_…`. **Shippo
+      gates live label purchases behind account verification:** add a payment
+      method (Billing → Add Payment Method) and complete their Trust & Safety
+      review *before* switching, or live label buys will fail. Keep the
+      `shippo_test_…` token until they approve — packing slips work regardless.
+- [ ] **Set the return address** — `src/data/store.ts` → `shipFrom` is your real
+      address with a phone + email (USPS requires both).
+- [ ] **Emails on** — `RESEND_API_KEY` + `EMAIL_FROM` set, sending domain verified
+      in Resend (panel shows "On" + the from-address).
+- [ ] **Strong `ADMIN_PASSWORD`** — it also derives the admin session key.
+- [ ] **Photos imported** — run the Shopify image import so products (and the
+      Google feed) have real photos.
+- [ ] **SEO** — sitemap submitted in Google Search Console; optionally submit the
+      `/feed.xml` product feed in Google Merchant Center (after photos look good).
+
 ## Product images
 
 The easiest way is the **admin**: edit a product at `/admin/products` and upload
