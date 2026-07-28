@@ -55,33 +55,74 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   const details = session.customer_details;
   const meta = session.metadata ?? {};
   const isGift = meta.isGift === "1";
-  const order = await prisma.order.create({
-    data: {
-      stripeSessionId: session.id,
-      email: details?.email ?? null,
-      customerName: details?.name ?? null,
-      amountTotalCents: session.amount_total ?? 0,
-      subtotalCents: session.amount_subtotal ?? null,
-      discountCents: session.total_details?.amount_discount ?? null,
-      shippingCents: session.total_details?.amount_shipping ?? null,
-      isGift,
-      giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
-      pickup,
-      currency: session.currency ?? "usd",
-      status: "paid",
-      shipping: details?.address
-        ? ({
-            name: details.name,
-            address: details.address,
-          } as unknown as Prisma.InputJsonValue)
-        : undefined,
-      items: items as unknown as Prisma.InputJsonValue,
-    },
+
+  // Record the order AND decrement inventory atomically. If any decrement fails,
+  // the order create rolls back too, so Stripe's retry re-runs the whole thing
+  // cleanly (rather than the retry hitting the idempotency guard with stock
+  // never decremented). The `stripeSessionId` unique constraint still prevents
+  // duplicate orders under concurrent deliveries.
+  const db = prisma;
+  const order = await db.$transaction(async (tx) => {
+    const created = await tx.order.create({
+      data: {
+        stripeSessionId: session.id,
+        email: details?.email ?? null,
+        customerName: details?.name ?? null,
+        amountTotalCents: session.amount_total ?? 0,
+        subtotalCents: session.amount_subtotal ?? null,
+        discountCents: session.total_details?.amount_discount ?? null,
+        shippingCents: session.total_details?.amount_shipping ?? null,
+        isGift,
+        giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
+        pickup,
+        currency: session.currency ?? "usd",
+        status: "paid",
+        shipping: details?.address
+          ? ({
+              name: details.name,
+              address: details.address,
+            } as unknown as Prisma.InputJsonValue)
+          : undefined,
+        items: items as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    for (const it of items) {
+      if (!it.slug) continue;
+      const product = await tx.product.findUnique({ where: { slug: it.slug } });
+      if (!product) continue;
+
+      const sizeStock =
+        product.sizeStock && typeof product.sizeStock === "object"
+          ? ({ ...(product.sizeStock as Record<string, number>) })
+          : {};
+
+      if (it.size && typeof sizeStock[it.size] === "number") {
+        // Per-size product: decrement the purchased size, mark sold out at 0.
+        sizeStock[it.size] = Math.max(0, sizeStock[it.size] - it.quantity);
+        const anyLeft = Object.values(sizeStock).some((n) => n > 0);
+        await tx.product.update({
+          where: { id: product.id },
+          data: {
+            sizeStock: sizeStock as Prisma.InputJsonValue,
+            inStock: anyLeft && product.inStock,
+          },
+        });
+      } else if (product.stock != null) {
+        const newStock = Math.max(0, product.stock - it.quantity);
+        await tx.product.update({
+          where: { id: product.id },
+          data: { stock: newStock, inStock: newStock > 0 && product.inStock },
+        });
+      }
+    }
+
+    return created;
   });
 
-  // Transactional emails — best-effort; never let a mail failure fail the
-  // webhook (that would make Stripe retry and double-process). The senders
-  // no-op when RESEND_API_KEY isn't set.
+  // Transactional emails run AFTER the DB commit — best-effort, and never allowed
+  // to throw into the webhook (that would make Stripe retry and double-process).
+  // The senders no-op when RESEND_API_KEY isn't set.
   const emailOrder = {
     id: order.id,
     email: order.email,
@@ -97,39 +138,6 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     sendOrderConfirmation(emailOrder),
     sendOwnerNewOrder(emailOrder),
   ]);
-
-  // Decrement tracked inventory.
-  for (const it of items) {
-    if (!it.slug) continue;
-    const product = await prisma.product.findUnique({
-      where: { slug: it.slug },
-    });
-    if (!product) continue;
-
-    const sizeStock =
-      product.sizeStock && typeof product.sizeStock === "object"
-        ? ({ ...(product.sizeStock as Record<string, number>) })
-        : {};
-
-    if (it.size && typeof sizeStock[it.size] === "number") {
-      // Per-size product: decrement the purchased size, mark sold out at 0.
-      sizeStock[it.size] = Math.max(0, sizeStock[it.size] - it.quantity);
-      const anyLeft = Object.values(sizeStock).some((n) => n > 0);
-      await prisma.product.update({
-        where: { id: product.id },
-        data: {
-          sizeStock: sizeStock as Prisma.InputJsonValue,
-          inStock: anyLeft && product.inStock,
-        },
-      });
-    } else if (product.stock != null) {
-      const newStock = Math.max(0, product.stock - it.quantity);
-      await prisma.product.update({
-        where: { id: product.id },
-        data: { stock: newStock, inStock: newStock > 0 && product.inStock },
-      });
-    }
-  }
 }
 
 /**

@@ -80,6 +80,15 @@ export type EmailOrder = {
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const orderRef = (id: string) => `#${id.slice(-8).toUpperCase()}`;
 
+/** Escape untrusted, customer-controlled strings before HTML interpolation. */
+const esc = (s: unknown) =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 function shell(bodyInner: string): string {
   return `
   <div style="background:#f6f1e7;padding:24px 0;font-family:Arial,Helvetica,sans-serif;color:#3a352c">
@@ -105,7 +114,7 @@ function itemsTable(order: EmailOrder, showPrices: boolean): string {
         ? `<td style="padding:8px 0;text-align:right">${money((it.unitAmountCents ?? 0) * qty)}</td>`
         : "";
       return `<tr style="border-bottom:1px solid #ece5d8">
-        <td style="padding:8px 0">${it.name}${it.size ? `<div style="font-size:12px;color:#8a8272">Size: ${it.size}</div>` : ""}</td>
+        <td style="padding:8px 0">${esc(it.name)}${it.size ? `<div style="font-size:12px;color:#8a8272">Size: ${esc(it.size)}</div>` : ""}</td>
         <td style="padding:8px 0;text-align:center;color:#8a8272">×${qty}</td>
         ${amount}
       </tr>`;
@@ -136,7 +145,7 @@ function totals(order: EmailOrder): string {
 /** Order confirmation to the customer. */
 export async function sendOrderConfirmation(order: EmailOrder): Promise<boolean> {
   if (!order.email) return false;
-  const name = order.customerName?.split(" ")[0] ?? "there";
+  const name = esc(order.customerName?.split(" ")[0] ?? "there");
   const inner = `
     <h1 style="font-size:22px;margin:0 0 4px">Thank you, ${name}! 💛</h1>
     <p style="margin:0 0 4px;color:#6a6456">We've received your order ${orderRef(order.id)} and are getting it ready.</p>
@@ -157,7 +166,7 @@ export async function sendOrderConfirmation(order: EmailOrder): Promise<boolean>
 export async function sendOwnerNewOrder(order: EmailOrder): Promise<boolean> {
   const inner = `
     <h1 style="font-size:20px;margin:0 0 8px">New order ${orderRef(order.id)} 🎉</h1>
-    <p style="margin:0;color:#6a6456">${order.customerName ?? "A customer"}${order.email ? ` (${order.email})` : ""}${order.isGift ? " · 🎁 gift" : ""}</p>
+    <p style="margin:0;color:#6a6456">${esc(order.customerName ?? "A customer")}${order.email ? ` (${esc(order.email)})` : ""}${order.isGift ? " · 🎁 gift" : ""}</p>
     ${itemsTable(order, true)}
     ${totals(order)}
     <div style="text-align:center;margin-top:20px">
@@ -173,9 +182,9 @@ export async function sendOwnerNewOrder(order: EmailOrder): Promise<boolean> {
 /** Shipping notification with tracking (if available). */
 export async function sendShippingNotification(order: EmailOrder): Promise<boolean> {
   if (!order.email) return false;
-  const name = order.customerName?.split(" ")[0] ?? "there";
+  const name = esc(order.customerName?.split(" ")[0] ?? "there");
   const tracking = order.trackingNumber
-    ? `<p style="margin:12px 0 0;font-size:14px">Carrier: <strong>${order.carrier ?? "—"}</strong><br/>Tracking: <strong>${order.trackingNumber}</strong></p>`
+    ? `<p style="margin:12px 0 0;font-size:14px">Carrier: <strong>${esc(order.carrier ?? "—")}</strong><br/>Tracking: <strong>${esc(order.trackingNumber)}</strong></p>`
     : "";
   const inner = `
     <h1 style="font-size:22px;margin:0 0 4px">Your order is on its way! 📦</h1>

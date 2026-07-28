@@ -65,6 +65,11 @@ export async function POST(req: Request) {
 
     const sizeAxis = sizeAxisOf(product);
     const selectedSize = sizeAxis ? item.options?.[sizeAxis.name] : undefined;
+    // Reject a made-up size (not one of the product's real options) so a
+    // tampered cart can't create an order for a nonexistent variant.
+    if (sizeAxis && selectedSize && !sizeAxis.options.includes(selectedSize)) {
+      continue;
+    }
 
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));
     // Price is resolved server-side from the selected options (e.g. size), so a

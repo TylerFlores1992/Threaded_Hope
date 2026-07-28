@@ -96,6 +96,11 @@ export async function purchaseLabel(
   rateObjectId: string,
 ): Promise<void> {
   const prisma = getPrisma();
+  // Never buy a second label for an order that already has one (Shippo charges
+  // real money per label). Send them to the existing-label view instead.
+  const already = await prisma.order.findUnique({ where: { id: orderId } });
+  if (already?.labelUrl) redirect(`/admin/orders/${orderId}/label`);
+
   let updated: Order | null = null;
   try {
     const { labelUrl, trackingNumber, carrier } = await buyLabel(rateObjectId);
