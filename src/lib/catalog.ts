@@ -34,6 +34,7 @@ type ProductRow = {
   collectionSlug: string;
   collections?: unknown;
   image: string | null;
+  images?: unknown;
   variants: unknown;
   sizeStock?: unknown;
   featured: boolean;
@@ -72,6 +73,16 @@ function mapRow(row: ProductRow, collectionMap: CollectionMap): Product {
     collectionName: collection?.name ?? row.collectionSlug,
     hue: collection?.hue ?? 145,
     image: row.image ?? undefined,
+    images: (() => {
+      const list = Array.isArray(row.images)
+        ? (row.images as unknown[]).filter(
+            (u): u is string => typeof u === "string" && u.length > 0,
+          )
+        : [];
+      // Keep the primary first; fall back to the single image column.
+      if (list.length > 0) return list;
+      return row.image ? [row.image] : [];
+    })(),
   };
 }
 

@@ -8,7 +8,7 @@ import {
 } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import { priceRange, hasVariablePricing } from "@/lib/pricing";
-import { ProductImage } from "@/components/ProductImage";
+import { ProductGallery } from "@/components/ProductGallery";
 import { ProductCard } from "@/components/ProductCard";
 import { AddToCart } from "@/components/AddToCart";
 import { JsonLd } from "@/components/JsonLd";
@@ -66,7 +66,7 @@ export default async function ProductPage({
     "@type": "Product",
     name: product.name,
     description: product.description,
-    ...(product.image ? { image: [product.image] } : {}),
+    ...(product.images.length > 0 ? { image: product.images } : {}),
     brand: { "@type": "Brand", name: store.name },
     category: product.collectionName,
     offers: {
@@ -115,15 +115,11 @@ export default async function ProductPage({
       </nav>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <div className="overflow-hidden rounded-2xl ring-1 ring-border">
-          <ProductImage
-            name={product.name}
-            hue={product.hue}
-            image={product.image}
-            priority
-            className="aspect-square w-full object-cover"
-          />
-        </div>
+        <ProductGallery
+          name={product.name}
+          hue={product.hue}
+          images={product.images}
+        />
 
         <div>
           <p className="text-sm uppercase tracking-wide text-ink-soft">

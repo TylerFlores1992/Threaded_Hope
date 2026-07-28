@@ -40,6 +40,11 @@ export default async function EditProductPage({
     stock: row.stock,
     weightOz: row.weightOz,
     image: row.image ?? undefined,
+    images: Array.isArray(row.images)
+      ? (row.images as string[])
+      : row.image
+        ? [row.image]
+        : [],
   };
 
   const action = updateProduct.bind(null, id);
