@@ -158,6 +158,32 @@ it while the Shopify store is still up, since it pulls from Shopify's CDN. The
 `migrate:images` npm script runs the same file, but you must load the env as
 shown above.
 
+### Re-import full product photos from Shopify (multiple per product)
+
+Products support a photo **gallery** (`Product.images`; the first is the main
+image). The original import pulled a single, cropped photo per product; to
+replace them with the **full-resolution originals — including multiple photos
+per product — from each product's own Shopify page**, use either path. Both
+match products by title and pull every image from the store's public
+`/products.json`.
+
+- **From a phone / no local setup (recommended):** open **Admin → Products →
+  Import photos**, then **Start import**. It runs on Vercel (where the DB + Blob
+  token already are) in small batches with a progress bar, and lists any products
+  that didn't match a Shopify product by name. Safe to re-run; an optional toggle
+  limits it to products with fewer than 2 photos.
+- **Locally via script** (needs `.env.local` with the DB + `BLOB_READ_WRITE_TOKEN`,
+  and the Shopify store still up):
+
+  ```bash
+  node --env-file=.env.local scripts/scrape-shopify-images.mjs --dry-run   # preview matches + counts
+  node --env-file=.env.local scripts/scrape-shopify-images.mjs             # download → Blob → save
+  ```
+
+  Flags: `--only-missing` (only products with <2 photos), `--store <domain>`.
+
+In the admin, edit a product to add/remove/reorder photos manually (first = main).
+
 ### Backfill collection memberships
 
 The static catalog (`src/data/products.ts`) carries each product's real
@@ -210,6 +236,16 @@ built in. The highest-impact manual step is to **submit the sitemap** in
 Webmaster Tools): add `https://threaded-hope.com`, verify ownership, then submit
 `https://threaded-hope.com/sitemap.xml`. Keep product titles/descriptions
 specific and unique for the best results.
+
+### Google Shopping (Merchant Center feed)
+
+A product feed is served at **`/feed.xml`** (RSS 2.0 + Google's `g:` namespace)
+for free Google Shopping listings. Products need a real hosted image to be
+included, so re-import photos first (above). To use it: create a free
+[Google Merchant Center](https://merchants.google.com) account, claim/verify the
+site (it can reuse your Search Console verification), then **Products → Feeds →
+Add** a scheduled fetch of `https://threaded-hope.com/feed.xml`. Google reviews
+items over a few days before they can appear.
 
 ### Order emails (Resend, optional)
 
