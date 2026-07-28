@@ -131,7 +131,8 @@ seed + fallback — see below.
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
   `shippingCents`, captured from Stripe in the webhook), gift fields
-  (`isGift` / `giftMessage`), and fulfillment state (`fulfillmentStatus`
+  (`isGift` / `giftMessage`), a `pickup` flag (local pickup chosen at
+  checkout), and fulfillment state (`fulfillmentStatus`
   unfulfilled|shipped|delivered, `shippedAt`, `deliveredAt`).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
@@ -245,12 +246,16 @@ seed + fallback — see below.
   the `ParcelForm` (client) offers a packaging dropdown whose tare weight is added
   to the item weights to prefill the parcel weight, with a "Manage packaging"
   link beside it. Replaced the old fixed `store.shipping.packagingWeightOz`.
-- **Packing slip doubles as a receipt / gift receipt.** Non-gift orders show a
-  full breakdown (per-line price + amount, then subtotal / discount / shipping /
-  total) from the `Order` receipt columns. **Gift orders** (`Order.isGift`, set
-  from a checkout "This is a gift" option carried through Stripe session
-  `metadata`) hide every price, and when a `giftMessage` was left it prints on its
-  own page-break sheet as a decorative card to tuck in the parcel.
+- **Packing slip doubles as a receipt / gift receipt / pickup slip.** Normal
+  orders show a full breakdown (per-line price + amount, then subtotal / discount
+  / shipping / total) from the `Order` receipt columns. **Gift orders**
+  (`Order.isGift`, set from a checkout "This is a gift" option carried through
+  Stripe session `metadata`) hide every price, and when a `giftMessage` was left
+  it prints on its own page-break sheet as a decorative card to tuck in the
+  parcel. **Local-pickup orders** (`Order.pickup`, detected in the webhook from
+  the chosen Stripe shipping option's display name) likewise hide all prices and
+  render as a "Pickup Slip" with a pickup note instead of a ship-to address, so
+  the slip handed to the customer at pickup carries no pricing.
 - **Editable photos are consolidated** in the admin **"Photos"** tab
   (`/admin/home`, still that route). `HOME_IMAGE_SLOTS` drives both the uploader
   and the cached reader (`getHomeImages`); slots cover the logo, hero collage,

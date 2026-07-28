@@ -304,7 +304,10 @@ one and update `INSTAGRAM_ACCESS_TOKEN` — the cron re-bootstraps from it.
 
 The admin can buy and print carrier labels per order (**Orders → Buy**). It's
 optional — without a token the label page shows a setup guide, and packing slips
-(**Orders → Print**) work regardless.
+(**Orders → Print**) work regardless. The slip adapts to the order: a full
+receipt for normal orders, and a **price-free slip** for gift orders (a "Gift
+Receipt", with the gift message on its own page) and **local-pickup orders** (a
+"Pickup Slip") so the customer's copy shows no pricing.
 
 1. **Create a Shippo account** at [goshippo.com](https://goshippo.com)
    (pay-per-label, no monthly fee). Add a payment method under **Settings →
