@@ -97,6 +97,7 @@ model Order {
   shippingCents    Int? // shipping charged
   isGift           Boolean  @default(false)
   giftMessage      String?
+  pickup           Boolean  @default(false) // local pickup chosen at checkout
   labelUrl         String?
   trackingNumber   String?
   carrier          String?

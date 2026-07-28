@@ -45,7 +45,7 @@ export default async function OrdersPage() {
 
       {isShippoTestMode() && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <form action={createTestOrder.bind(null, false)}>
+          <form action={createTestOrder.bind(null, false, false)}>
             <button
               type="submit"
               className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
@@ -53,12 +53,20 @@ export default async function OrdersPage() {
               + Create sample order (test mode)
             </button>
           </form>
-          <form action={createTestOrder.bind(null, true)}>
+          <form action={createTestOrder.bind(null, true, false)}>
             <button
               type="submit"
               className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
             >
               + Create sample gift order
+            </button>
+          </form>
+          <form action={createTestOrder.bind(null, false, true)}>
+            <button
+              type="submit"
+              className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
+            >
+              + Create sample pickup order
             </button>
           </form>
           <span className="text-xs text-ink-soft">

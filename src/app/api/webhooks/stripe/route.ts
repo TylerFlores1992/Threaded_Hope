@@ -21,6 +21,20 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     limit: 100,
   });
 
+  // Detect local pickup from the chosen shipping option's display name.
+  let pickup = false;
+  try {
+    const full = await stripe.checkout.sessions.retrieve(session.id, {
+      expand: ["shipping_cost.shipping_rate"],
+    });
+    const rate = full.shipping_cost?.shipping_rate;
+    const shipName =
+      rate && typeof rate === "object" ? (rate.display_name ?? "") : "";
+    pickup = /pickup/i.test(shipName);
+  } catch {
+    /* if we can't resolve the shipping method, treat as a normal shipment */
+  }
+
   const items = lineItems.data.map((li) => {
     const product = li.price?.product as Stripe.Product | undefined;
     return {
@@ -52,6 +66,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       shippingCents: session.total_details?.amount_shipping ?? null,
       isGift,
       giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
+      pickup,
       currency: session.currency ?? "usd",
       status: "paid",
       shipping: details?.address
