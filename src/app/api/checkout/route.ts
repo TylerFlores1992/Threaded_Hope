@@ -62,9 +62,25 @@ export async function POST(req: Request) {
   //  - STRIPE_TAX_ENABLED=1 → Stripe Tax (automatic, per-destination, ~0.5% fee)
   //  - else STRIPE_TAX_RATE_ID=txr_… → a flat manual rate (free), applied to items
   const autoTax = process.env.STRIPE_TAX_ENABLED === "1";
-  const flatTaxRateId = autoTax
+  let flatTaxRateId = autoTax
     ? undefined
     : process.env.STRIPE_TAX_RATE_ID || undefined;
+
+  // Validate the flat tax rate up front so a bad/mismatched id (e.g. a test-mode
+  // rate with a live key, or a typo) can never break checkout — we just skip tax
+  // and log it, rather than failing the whole session.
+  if (flatTaxRateId) {
+    try {
+      const rate = await stripe.taxRates.retrieve(flatTaxRateId);
+      if (!rate.active) {
+        console.error("STRIPE_TAX_RATE_ID is inactive; skipping tax.");
+        flatTaxRateId = undefined;
+      }
+    } catch (err) {
+      console.error("STRIPE_TAX_RATE_ID invalid; skipping tax:", err);
+      flatTaxRateId = undefined;
+    }
+  }
 
   for (const item of items) {
     const product = await getProductBySlug(item.slug);
