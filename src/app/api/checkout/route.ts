@@ -116,8 +116,10 @@ export async function POST(req: Request) {
       price_data: {
         currency: "usd",
         unit_amount: Math.round(unitPrice * 100),
-        // Tax is added on top of the listed price when a tax rate applies.
-        tax_behavior: "exclusive",
+        // tax_behavior is only for automatic Stripe Tax. With a manual tax_rate
+        // the rate's own inclusive/exclusive setting governs, and setting both
+        // conflicts (Stripe errors), so only set it for automatic tax.
+        ...(autoTax ? ({ tax_behavior: "exclusive" } as const) : {}),
         product_data: {
           name: product.name,
           ...(optionText ? { description: optionText } : {}),
