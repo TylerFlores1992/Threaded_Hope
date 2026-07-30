@@ -93,9 +93,17 @@ function setupStatus() {
       note: process.env.EMAIL_FROM,
     },
     {
-      label: "Sales tax (Stripe Tax)",
-      value: process.env.STRIPE_TAX_ENABLED === "1" ? "On" : "Off",
-      tone: process.env.STRIPE_TAX_ENABLED === "1" ? "live" : "off",
+      label: "Sales tax",
+      value:
+        process.env.STRIPE_TAX_ENABLED === "1"
+          ? "Auto (Stripe Tax)"
+          : process.env.STRIPE_TAX_RATE_ID
+            ? "Flat rate"
+            : "Off",
+      tone:
+        process.env.STRIPE_TAX_ENABLED === "1" || process.env.STRIPE_TAX_RATE_ID
+          ? "live"
+          : "off",
     },
   ];
   return rows;
