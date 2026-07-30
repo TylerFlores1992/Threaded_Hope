@@ -58,6 +58,14 @@ export async function POST(req: Request) {
   let subtotal = 0;
   let totalQty = 0;
 
+  // Tax modes (mutually exclusive):
+  //  - STRIPE_TAX_ENABLED=1 → Stripe Tax (automatic, per-destination, ~0.5% fee)
+  //  - else STRIPE_TAX_RATE_ID=txr_… → a flat manual rate (free), applied to items
+  const autoTax = process.env.STRIPE_TAX_ENABLED === "1";
+  const flatTaxRateId = autoTax
+    ? undefined
+    : process.env.STRIPE_TAX_RATE_ID || undefined;
+
   for (const item of items) {
     const product = await getProductBySlug(item.slug);
     // Skip anything unavailable — including a specific size that's sold out.
@@ -87,10 +95,12 @@ export async function POST(req: Request) {
 
     line_items.push({
       quantity,
+      // Flat manual tax rate (free) when configured and auto tax is off.
+      ...(flatTaxRateId ? { tax_rates: [flatTaxRateId] } : {}),
       price_data: {
         currency: "usd",
         unit_amount: Math.round(unitPrice * 100),
-        // Tax is added on top of the listed price when Stripe Tax is on.
+        // Tax is added on top of the listed price when a tax rate applies.
         tax_behavior: "exclusive",
         product_data: {
           name: product.name,
@@ -185,10 +195,9 @@ export async function POST(req: Request) {
       ],
       // Automatic sales tax — only when explicitly enabled, since it errors if
       // Stripe Tax isn't configured (origin address + registrations) in the
-      // dashboard. Enable STRIPE_TAX_ENABLED=1 after setting that up.
-      ...(process.env.STRIPE_TAX_ENABLED === "1"
-        ? { automatic_tax: { enabled: true } }
-        : {}),
+      // dashboard. Enable STRIPE_TAX_ENABLED=1 after setting that up. (Mutually
+      // exclusive with the flat manual rate above.)
+      ...(autoTax ? { automatic_tax: { enabled: true } } : {}),
       phone_number_collection: { enabled: true },
       metadata: {
         isGift: isGift ? "1" : "0",
