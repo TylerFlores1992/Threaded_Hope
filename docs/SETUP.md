@@ -47,6 +47,9 @@ cp .env.example .env.local
 | `SHIPPO_API_KEY` | Shipping labels (optional) | Shippo API token for buying/printing labels in the admin. `shippo_test_…` for free test labels, `shippo_live_…` for real postage. From [apps.goshippo.com/settings/api](https://apps.goshippo.com/settings/api). Absent → the label page shows a setup guide. |
 | `RESEND_API_KEY` | Emails (optional) | Resend API key for order confirmation + shipping emails. Without it, emails are skipped and orders still record. From [resend.com](https://resend.com). |
 | `EMAIL_FROM` | Emails (optional) | From address, e.g. `Threaded Hope <orders@threaded-hope.com>`. The sending domain must be verified in Resend; the mailbox itself need not exist (replies route to your contact email). |
+| `STRIPE_TAX_ENABLED` | Sales tax (optional) | `1` turns on automatic Stripe Tax (exact per-destination, ~0.5%/order fee). Requires Stripe Tax configured (origin + registrations) first, or checkout errors. Mutually exclusive with the flat rate. |
+| `STRIPE_TAX_RATE_ID` | Sales tax (optional) | A Stripe **Tax Rate** id (`txr_…`) for a free flat rate applied to items. Must be an **Exclusive** (added-on-top) rate in the same mode as your key. Ignored if `STRIPE_TAX_ENABLED=1`. |
+| `NEXT_PUBLIC_SALES_TAX_RATE` | Sales tax (optional) | Percent (e.g. `7.25`) shown as a matching tax line in the on-site order summary. Build-time inlined — set it, then redeploy with a fresh build. Leave unset with automatic tax. |
 | `INSTAGRAM_ACCESS_TOKEN` | Home IG strip | Long-lived Instagram Graph API user token. When set, the home page shows your latest 6 posts (auto-refreshing hourly); without it the strip falls back to recent product photos. |
 | `CRON_SECRET` | IG token refresh | Random secret that authenticates the weekly token-refresh cron (`/api/cron/refresh-instagram`). Vercel Cron sends it as a Bearer token. Any strong random string. |
 
@@ -269,6 +272,32 @@ buying a shipping label (or clicking **Mark shipped** on the Orders page)
 flips the order to *Shipped* and emails the customer their tracking. Resend's
 **Logs** tab shows every send with delivery status.
 
+### Sales tax (optional)
+
+Two ways to collect sales tax — pick one (or neither). Either way, tax is saved
+on the order and appears on the receipt/slip, emails, CSV, and order-detail page.
+You are responsible for being **registered** to collect (e.g. a CA seller's
+permit from CDTFA) and for remitting — Stripe only calculates/charges.
+
+- **Flat manual rate (free):** In Stripe → **Product catalog → Tax rates → +
+  Create tax rate**, make a rate (e.g. `7.25`%) with **"Inclusive of tax"
+  unchecked** (so it's **Exclusive** — added on top), in the **same mode as your
+  API key** (Live for production). Copy its id (`txr_…`) into `STRIPE_TAX_RATE_ID`
+  in Vercel and redeploy. Optionally set `NEXT_PUBLIC_SALES_TAX_RATE` to the same
+  percent to show a matching line in the on-site summary (rebuild required, since
+  `NEXT_PUBLIC_*` is inlined at build time). This charges the flat rate to every
+  buyer regardless of address.
+- **Automatic (Stripe Tax):** In Stripe → **Tax**, set your origin address,
+  default category (General - Tangible Goods), and **registrations** (states you
+  collect in). Then set `STRIPE_TAX_ENABLED=1` and redeploy. Exact
+  per-destination rates; ~0.5%/order fee. Don't set the flat rate too.
+
+> Gotchas learned in practice: a flat tax rate must be an **Exclusive** rate in
+> the **live** mode (a test-mode or Inclusive rate breaks or mis-charges). The
+> code validates the rate and skips it if invalid rather than failing checkout,
+> but a wrong rate still means no/incorrect tax — verify with a test checkout and
+> the dashboard **Setup status** panel (shows Auto / Flat rate / Off).
+
 ### Instagram feed (optional)
 
 The home page shows your latest 6 Instagram posts when `INSTAGRAM_ACCESS_TOKEN`
@@ -418,6 +447,10 @@ to verify each step below. Redeploy after any env change.
       address with a phone + email (USPS requires both).
 - [ ] **Emails on** — `RESEND_API_KEY` + `EMAIL_FROM` set, sending domain verified
       in Resend (panel shows "On" + the from-address).
+- [ ] **Sales tax (if collecting)** — a live Exclusive flat rate
+      (`STRIPE_TAX_RATE_ID`) or automatic Stripe Tax (`STRIPE_TAX_ENABLED=1`) set,
+      and you're registered to collect (e.g. CA seller's permit). Verify with a
+      test checkout + Setup status.
 - [ ] **Strong `ADMIN_PASSWORD`** — it also derives the admin session key.
 - [ ] **Photos imported** — run the Shopify image import so products (and the
       Google feed) have real photos.

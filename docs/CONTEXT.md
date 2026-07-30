@@ -52,6 +52,7 @@ src/
         page.tsx                 dashboard (stats + revenue chart + best sellers)
         products/                list · new · [id]/edit (+ live inventory) · actions.ts
         orders/                  recorded orders (+ actions.ts: labels, sample order)
+        orders/[id]/             order detail (items, totals, actions)
         orders/export/route.ts   CSV export of all orders
         orders/[id]/label/       buy + print a Shippo shipping label
         orders/packaging/        manage packaging presets (name + weight)
@@ -129,7 +130,7 @@ seed + fallback — see below.
   `images` JSON array (gallery; `image` mirrors the primary `images[0]`). `Order`
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
-  `shippingCents`, captured from Stripe in the webhook), gift fields
+  `shippingCents` / `taxCents`, captured from Stripe in the webhook), gift fields
   (`isGift` / `giftMessage`), a `pickup` flag (local pickup chosen at
   checkout), and fulfillment state (`fulfillmentStatus`
   unfulfilled|shipped|delivered, `shippedAt`, `deliveredAt`).
@@ -356,6 +357,33 @@ seed + fallback — see below.
 - **CSV order export.** `GET /admin/orders/export` (route handler under `/admin`,
   so middleware-gated) streams a downloadable CSV of all orders with proper
   quoting. Linked from the Orders page.
+- **Order-detail page.** `/admin/orders/[id]` consolidates one order — fulfillment
+  control, gift/pickup flags + gift message, quick actions (packing slip,
+  buy/view label), customer + shipping (or pickup) with tracking, and an itemized
+  totals breakdown (subtotal / discount / shipping / tax / total). Orders-list
+  rows link to it via the customer name.
+- **Sales tax — two modes (pick one), or off.** Captured as `Order.taxCents`
+  (from `total_details.amount_tax`) and shown on the slip/receipt, emails, CSV,
+  and order-detail page.
+  - **Automatic (Stripe Tax):** `STRIPE_TAX_ENABLED=1` sets `automatic_tax` +
+    line/shipping `tax_behavior: "exclusive"` + a general-goods `tax_code`. Exact
+    per-destination, ~0.5%/order fee. Off by default because `automatic_tax`
+    errors if Stripe Tax isn't configured (origin + registrations).
+  - **Flat manual rate (free):** `STRIPE_TAX_RATE_ID=txr_…` applies a single
+    Stripe Tax Rate to line items — no per-order fee. **Must be an Exclusive**
+    (added-on-top) rate in the **live** mode matching the key. Two gotchas that
+    broke checkout in practice and are now guarded: a test-mode/invalid rate id
+    is validated via `taxRates.retrieve` and skipped (never breaks checkout); and
+    `tax_behavior` is set **only** for automatic tax, since combining it with a
+    manual `tax_rate` conflicts and errors the session.
+  - **On-site tax line:** `NEXT_PUBLIC_SALES_TAX_RATE` (e.g. `7.25`, build-time
+    inlined) shows a matching "Sales tax (X%)" line in the checkout summary so the
+    on-site total equals the Stripe total; unset keeps the "calculated at
+    checkout" note (correct for automatic tax, which varies by address).
+- **Admin config health.** The dashboard's **Setup status** panel reads env
+  prefixes server-side and shows each integration's *mode only* (never the
+  secret): Stripe Live/Test, webhook Set, Shippo Live/Test, email On, and sales
+  tax Auto/Flat/Off. Used to verify live-vs-test at a glance.
 - **Shop search is URL-driven.** `/shop?q=…` filters on landing (feeds the SEO
   `SearchAction`); `ShopClient` also writes the query back to the URL as you type
   (debounced, `history.replaceState` — no server round-trip) so searches are
@@ -421,6 +449,10 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
 - **Email (optional)** — `RESEND_API_KEY` and `EMAIL_FROM` (e.g.
   `Threaded Hope <orders@threaded-hope.com>`); enables order/shipping emails.
   Absent → emails are skipped, orders still record.
+- **Sales tax (optional, pick one)** — `STRIPE_TAX_ENABLED=1` (automatic Stripe
+  Tax) **or** `STRIPE_TAX_RATE_ID=txr_…` (free flat rate). Plus
+  `NEXT_PUBLIC_SALES_TAX_RATE` (e.g. `7.25`) to show a matching on-site tax line
+  (build-time inlined — needs a rebuild to change).
 - **Instagram** — `INSTAGRAM_ACCESS_TOKEN` (bootstraps the home feed; then the
   self-refreshing DB copy is preferred), `CRON_SECRET` (guards the refresh cron)
 
