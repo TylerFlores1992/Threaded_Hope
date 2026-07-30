@@ -23,7 +23,12 @@ export default function CheckoutPage() {
 
   const shippingCost =
     subtotal >= store.shipping.freeThreshold ? 0 : store.shipping.flatRate;
-  const total = subtotal + shippingCost;
+  // Optional flat sales-tax line (matches the flat Stripe tax rate). Set
+  // NEXT_PUBLIC_SALES_TAX_RATE to the percent (e.g. "7.25") to show it; leave
+  // unset when using automatic Stripe Tax (varies by address) or no tax.
+  const taxRate = Number(process.env.NEXT_PUBLIC_SALES_TAX_RATE) || 0;
+  const taxCost = taxRate > 0 ? (subtotal * taxRate) / 100 : 0;
+  const total = subtotal + shippingCost + taxCost;
 
   const payWithStripe = async () => {
     setLoading(true);
@@ -118,13 +123,21 @@ export default function CheckoutPage() {
               <dt className="text-ink-soft">Shipping</dt>
               <dd>{shippingCost === 0 ? "Free" : formatPrice(shippingCost)}</dd>
             </div>
+            {taxRate > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-ink-soft">Sales tax ({taxRate}%)</dt>
+                <dd>{formatPrice(taxCost)}</dd>
+              </div>
+            )}
             <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
-              <dt>Estimated total</dt>
+              <dt>{taxRate > 0 ? "Total" : "Estimated total"}</dt>
               <dd>{formatPrice(total)}</dd>
             </div>
           </dl>
           <p className="mt-2 text-xs text-ink-soft">
-            Taxes calculated by our payment partner at checkout.
+            {taxRate > 0
+              ? "Final tax is confirmed on the secure payment page."
+              : "Taxes calculated by our payment partner at checkout."}
           </p>
 
           {/* Gift option */}
