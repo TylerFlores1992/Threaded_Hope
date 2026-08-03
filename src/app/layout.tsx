@@ -5,6 +5,9 @@ import { store } from "@/data/store";
 import { SITE_URL, SITE_KEYWORDS } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import { getHomeImages } from "@/lib/home-images";
+import { getTheme } from "@/lib/theme";
+import { ThemeStyle } from "@/components/ThemeStyle";
+import { ThemePreviewBridge } from "@/components/ThemePreviewBridge";
 import { getVisibleCollections } from "@/lib/collections";
 import { CartProvider } from "@/lib/cart-context";
 import { Header } from "@/components/Header";
@@ -60,6 +63,7 @@ export default async function RootLayout({
   const homeImages = await getHomeImages();
   const logoSrc = homeImages.home_logo ?? "/logo.png";
   const navCollections = await getVisibleCollections();
+  const theme = await getTheme();
 
   const orgSchema = {
     "@context": "https://schema.org",
@@ -90,7 +94,11 @@ export default async function RootLayout({
       lang="en"
       className={`${heading.variable} ${body.variable} h-full`}
     >
+      <head>
+        <ThemeStyle theme={theme} />
+      </head>
       <body className="min-h-full flex flex-col bg-cream text-ink">
+        <ThemePreviewBridge />
         <JsonLd data={orgSchema} />
         <JsonLd data={siteSchema} />
         <CartProvider>

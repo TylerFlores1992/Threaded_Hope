@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/home", label: "Photos" },
   { href: "/admin/text", label: "Site text" },
+  { href: "/admin/customize", label: "Customize" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/collections", label: "Collections" },
   { href: "/admin/orders", label: "Orders" },
