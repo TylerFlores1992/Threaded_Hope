@@ -70,9 +70,41 @@ export const HOME_SECTIONS = [
 
 export type SectionId = (typeof HOME_SECTIONS)[number]["id"];
 
+/** Types that can be added more than once (Shopify's "Add section"). */
+export const ADDABLE_SECTIONS: string[] = [
+  "collections",
+  "story",
+  "instagram",
+  "newsletter",
+];
+
+/**
+ * Site-text keys surfaced inside a section's settings panel, so copy is edited
+ * where the section lives (like Shopify). These are global strings, so they're
+ * shown on the first instance of a type only.
+ */
+export const SECTION_TEXT_FIELDS: Record<string, string[]> = {
+  hero: [
+    "home_hero_badge",
+    "home_hero_heading",
+    "home_hero_subtitle",
+    "home_hero_cta_primary",
+    "home_hero_cta_secondary",
+  ],
+  collections: ["home_collections_heading"],
+  story: [
+    "home_story_heading",
+    "home_story_body_1",
+    "home_story_body_2",
+    "home_story_cta",
+  ],
+  newsletter: ["newsletter_heading", "newsletter_pitch"],
+};
+
 
 /** Per-section settings (Shopify's "section settings" panel). */
 export type SectionSetting =
+  | { key: string; label: string; type: "text"; default: string }
   | { key: string; label: string; type: "toggle"; default: boolean }
   | { key: string; label: string; type: "select"; default: string; options: { value: string; label: string }[] }
   | { key: string; label: string; type: "number"; default: number; min: number; max: number };
@@ -91,6 +123,7 @@ export const SECTION_SETTINGS: Record<string, SectionSetting[]> = {
     ] },
   ],
   collections: [
+    { key: "heading", label: "Heading override (blank = use Site text)", type: "text", default: "" },
     { key: "tiles", label: "Number of tiles", type: "number", default: 7, min: 3, max: 11 },
     { key: "columns", label: "Columns (desktop)", type: "select", default: "4", options: [
       { value: "3", label: "3" },
@@ -152,6 +185,14 @@ export const COLOR_PRESETS: { id: string; name: string; colors: Record<string, s
   },
 ];
 
+/** One placed section on the page (a type can appear multiple times). */
+export type SectionInstance = {
+  key: string; // unique per instance
+  type: string; // one of HOME_SECTIONS ids
+  hidden?: boolean;
+  settings: Record<string, unknown>;
+};
+
 export type Theme = {
   colors: Record<string, string>;
   headingFont: string;
@@ -159,11 +200,8 @@ export type Theme = {
   headingScale: number; // multiplier on heading sizes
   radius: string;
   width: string;
-  /** Ordered section ids; omitted ids are appended, hidden ones live in `hidden`. */
-  sectionOrder: string[];
-  hiddenSections: string[];
-  /** Per-section settings, keyed by section id. */
-  sections: Record<string, Record<string, unknown>>;
+  /** Ordered, placed sections. */
+  layout: SectionInstance[];
 };
 
 export function defaultTheme(): Theme {
@@ -174,11 +212,20 @@ export function defaultTheme(): Theme {
     headingScale: 1,
     radius: "soft",
     width: "standard",
-    sectionOrder: HOME_SECTIONS.map((s) => s.id),
-    hiddenSections: [],
-    sections: Object.fromEntries(
-      HOME_SECTIONS.map((s) => [s.id, defaultSectionSettings(s.id)]),
-    ),
+    layout: HOME_SECTIONS.map((s) => ({
+      key: s.id,
+      type: s.id,
+      settings: defaultSectionSettings(s.id),
+    })),
+  };
+}
+
+/** A fresh instance of a section type, with a unique key. */
+export function newSectionInstance(type: string, seed: number): SectionInstance {
+  return {
+    key: `${type}-${seed.toString(36)}`,
+    type,
+    settings: defaultSectionSettings(type),
   };
 }
 
@@ -194,17 +241,46 @@ export function mergeTheme(raw: unknown): Theme {
     headingScale: Number(t.headingScale) || base.headingScale,
     radius: t.radius ?? base.radius,
     width: t.width ?? base.width,
-    sectionOrder: Array.isArray(t.sectionOrder) && t.sectionOrder.length
-      ? Array.from(new Set([...t.sectionOrder, ...base.sectionOrder]))
-      : base.sectionOrder,
-    hiddenSections: Array.isArray(t.hiddenSections) ? t.hiddenSections : [],
-    sections: Object.fromEntries(
-      HOME_SECTIONS.map((s) => [
-        s.id,
-        { ...defaultSectionSettings(s.id), ...((t.sections ?? {})[s.id] ?? {}) },
-      ]),
-    ),
+    layout: normalizeLayout(raw as Record<string, unknown>, base),
   };
+}
+
+/**
+ * Read the layout, upgrading the older {sectionOrder, hiddenSections, sections}
+ * shape into placed instances so saved themes keep working.
+ */
+function normalizeLayout(
+  t: Record<string, unknown>,
+  base: Theme,
+): SectionInstance[] {
+  const known = new Set<string>(HOME_SECTIONS.map((s) => s.id));
+
+  if (Array.isArray(t.layout)) {
+    const layout = (t.layout as SectionInstance[])
+      .filter((i) => i && known.has(i.type))
+      .map((i, n) => ({
+        key: String(i.key || `${i.type}-${n}`),
+        type: i.type,
+        hidden: Boolean(i.hidden),
+        settings: { ...defaultSectionSettings(i.type), ...(i.settings ?? {}) },
+      }));
+    return layout.length > 0 ? layout : base.layout;
+  }
+
+  const order = Array.isArray(t.sectionOrder)
+    ? (t.sectionOrder as string[]).filter((id) => known.has(id))
+    : [];
+  if (order.length === 0) return base.layout;
+  const hidden = new Set(
+    Array.isArray(t.hiddenSections) ? (t.hiddenSections as string[]) : [],
+  );
+  const settings = (t.sections ?? {}) as Record<string, Record<string, unknown>>;
+  return order.map((id) => ({
+    key: id,
+    type: id,
+    hidden: hidden.has(id),
+    settings: { ...defaultSectionSettings(id), ...(settings[id] ?? {}) },
+  }));
 }
 
 /** The CSS custom properties a theme produces (shared by SSR and live preview). */
