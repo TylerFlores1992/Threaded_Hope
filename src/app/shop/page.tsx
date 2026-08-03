@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getProducts } from "@/lib/catalog";
 import { getVisibleCollections } from "@/lib/collections";
 import { ShopClient } from "@/components/ShopClient";
+import { getSiteText } from "@/lib/site-text";
 
 export const metadata: Metadata = {
   title: "Shop Handmade Bags, Pouches & Gifts",
@@ -21,16 +22,15 @@ export default async function ShopPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
+  const text = await getSiteText();
   const products = await getProducts();
   const collections = await getVisibleCollections();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <header className="mb-8">
-        <h1 className="font-serif text-4xl text-ink">Shop All Products</h1>
-        <p className="mt-2 text-ink-soft">
-          Handmade fabric accessories, made in small batches with care.
-        </p>
+        <h1 className="font-serif text-4xl text-ink">{text.shop_heading}</h1>
+        <p className="mt-2 text-ink-soft">{text.shop_subtitle}</p>
       </header>
       <ShopClient
         products={products}

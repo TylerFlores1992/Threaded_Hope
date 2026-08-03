@@ -4,6 +4,7 @@ import { store } from "@/data/store";
 import { PageIntro } from "@/components/PageIntro";
 import { placeholderImage } from "@/lib/placeholder";
 import { getHomeImages } from "@/lib/home-images";
+import { getSiteText } from "@/lib/site-text";
 
 export const metadata: Metadata = {
   title: "Our Story",
@@ -12,14 +13,15 @@ export const metadata: Metadata = {
 
 export default async function OurStoryPage() {
   const homeImages = await getHomeImages();
+  const text = await getSiteText();
   const storyImage =
     homeImages.our_story_image ?? placeholderImage("Our Story", 40);
 
   return (
     <div>
       <PageIntro
-        title="Our Story"
-        subtitle="Faith, family, and a love of handmade — woven into everything we make."
+        title={text.story_title}
+        subtitle={text.story_subtitle}
       />
 
       <article className="mx-auto max-w-3xl px-4 py-14">
@@ -31,24 +33,19 @@ export default async function OurStoryPage() {
         />
 
         <div className="prose-content space-y-5 text-lg leading-relaxed text-ink-soft">
-          <p>
-            I started sewing in my season of waiting — waiting to grow our family, and
-            waiting as we healed from the miscarriage of our twin babies.
-          </p>
-          <p>
-            Our miscarriage happened a few weeks after the loss of my grandpa. It was a
-            heavy time of grief, and I found myself spending a lot of time with my
-            grandma. She shared that she had been leaning on her sewing and petit point
-            as a way to help with her grief. She inspired me — and with a little push
-            from my husband, I decided to get a sewing machine. And here we are. :)
-          </p>
-          <p>
-            My hope is that this story can encourage anyone who&apos;s in a season of
-            waiting. Whether you&apos;re waiting for a job, healing, a spouse, or
-            something else — joy and peace can be found in the wait.
-          </p>
+          {/* Blank lines in the admin field separate paragraphs. */}
+          {text.story_body
+            .split(/\n{2,}/)
+            .filter(Boolean)
+            .map((para, i) => (
+              <p key={i} className="whitespace-pre-line">
+                {para}
+              </p>
+            ))}
 
-          <h2 className="!mt-10 font-serif text-2xl text-ink">The verse behind the name</h2>
+          <h2 className="!mt-10 font-serif text-2xl text-ink">
+            {text.story_verse_heading}
+          </h2>
           <p>
             Threaded Hope&apos;s name is inspired by the Bible verse I have leaned on
             through this entire year:
@@ -61,7 +58,9 @@ export default async function OurStoryPage() {
             </footer>
           </blockquote>
 
-          <h2 className="!mt-10 font-serif text-2xl text-ink">Made with care, love &amp; hope</h2>
+          <h2 className="!mt-10 font-serif text-2xl text-ink">
+            {text.story_made_heading}
+          </h2>
           <p>
             At {store.name}, we&apos;re all about creating handmade pieces that bring a
             little extra joy to your day. Every item is made with care, love, and a
@@ -80,7 +79,7 @@ export default async function OurStoryPage() {
             href="/shop"
             className="inline-block rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage"
           >
-            Explore the shop
+            {text.story_cta}
           </Link>
         </div>
       </article>
