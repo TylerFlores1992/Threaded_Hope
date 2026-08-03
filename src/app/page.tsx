@@ -34,16 +34,7 @@ export default async function HomePage() {
     return undefined;
   };
 
-  // Hero collage (top of page), then the tiles take the next distinct photos.
-  // An admin override (home_hero_1..4) wins over the auto-picked photo.
-  const heroCollage = featuredCollections.slice(0, 4).map((c, i) => {
-    const override = homeImages[`home_hero_${i + 1}`];
-    return {
-      name: c.name,
-      slug: c.slug,
-      image: override ?? pickImage(c.slug) ?? placeholderImage(c.name, c.hue),
-    };
-  });
+  // Collection tiles take distinct photos so nothing repeats on the page.
   const tileImages = Object.fromEntries(
     featuredCollections.map((c) => [c.slug, pickImage(c.slug)]),
   );
@@ -59,7 +50,7 @@ export default async function HomePage() {
       <>
 {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2 md:py-24">
+        <div className="mx-auto max-w-3xl px-4 py-16 text-center md:py-24">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-sand px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sage-deep">
               {text.home_hero_badge}
@@ -67,10 +58,10 @@ export default async function HomePage() {
             <h1 className="mt-4 font-serif text-4xl leading-tight text-ink md:text-5xl">
               {text.home_hero_heading}
             </h1>
-            <p className="mt-4 max-w-md text-lg text-ink-soft">
+            <p className="mx-auto mt-4 max-w-xl text-lg text-ink-soft">
               {text.home_hero_subtitle}
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Link
                 href="/shop"
                 className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage"
@@ -83,27 +74,6 @@ export default async function HomePage() {
               >
                 {text.home_hero_cta_secondary}
               </Link>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="grid grid-cols-2 gap-3">
-              {heroCollage.map((c, i) => (
-                <Link
-                  key={c.slug}
-                  href={`/collections/${c.slug}`}
-                  className={`group relative block aspect-square overflow-hidden rounded-2xl ring-1 ring-border ${
-                    i % 2 === 0 ? "translate-y-4" : ""
-                  }`}
-                  aria-label={c.name}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={c.image}
-                    alt={c.name}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                  />
-                </Link>
-              ))}
             </div>
           </div>
         </div>
@@ -150,7 +120,14 @@ export default async function HomePage() {
       <>
 {/* Our Story teaser */}
       <section className="bg-sand">
-        <div className="mx-auto max-w-4xl px-4 py-16 text-center">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={homeImages.home_story_image ?? homeImages.home_logo ?? "/logo.png"}
+            alt={store.name}
+            className="mx-auto w-full max-w-sm rounded-3xl object-contain"
+          />
+          <div>
           <h2 className="font-serif text-3xl text-ink">{text.home_story_heading}</h2>
           <p className="mt-4 whitespace-pre-line text-ink-soft">
             {text.home_story_body_1}
@@ -164,6 +141,7 @@ export default async function HomePage() {
           >
             {text.home_story_cta}
           </Link>
+          </div>
         </div>
       </section>
       </>
