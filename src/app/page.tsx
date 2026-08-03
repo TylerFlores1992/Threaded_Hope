@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { store } from "@/data/store";
 import { getVisibleCollections } from "@/lib/collections";
-import { getFeaturedProducts, getCollectionImageOptions } from "@/lib/catalog";
+import { getCollectionImageOptions } from "@/lib/catalog";
 import { getInstagramPosts } from "@/lib/instagram";
 import { getHomeImages } from "@/lib/home-images";
-import { withInStockFirst } from "@/lib/sort";
 import { CollectionTile } from "@/components/CollectionTile";
-import { ProductCard } from "@/components/ProductCard";
 import { Newsletter } from "@/components/Newsletter";
 import { placeholderImage } from "@/lib/placeholder";
 
@@ -19,7 +17,6 @@ export default async function HomePage() {
   const collImages = await getCollectionImageOptions();
   const igPosts = await getInstagramPosts(6);
   const homeImages = await getHomeImages();
-  const logoSrc = homeImages.home_logo ?? "/logo.png";
 
   // Hand out a unique image to every slot on the page so nothing repeats.
   const usedImages = new Set<string>();
@@ -32,11 +29,6 @@ export default async function HomePage() {
     }
     return undefined;
   };
-
-  // Reserve the featured-product photos first (that section shows them by name),
-  // so the collage and tiles below pick *other* photos and nothing repeats.
-  const featured = withInStockFirst(await getFeaturedProducts()).slice(0, 8);
-  featured.forEach((p) => p.image && usedImages.add(p.image));
 
   // Hero collage (top of page), then the tiles take the next distinct photos.
   // An admin override (home_hero_1..4) wins over the auto-picked photo.
@@ -118,59 +110,48 @@ export default async function HomePage() {
             View all →
           </Link>
         </div>
+        {/* 7 collections + a "View all" tile = 8, filling two even rows. */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {featuredCollections.map((c) => (
+          {featuredCollections.slice(0, 7).map((c) => (
             <CollectionTile
               key={c.slug}
               collection={c}
               image={tileImages[c.slug]}
             />
           ))}
-        </div>
-      </section>
-
-      {/* Featured products */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-6 flex items-end justify-between">
-          <h2 className="font-serif text-3xl text-ink">Loved by our community</h2>
-          <Link href="/shop" className="text-sm font-medium text-sage-deep hover:underline">
-            Shop all →
+          <Link
+            href="/shop"
+            className="group flex aspect-4/3 flex-col items-center justify-center rounded-2xl bg-sand text-center ring-1 ring-border transition hover:bg-sage-deep"
+          >
+            <span className="font-serif text-lg font-semibold text-ink transition group-hover:text-white">
+              View all
+            </span>
+            <span className="mt-1 text-sm text-ink-soft transition group-hover:text-cream/90">
+              Shop everything →
+            </span>
           </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {featured.map((p) => (
-            <ProductCard key={p.slug} product={p} />
-          ))}
         </div>
       </section>
 
       {/* Our Story teaser */}
       <section className="bg-sand">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={homeImages.home_story_image ?? logoSrc}
-            alt={store.name}
-            className="mx-auto w-full max-w-sm rounded-3xl object-contain"
-          />
-          <div>
-            <h2 className="font-serif text-3xl text-ink">Stitched with hope</h2>
-            <p className="mt-4 text-ink-soft">
-              Every piece from {store.name} begins as a bolt of fabric and a hopeful
-              idea. We make in small batches, by hand, with care for the little
-              details — because the everyday things you carry should feel special.
-            </p>
-            <p className="mt-3 text-ink-soft">
-              Faith and community are woven into everything we do. Thank you for being
-              part of our story.
-            </p>
-            <Link
-              href="/our-story"
-              className="mt-6 inline-block rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage"
-            >
-              Read our story
-            </Link>
-          </div>
+        <div className="mx-auto max-w-4xl px-4 py-16 text-center">
+          <h2 className="font-serif text-3xl text-ink">Stitched with hope</h2>
+          <p className="mt-4 text-ink-soft">
+            Every piece from {store.name} begins as a bolt of fabric and a hopeful
+            idea. We make in small batches, by hand, with care for the little
+            details — because the everyday things you carry should feel special.
+          </p>
+          <p className="mt-3 text-ink-soft">
+            Faith and community are woven into everything we do. Thank you for being
+            part of our story.
+          </p>
+          <Link
+            href="/our-story"
+            className="mt-6 inline-block rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage"
+          >
+            Read our story
+          </Link>
         </div>
       </section>
 
