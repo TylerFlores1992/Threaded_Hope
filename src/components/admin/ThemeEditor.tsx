@@ -54,6 +54,8 @@ export function ThemeEditor({
   const [text, setText] = useState<Record<string, string>>(initialText);
   const [tab, setTab] = useState<Tab>("sections");
   const [device, setDevice] = useState<Device>("desktop");
+  // On small screens the panel and preview can't sit side by side, so switch.
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
@@ -213,10 +215,25 @@ export function ThemeEditor({
     });
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] min-h-[36rem] flex-col overflow-hidden rounded-2xl ring-1 ring-border">
+    <div className="flex h-[calc(100svh-7rem)] min-h-[32rem] flex-col overflow-hidden rounded-2xl ring-1 ring-border md:h-[calc(100vh-8rem)]">
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3 border-b border-border bg-white/70 px-4 py-2">
-        <div className="flex gap-1 rounded-lg bg-sand p-1 text-xs">
+        {/* Mobile: swap between the settings panel and the preview. */}
+        <div className="flex gap-1 rounded-lg bg-sand p-1 text-xs md:hidden">
+          {(["edit", "preview"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setMobileView(v)}
+              className={`rounded px-3 py-1 capitalize ${
+                mobileView === v ? "bg-white font-medium text-ink" : "text-ink-soft"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        {/* Desktop: preview width toggle. */}
+        <div className="hidden gap-1 rounded-lg bg-sand p-1 text-xs md:flex">
           {(["desktop", "mobile"] as Device[]).map((d) => (
             <button
               key={d}
@@ -261,7 +278,11 @@ export function ThemeEditor({
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* Settings panel */}
-        <aside className="flex w-full flex-col border-border bg-white/60 md:w-80 md:border-r">
+        <aside
+          className={`w-full flex-col border-border bg-white/60 md:flex md:w-80 md:border-r ${
+            mobileView === "preview" ? "hidden" : "flex"
+          }`}
+        >
           <div className="flex border-b border-border text-sm">
             {(["sections", "theme", "history"] as Tab[]).map((t) => (
               <button
@@ -693,7 +714,11 @@ export function ThemeEditor({
         </aside>
 
         {/* Live preview */}
-        <div className="min-h-0 flex-1 overflow-auto bg-sand p-3">
+        <div
+          className={`min-h-0 flex-1 overflow-auto bg-sand p-3 md:block ${
+            mobileView === "edit" ? "hidden" : "block"
+          }`}
+        >
           <div
             className={`mx-auto h-full bg-white shadow-sm ring-1 ring-border ${
               device === "mobile" ? "max-w-[420px]" : "w-full"
