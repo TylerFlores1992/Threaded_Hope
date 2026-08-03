@@ -45,6 +45,8 @@ export async function GET() {
     "Carrier",
     "Gift",
     "Pickup",
+    "Source",
+    "Notes",
   ];
 
   const rows = orders.map((o) => {
@@ -74,6 +76,8 @@ export async function GET() {
       o.carrier ?? "",
       o.isGift ? "yes" : "",
       o.pickup ? "yes" : "",
+      o.source,
+      o.notes ?? "",
     ]
       .map(cell)
       .join(",");

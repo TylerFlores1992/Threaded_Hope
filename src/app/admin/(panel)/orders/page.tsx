@@ -34,6 +34,18 @@ export default async function OrdersPage() {
         in your Stripe Dashboard.
       </p>
 
+      <div className="mt-4">
+        <Link
+          href="/admin/orders/new"
+          className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
+        >
+          + Record a sale
+        </Link>
+        <span className="ml-2 text-xs text-ink-soft">
+          For orders made outside the website.
+        </span>
+      </div>
+
       <div className="mt-3 flex flex-wrap gap-4">
         <Link
           href="/admin/orders/packaging"
@@ -127,6 +139,11 @@ export default async function OrdersPage() {
                       >
                         {o.customerName ?? o.email ?? "—"}
                       </Link>
+                      {o.source === "manual" && (
+                        <span className="ml-2 rounded-full bg-sand px-2 py-0.5 text-[10px] font-medium text-ink-soft">
+                          Manual
+                        </span>
+                      )}
                       {o.customerName && o.email && (
                         <span className="block text-xs text-ink-soft">
                           {o.email}

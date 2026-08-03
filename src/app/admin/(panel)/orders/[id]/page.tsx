@@ -84,6 +84,13 @@ export default async function OrderDetailPage({
         </div>
       )}
 
+      {order.source === "manual" && (
+        <p className="mt-3 rounded-lg bg-sand px-3 py-2 text-xs text-ink-soft">
+          Recorded manually (sale made outside the website).
+          {order.notes ? ` Note: ${order.notes}` : ""}
+        </p>
+      )}
+
       {/* Actions */}
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
