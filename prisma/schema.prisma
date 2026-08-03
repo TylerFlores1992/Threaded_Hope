@@ -99,6 +99,8 @@ model Order {
   isGift           Boolean  @default(false)
   giftMessage      String?
   pickup           Boolean  @default(false) // local pickup chosen at checkout
+  source           String   @default("web") // "web" (Stripe) | "manual" (recorded in admin)
+  notes            String? // free-form note (e.g. how a manual sale was paid)
   labelUrl         String?
   trackingNumber   String?
   carrier          String?
