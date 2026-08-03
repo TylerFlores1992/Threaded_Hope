@@ -5,6 +5,7 @@ import { getCollectionImageOptions } from "@/lib/catalog";
 import { getInstagramPosts } from "@/lib/instagram";
 import { getHomeImages } from "@/lib/home-images";
 import { getSiteText } from "@/lib/site-text";
+import { getTheme } from "@/lib/theme";
 import { CollectionTile } from "@/components/CollectionTile";
 import { Newsletter } from "@/components/Newsletter";
 import { placeholderImage } from "@/lib/placeholder";
@@ -19,6 +20,7 @@ export default async function HomePage() {
   const igPosts = await getInstagramPosts(6);
   const homeImages = await getHomeImages();
   const text = await getSiteText();
+  const theme = await getTheme();
 
   // Hand out a unique image to every slot on the page so nothing repeats.
   const usedImages = new Set<string>();
@@ -52,9 +54,10 @@ export default async function HomePage() {
     .filter((img) => !usedImages.has(img))
     .slice(0, 6);
 
-  return (
-    <>
-      {/* Hero */}
+  const sections: Record<string, React.ReactNode> = {
+    hero: (
+      <>
+{/* Hero */}
       <section className="relative overflow-hidden">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2 md:py-24">
           <div>
@@ -105,8 +108,11 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Featured collections */}
+      </>
+    ),
+    collections: (
+      <>
+{/* Featured collections */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-6 flex items-end justify-between">
           <h2 className="font-serif text-3xl text-ink">
@@ -138,8 +144,11 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
-
-      {/* Our Story teaser */}
+      </>
+    ),
+    story: (
+      <>
+{/* Our Story teaser */}
       <section className="bg-sand">
         <div className="mx-auto max-w-4xl px-4 py-16 text-center">
           <h2 className="font-serif text-3xl text-ink">{text.home_story_heading}</h2>
@@ -157,8 +166,11 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
-
-      {/* Instagram strip — latest posts (auto-updates), or recent product photos */}
+      </>
+    ),
+    instagram: (
+      <>
+{/* Instagram strip — latest posts (auto-updates), or recent product photos */}
       {(igPosts.length > 0 || fallbackImages.length > 0) && (
         <section className="mx-auto max-w-6xl px-4 py-12">
           <h2 className="mb-6 text-center font-serif text-3xl text-ink">
@@ -210,13 +222,31 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      {/* Newsletter */}
+      </>
+    ),
+    newsletter: (
+      <>
+{/* Newsletter */}
       <section className="mx-auto max-w-6xl px-4 py-16">
         <div className="rounded-3xl bg-white/70 px-6 py-12 ring-1 ring-border">
           <Newsletter />
         </div>
       </section>
+      </>
+    ),
+  };
+
+  // Render in the admin-configured order, skipping hidden sections. The
+  // data-section wrapper also lets the theme editor toggle them live.
+  const order = theme.sectionOrder.filter((id) => id in sections);
+
+  return (
+    <>
+      {order.map((id) => (
+        <div key={id} data-section={id} hidden={theme.hiddenSections.includes(id)}>
+          {sections[id]}
+        </div>
+      ))}
     </>
   );
 }

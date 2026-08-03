@@ -58,7 +58,23 @@ body {
 h1, h2, h3, h4 {
   font-family: var(--font-serif);
   letter-spacing: -0.01em;
+  /* Theme "heading size" control (Customize → Theme settings). */
+  font-size: calc(1em * var(--heading-scale, 1));
 }
+
+/* Theme "corner style": scales every rounded-* utility. */
+:root {
+  --radius-scale: 1;
+  --container-max: 1152px;
+}
+.rounded-lg { border-radius: calc(0.5rem * var(--radius-scale)); }
+.rounded-xl { border-radius: calc(0.75rem * var(--radius-scale)); }
+.rounded-2xl { border-radius: calc(1rem * var(--radius-scale)); }
+.rounded-3xl { border-radius: calc(1.5rem * var(--radius-scale)); }
+.rounded-full { border-radius: calc(9999px * var(--radius-scale)); }
+
+/* Theme "page width": widens/narrows the standard content container. */
+.max-w-6xl { max-width: var(--container-max); }
 
 /* Visible, accessible focus ring for keyboard users */
 :focus-visible {
