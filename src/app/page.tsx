@@ -13,9 +13,14 @@ import { placeholderImage } from "@/lib/placeholder";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const featuredCollections = (await getVisibleCollections()).filter(
-    (c) => c.featured,
-  );
+  // Featured collections first, then top up from the rest so the tile grid
+  // always fills its 7 slots (+ the "View all" tile = 8, two even rows).
+  const visibleCollections = await getVisibleCollections();
+  const HOME_TILES = 7;
+  const featuredCollections = [
+    ...visibleCollections.filter((c) => c.featured),
+    ...visibleCollections.filter((c) => !c.featured),
+  ].slice(0, HOME_TILES);
   const collImages = await getCollectionImageOptions();
   const igPosts = await getInstagramPosts(6);
   const homeImages = await getHomeImages();
@@ -94,7 +99,7 @@ export default async function HomePage() {
         </div>
         {/* 7 collections + a "View all" tile = 8, filling two even rows. */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {featuredCollections.slice(0, 7).map((c) => (
+          {featuredCollections.map((c) => (
             <CollectionTile
               key={c.slug}
               collection={c}
