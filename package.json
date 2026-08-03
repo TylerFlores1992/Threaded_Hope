@@ -17,7 +17,8 @@
     "backfill:collections": "tsx scripts/backfill-collections.ts",
     "clean:descriptions": "tsx scripts/clean-descriptions.ts",
     "seo:descriptions": "tsx scripts/seo-descriptions.ts",
-    "scrape:images": "node scripts/scrape-shopify-images.mjs"
+    "scrape:images": "node scripts/scrape-shopify-images.mjs",
+    "sync:shopify": "node scripts/sync-shopify-details.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

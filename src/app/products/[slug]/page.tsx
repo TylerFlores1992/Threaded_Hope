@@ -140,7 +140,11 @@ export default async function ProductPage({
           >
             {product.inStock ? "● In stock" : "● Sold out"}
           </p>
-          <p className="mt-4 text-ink-soft">{product.description}</p>
+          {/* Descriptions carry paragraph breaks and bullet lines from the
+              original listing, so preserve newlines. */}
+          <p className="mt-4 whitespace-pre-line text-ink-soft">
+            {product.description}
+          </p>
 
           <AddToCart product={product} />
 
