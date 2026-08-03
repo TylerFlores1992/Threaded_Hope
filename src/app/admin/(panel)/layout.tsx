@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { store } from "@/data/store";
 import { getHomeImages } from "@/lib/home-images";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { logout } from "../actions";
 
 export const metadata: Metadata = {
@@ -9,18 +10,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const nav = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/home", label: "Photos" },
-  { href: "/admin/text", label: "Site text" },
-  { href: "/admin/customize", label: "Customize" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/collections", label: "Collections" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/inventory", label: "Inventory" },
-  { href: "/admin/discounts", label: "Discounts" },
-  { href: "/admin/traffic", label: "Traffic" },
-];
 
 export default async function AdminLayout({
   children,
@@ -50,17 +39,7 @@ export default async function AdminLayout({
             </Link>
           </div>
         </div>
-        <nav className="mt-4 flex flex-wrap gap-2 md:mt-6 md:flex-col">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition hover:bg-sand hover:text-ink"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <AdminNav />
         <div className="mt-6 border-t border-border pt-4">
           <Link
             href="/"

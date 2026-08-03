@@ -177,6 +177,26 @@ export default async function AdminDashboard() {
   return (
     <div>
       <h1 className="font-serif text-3xl text-ink">Dashboard</h1>
+
+      {/* Quick actions — the things you do most, one tap away. */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[
+          { href: "/admin/products/new", label: "+ New product" },
+          { href: "/admin/orders/new", label: "+ Record a sale" },
+          { href: "/admin/orders", label: "Orders" },
+          { href: "/admin/inventory", label: "Update stock" },
+          { href: "/admin/customize", label: "Customize site" },
+        ].map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-ink-soft transition hover:bg-sand hover:text-ink"
+          >
+            {a.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Products" value={String(productCount)} />
         <Stat label="Orders" value={String(orderCount)} />
