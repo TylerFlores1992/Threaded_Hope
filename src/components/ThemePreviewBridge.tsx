@@ -21,6 +21,22 @@ export function ThemePreviewBridge() {
         fonts?: string | null;
         hidden?: string[];
       };
+      // Scroll to + flash a section when it's selected in the editor.
+      if (data?.type === "th-focus-section") {
+        const el = document.querySelector<HTMLElement>(
+          `[data-section="${(data as { id?: string }).id}"]`,
+        );
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.style.outline = "2px solid var(--sage-deep)";
+        el.style.outlineOffset = "-2px";
+        window.setTimeout(() => {
+          el.style.outline = "";
+          el.style.outlineOffset = "";
+        }, 1200);
+        return;
+      }
+
       if (data?.type !== "th-theme-preview") return;
 
       for (const [k, v] of Object.entries(data.vars ?? {})) {

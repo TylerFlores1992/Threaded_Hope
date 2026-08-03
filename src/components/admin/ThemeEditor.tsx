@@ -8,6 +8,8 @@ import {
   RADIUS_OPTIONS,
   WIDTH_OPTIONS,
   HOME_SECTIONS,
+  SECTION_SETTINGS,
+  COLOR_PRESETS,
   themeCssVars,
   googleFontsHref,
   defaultTheme,
@@ -37,6 +39,9 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   // Push the draft into the preview whenever it changes (and once on load).
   const push = (t: Theme) => {
@@ -82,6 +87,41 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
     set({ sectionOrder: order });
   };
 
+  /** Drag-and-drop reorder: drop `dragId` onto `targetId`'s position. */
+  const dropOn = (targetId: string) => {
+    if (!dragId || dragId === targetId) return;
+    const order = theme.sectionOrder.filter((s) => s !== dragId);
+    const at = order.indexOf(targetId);
+    order.splice(at, 0, dragId);
+    set({ sectionOrder: order });
+    setDragId(null);
+    setOverId(null);
+  };
+
+  const setSectionSetting = (sec: string, key: string, value: unknown) =>
+    set({
+      sections: {
+        ...theme.sections,
+        [sec]: { ...(theme.sections?.[sec] ?? {}), [key]: value },
+      },
+    });
+
+  const applyPreset = (colors: Record<string, string>) =>
+    set({ colors: { ...theme.colors, ...colors } });
+
+  /** Scroll the preview to a section and flash an outline (like Shopify). */
+  const focusInPreview = (id: string) =>
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "th-focus-section", id },
+      window.location.origin,
+    );
+
+  const discard = () => {
+    setTheme(initial);
+    setDirty(false);
+    setSaved(false);
+  };
+
   const toggle = (id: string) =>
     set({
       hiddenSections: theme.hiddenSections.includes(id)
@@ -94,6 +134,9 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
       await saveTheme(theme);
       setDirty(false);
       setSaved(true);
+      // Colors/fonts/visibility preview live, but section settings are
+      // server-rendered — reload the preview so they show too.
+      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
     });
 
   const onReset = () =>
@@ -103,6 +146,7 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
       setTheme(d);
       setDirty(false);
       setSaved(true);
+      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
     });
 
   return (
@@ -127,6 +171,14 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
             <span className="text-xs text-sage-deep">Saved ✓</span>
           )}
           {dirty && <span className="text-xs text-ink-soft">Unsaved changes</span>}
+          {dirty && (
+            <button
+              onClick={discard}
+              className="rounded-lg px-3 py-1.5 text-xs text-ink-soft hover:bg-sand"
+            >
+              Discard
+            </button>
+          )}
           <button
             onClick={onReset}
             disabled={pending}
@@ -167,20 +219,54 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
             {tab === "sections" ? (
               <div>
                 <p className="mb-3 text-xs text-ink-soft">
-                  Home page order. Use ↑ ↓ to rearrange, or hide a section.
+                  Drag to reorder, tap a section to open its settings, or hide it.
                 </p>
                 <ul className="space-y-2">
                   {theme.sectionOrder.map((id, i) => {
                     const hidden = theme.hiddenSections.includes(id);
+                    const open = openId === id;
+                    const settings = SECTION_SETTINGS[id] ?? [];
                     return (
                       <li
                         key={id}
-                        className="rounded-lg bg-white p-3 text-sm ring-1 ring-border"
+                        draggable
+                        onDragStart={() => setDragId(id)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setOverId(id);
+                        }}
+                        onDragLeave={() => setOverId((o) => (o === id ? null : o))}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          dropOn(id);
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setOverId(null);
+                        }}
+                        className={`rounded-lg bg-white text-sm ring-1 transition ${
+                          overId === id && dragId !== id
+                            ? "ring-2 ring-sage-deep"
+                            : "ring-border"
+                        } ${dragId === id ? "opacity-50" : ""}`}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={hidden ? "text-ink-soft line-through" : "text-ink"}>
-                            {sectionLabel(id)}
+                        <div className="flex items-center gap-2 p-3">
+                          <span
+                            aria-hidden
+                            title="Drag to reorder"
+                            className="cursor-grab select-none text-ink-soft active:cursor-grabbing"
+                          >
+                            ⠿
                           </span>
+                          <button
+                            onClick={() => {
+                              setOpenId(open ? null : id);
+                              focusInPreview(id);
+                            }}
+                            className={`flex-1 text-left ${hidden ? "text-ink-soft line-through" : "text-ink"}`}
+                          >
+                            {sectionLabel(id)}
+                          </button>
                           <span className="flex items-center gap-1">
                             <button
                               onClick={() => move(id, -1)}
@@ -207,9 +293,77 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                             </button>
                           </span>
                         </div>
-                        <p className="mt-1 text-[11px] text-ink-soft">
-                          {sectionHelp(id)}
-                        </p>
+
+                        {open && (
+                          <div className="space-y-3 border-t border-border p-3">
+                            <p className="text-[11px] text-ink-soft">
+                              {sectionHelp(id)}
+                            </p>
+                            {settings.length === 0 && (
+                              <p className="text-[11px] text-ink-soft">
+                                No extra settings for this section.
+                              </p>
+                            )}
+                            {settings.map((st) => {
+                              const val = theme.sections?.[id]?.[st.key];
+                              if (st.type === "toggle") {
+                                return (
+                                  <label
+                                    key={st.key}
+                                    className="flex items-center gap-2 text-xs text-ink"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        typeof val === "boolean" ? val : st.default
+                                      }
+                                      onChange={(e) =>
+                                        setSectionSetting(id, st.key, e.target.checked)
+                                      }
+                                    />
+                                    {st.label}
+                                  </label>
+                                );
+                              }
+                              if (st.type === "select") {
+                                return (
+                                  <label key={st.key} className="block text-xs text-ink-soft">
+                                    {st.label}
+                                    <select
+                                      value={typeof val === "string" ? val : st.default}
+                                      onChange={(e) =>
+                                        setSectionSetting(id, st.key, e.target.value)
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
+                                    >
+                                      {st.options.map((o) => (
+                                        <option key={o.value} value={o.value}>
+                                          {o.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                );
+                              }
+                              return (
+                                <label key={st.key} className="block text-xs text-ink-soft">
+                                  {st.label} ({Number(val ?? st.default)})
+                                  <input
+                                    type="range"
+                                    min={st.min}
+                                    max={st.max}
+                                    step={1}
+                                    value={Number(val ?? st.default)}
+                                    onChange={(e) =>
+                                      setSectionSetting(id, st.key, Number(e.target.value))
+                                    }
+                                    className="mt-1 w-full"
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -222,6 +376,29 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
             ) : (
               <div className="space-y-6">
                 <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Color scheme
+                  </h3>
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    {COLOR_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => applyPreset(p.colors)}
+                        className="rounded-lg border border-border bg-white p-2 text-left text-[11px] text-ink hover:border-sage-deep"
+                      >
+                        <span className="mb-1 flex gap-1">
+                          {["cream", "sand", "sageDeep", "ink"].map((k) => (
+                            <span
+                              key={k}
+                              className="h-4 w-4 rounded-full ring-1 ring-border"
+                              style={{ background: p.colors[k] }}
+                            />
+                          ))}
+                        </span>
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">
                     Colors
                   </h3>
