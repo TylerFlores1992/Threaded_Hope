@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { store } from "@/data/store";
 import { getVisibleCollections } from "@/lib/collections";
+import { getSiteText } from "@/lib/site-text";
 import { Newsletter } from "./Newsletter";
 
 const helpLinks = [
@@ -13,6 +14,7 @@ const helpLinks = [
 
 export async function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
   const shopLinks = (await getVisibleCollections()).slice(0, 6);
+  const text = await getSiteText();
   return (
     <footer className="mt-16 border-t border-border bg-sand">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">
@@ -66,9 +68,9 @@ export async function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
 
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-ink">
-            Join our community
+            {text.newsletter_heading}
           </h3>
-          <p className="mt-3 text-sm text-ink-soft">{store.newsletterPitch}</p>
+          <p className="mt-3 text-sm text-ink-soft">{text.newsletter_pitch}</p>
           <div className="mt-3">
             <Newsletter variant="footer" />
           </div>

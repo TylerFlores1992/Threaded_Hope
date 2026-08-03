@@ -4,6 +4,7 @@ import { getVisibleCollections } from "@/lib/collections";
 import { getCollectionImageOptions } from "@/lib/catalog";
 import { getInstagramPosts } from "@/lib/instagram";
 import { getHomeImages } from "@/lib/home-images";
+import { getSiteText } from "@/lib/site-text";
 import { CollectionTile } from "@/components/CollectionTile";
 import { Newsletter } from "@/components/Newsletter";
 import { placeholderImage } from "@/lib/placeholder";
@@ -17,6 +18,7 @@ export default async function HomePage() {
   const collImages = await getCollectionImageOptions();
   const igPosts = await getInstagramPosts(6);
   const homeImages = await getHomeImages();
+  const text = await getSiteText();
 
   // Hand out a unique image to every slot on the page so nothing repeats.
   const usedImages = new Set<string>();
@@ -57,24 +59,26 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2 md:py-24">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-sand px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sage-deep">
-              Handmade small-batch goods
+              {text.home_hero_badge}
             </p>
             <h1 className="mt-4 font-serif text-4xl leading-tight text-ink md:text-5xl">
-              {store.tagline}
+              {text.home_hero_heading}
             </h1>
-            <p className="mt-4 max-w-md text-lg text-ink-soft">{store.heroSubtitle}</p>
+            <p className="mt-4 max-w-md text-lg text-ink-soft">
+              {text.home_hero_subtitle}
+            </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
                 href="/shop"
                 className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage"
               >
-                Shop all products
+                {text.home_hero_cta_primary}
               </Link>
               <Link
                 href="/our-story"
                 className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink ring-1 ring-border transition hover:bg-sand"
               >
-                Our story
+                {text.home_hero_cta_secondary}
               </Link>
             </div>
           </div>
@@ -105,7 +109,9 @@ export default async function HomePage() {
       {/* Featured collections */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-6 flex items-end justify-between">
-          <h2 className="font-serif text-3xl text-ink">Shop by collection</h2>
+          <h2 className="font-serif text-3xl text-ink">
+            {text.home_collections_heading}
+          </h2>
           <Link href="/shop" className="text-sm font-medium text-sage-deep hover:underline">
             View all →
           </Link>
@@ -136,21 +142,18 @@ export default async function HomePage() {
       {/* Our Story teaser */}
       <section className="bg-sand">
         <div className="mx-auto max-w-4xl px-4 py-16 text-center">
-          <h2 className="font-serif text-3xl text-ink">Stitched with hope</h2>
-          <p className="mt-4 text-ink-soft">
-            Every piece from {store.name} begins as a bolt of fabric and a hopeful
-            idea. We make in small batches, by hand, with care for the little
-            details — because the everyday things you carry should feel special.
+          <h2 className="font-serif text-3xl text-ink">{text.home_story_heading}</h2>
+          <p className="mt-4 whitespace-pre-line text-ink-soft">
+            {text.home_story_body_1}
           </p>
-          <p className="mt-3 text-ink-soft">
-            Faith and community are woven into everything we do. Thank you for being
-            part of our story.
+          <p className="mt-3 whitespace-pre-line text-ink-soft">
+            {text.home_story_body_2}
           </p>
           <Link
             href="/our-story"
             className="mt-6 inline-block rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage"
           >
-            Read our story
+            {text.home_story_cta}
           </Link>
         </div>
       </section>
