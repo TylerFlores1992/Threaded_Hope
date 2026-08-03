@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { HOME_IMAGE_SLOTS } from "@/lib/home-image-slots";
+import { HOME_IMAGE_SLOTS, type ImageSlot } from "@/lib/home-image-slots";
 import { saveHomeImages } from "@/app/admin/(panel)/home/actions";
 
 function SubmitButton() {
@@ -67,8 +67,11 @@ function Slot({
 
 export function HomeImagesForm({
   current,
+  collectionSlots = [],
 }: {
   current: Record<string, string | undefined>;
+  /** One hero slot per collection (added below the site-wide slots). */
+  collectionSlots?: ImageSlot[];
 }) {
   return (
     <form action={saveHomeImages} className="max-w-2xl space-y-4">
@@ -81,6 +84,28 @@ export function HomeImagesForm({
           current={current[s.key]}
         />
       ))}
+
+      {collectionSlots.length > 0 && (
+        <>
+          <h2 className="pt-4 font-serif text-xl text-ink">
+            Collection banners
+          </h2>
+          <p className="-mt-2 text-sm text-ink-soft">
+            The wide image behind each collection page’s title. Empty slots use a
+            generated pattern in the collection’s color.
+          </p>
+          {collectionSlots.map((s) => (
+            <Slot
+              key={s.key}
+              slotKey={s.key}
+              label={s.label}
+              help={s.help}
+              current={current[s.key]}
+            />
+          ))}
+        </>
+      )}
+
       <div className="pt-2">
         <SubmitButton />
       </div>

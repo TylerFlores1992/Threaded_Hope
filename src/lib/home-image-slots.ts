@@ -26,3 +26,9 @@ export const HOME_IMAGE_SLOTS = [
 ] as const;
 
 export const HOME_IMAGES_TAG = "home-images";
+
+/** Shape shared by static slots and the per-collection hero slots. */
+export type ImageSlot = { key: string; label: string; help: string };
+
+/** Setting key holding a collection's hero/banner image. */
+export const collectionHeroKey = (slug: string) => `collection_hero_${slug}`;

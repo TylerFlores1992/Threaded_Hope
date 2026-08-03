@@ -36,20 +36,30 @@ async function uploadHomeImage(file: File, key: string): Promise<string> {
 export async function saveHomeImages(formData: FormData): Promise<void> {
   getPrisma(); // throws a clear error if no DB is configured
 
-  for (const slot of HOME_IMAGE_SLOTS) {
-    if (formData.get(`${slot.key}__clear`) === "on") {
-      await setSetting(slot.key, ""); // empty → falls back to the default
+  // Slot keys are dynamic (static slots + one hero per collection), so drive off
+  // the submitted fields rather than a fixed list. `<key>` = file upload,
+  // `<key>__clear` = revert to default.
+  const keys = new Set<string>(HOME_IMAGE_SLOTS.map((s) => s.key));
+  for (const [field] of formData.entries()) {
+    if (field.endsWith("__clear")) keys.add(field.slice(0, -"__clear".length));
+    else keys.add(field);
+  }
+
+  for (const key of keys) {
+    if (formData.get(`${key}__clear`) === "on") {
+      await setSetting(key, ""); // empty → falls back to the default
       continue;
     }
-    const file = formData.get(slot.key) as File | null;
-    if (file && file.size > 0) {
-      const url = await uploadHomeImage(file, slot.key);
-      await setSetting(slot.key, url);
+    const file = formData.get(key);
+    if (file instanceof File && file.size > 0) {
+      const url = await uploadHomeImage(file, key);
+      await setSetting(key, url);
     }
   }
 
   revalidateTag(HOME_IMAGES_TAG, "max");
   revalidatePath("/", "layout"); // header, footer, and home page
   revalidatePath("/our-story"); // Our Story page image
+  revalidatePath("/collections/[slug]", "page"); // collection hero banners
   revalidatePath("/admin/home");
 }

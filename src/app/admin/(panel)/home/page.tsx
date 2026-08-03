@@ -1,6 +1,8 @@
 import { isDbConfigured } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { HOME_IMAGE_SLOTS } from "@/lib/home-images";
+import { collectionHeroKey, type ImageSlot } from "@/lib/home-image-slots";
+import { getAllCollections } from "@/lib/collections";
 import { HomeImagesForm } from "@/components/admin/HomeImagesForm";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +16,16 @@ export default async function AdminHomePage() {
     );
   }
 
+  // Site-wide slots + one banner slot per collection.
+  const collections = await getAllCollections();
+  const collectionSlots: ImageSlot[] = collections.map((c) => ({
+    key: collectionHeroKey(c.slug),
+    label: c.name,
+    help: `Banner behind the “${c.name}” collection title.`,
+  }));
+
   const entries = await Promise.all(
-    HOME_IMAGE_SLOTS.map(
+    [...HOME_IMAGE_SLOTS, ...collectionSlots].map(
       async (s) => [s.key, (await getSetting(s.key)) || undefined] as const,
     ),
   );
@@ -33,7 +43,7 @@ export default async function AdminHomePage() {
       </p>
 
       <div className="mt-6">
-        <HomeImagesForm current={current} />
+        <HomeImagesForm current={current} collectionSlots={collectionSlots} />
       </div>
     </div>
   );

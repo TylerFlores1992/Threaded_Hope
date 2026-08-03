@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { store } from "@/data/store";
+import { getHomeImages } from "@/lib/home-images";
 import { logout } from "../actions";
 
 export const metadata: Metadata = {
@@ -18,21 +20,33 @@ const nav = [
   { href: "/admin/traffic", label: "Traffic" },
 ];
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const logoSrc = (await getHomeImages()).home_logo ?? "/logo.png";
   return (
     <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 py-6 md:flex-row">
       <aside className="md:w-56 md:shrink-0">
         <div className="flex items-center justify-between md:block">
-          <Link href="/admin" className="font-serif text-xl text-ink">
-            Threaded Hope
-            <span className="block text-xs font-sans text-ink-soft">
+          <div>
+            {/* Logo returns to the storefront. */}
+            <Link href="/" aria-label={`${store.name} — view store`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoSrc}
+                alt={store.name}
+                className="h-12 w-auto max-w-[11rem] object-contain"
+              />
+            </Link>
+            <Link
+              href="/admin"
+              className="mt-1 block text-xs text-ink-soft hover:text-ink"
+            >
               Store admin
-            </span>
-          </Link>
+            </Link>
+          </div>
         </div>
         <nav className="mt-4 flex flex-wrap gap-2 md:mt-6 md:flex-col">
           {nav.map((item) => (

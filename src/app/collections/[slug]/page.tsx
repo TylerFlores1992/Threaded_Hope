@@ -5,6 +5,8 @@ import { getProductsByCollection } from "@/lib/catalog";
 import { withInStockFirst } from "@/lib/sort";
 import { ProductCard } from "@/components/ProductCard";
 import { placeholderImage } from "@/lib/placeholder";
+import { getSetting } from "@/lib/settings";
+import { collectionHeroKey } from "@/lib/home-image-slots";
 
 export const revalidate = 300;
 
@@ -47,13 +49,17 @@ export default async function CollectionPage({
   if (!collection) notFound();
 
   const items = withInStockFirst(await getProductsByCollection(slug));
+  // Admin-uploaded banner (Photos tab) falls back to the generated pattern.
+  const hero =
+    (await getSetting(collectionHeroKey(slug))) ||
+    placeholderImage(collection.name, collection.hue);
 
   return (
     <div>
       {/* Banner */}
       <section className="relative overflow-hidden border-b border-border">
         <img
-          src={placeholderImage(collection.name, collection.hue)}
+          src={hero}
           alt=""
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover opacity-30"
