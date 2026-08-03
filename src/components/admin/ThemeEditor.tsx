@@ -9,15 +9,25 @@ import {
   WIDTH_OPTIONS,
   HOME_SECTIONS,
   SECTION_SETTINGS,
+  SECTION_TEXT_FIELDS,
+  ADDABLE_SECTIONS,
   COLOR_PRESETS,
+  newSectionInstance,
+  type SectionInstance,
   themeCssVars,
   googleFontsHref,
   defaultTheme,
   type Theme,
 } from "@/lib/theme-config";
-import { saveTheme, resetTheme } from "@/app/admin/(panel)/customize/actions";
+import {
+  saveTheme,
+  resetTheme,
+  restoreVersion,
+  type ThemeVersion,
+} from "@/app/admin/(panel)/customize/actions";
+import { SITE_TEXT_FIELDS } from "@/lib/site-text-fields";
 
-type Tab = "sections" | "theme";
+type Tab = "sections" | "theme" | "history";
 type Device = "desktop" | "mobile";
 
 const sectionLabel = (id: string) =>
@@ -31,8 +41,17 @@ const sectionHelp = (id: string) =>
  * Draft changes stream to the preview iframe over postMessage, so edits show
  * instantly; Save persists them for real visitors.
  */
-export function ThemeEditor({ initial }: { initial: Theme }) {
+export function ThemeEditor({
+  initial,
+  initialText,
+  versions,
+}: {
+  initial: Theme;
+  initialText: Record<string, string>;
+  versions: ThemeVersion[];
+}) {
   const [theme, setTheme] = useState<Theme>(initial);
+  const [text, setText] = useState<Record<string, string>>(initialText);
   const [tab, setTab] = useState<Tab>("sections");
   const [device, setDevice] = useState<Device>("desktop");
   const [dirty, setDirty] = useState(false);
@@ -50,7 +69,7 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
         type: "th-theme-preview",
         vars: themeCssVars(t),
         fonts: googleFontsHref(t),
-        hidden: t.hiddenSections,
+        hidden: t.layout.filter((i) => i.hidden).map((i) => i.key),
       },
       window.location.origin,
     );
@@ -78,75 +97,119 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
   const setColor = (key: string, value: string) =>
     set({ colors: { ...theme.colors, [key]: value } });
 
-  const move = (id: string, dir: -1 | 1) => {
-    const order = [...theme.sectionOrder];
-    const i = order.indexOf(id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= order.length) return;
-    [order[i], order[j]] = [order[j], order[i]];
-    set({ sectionOrder: order });
-  };
+  const setLayout = (layout: SectionInstance[]) => set({ layout });
 
-  /** Drag-and-drop reorder: drop `dragId` onto `targetId`'s position. */
-  const dropOn = (targetId: string) => {
-    if (!dragId || dragId === targetId) return;
-    const order = theme.sectionOrder.filter((s) => s !== dragId);
-    const at = order.indexOf(targetId);
-    order.splice(at, 0, dragId);
-    set({ sectionOrder: order });
+  /** Drag-and-drop reorder: drop `dragId` onto `targetKey`'s position. */
+  const dropOn = (targetKey: string) => {
+    if (!dragId || dragId === targetKey) return;
+    const layout = theme.layout.filter((i) => i.key !== dragId);
+    const moved = theme.layout.find((i) => i.key === dragId);
+    if (!moved) return;
+    layout.splice(layout.findIndex((i) => i.key === targetKey), 0, moved);
+    setLayout(layout);
     setDragId(null);
     setOverId(null);
   };
 
-  const setSectionSetting = (sec: string, key: string, value: unknown) =>
-    set({
-      sections: {
-        ...theme.sections,
-        [sec]: { ...(theme.sections?.[sec] ?? {}), [key]: value },
-      },
-    });
+  const move = (key: string, dir: -1 | 1) => {
+    const layout = [...theme.layout];
+    const i = layout.findIndex((s) => s.key === key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= layout.length) return;
+    [layout[i], layout[j]] = [layout[j], layout[i]];
+    setLayout(layout);
+  };
+
+  const toggle = (key: string) =>
+    setLayout(
+      theme.layout.map((i) =>
+        i.key === key ? { ...i, hidden: !i.hidden } : i,
+      ),
+    );
+
+  const removeSection = (key: string) =>
+    setLayout(theme.layout.filter((i) => i.key !== key));
+
+  /** Unique instance key without relying on impure clocks during render. */
+  const nextKey = (type: string) => {
+    const used = new Set(theme.layout.map((i) => i.key));
+    let n = 1;
+    while (used.has(`${type}-${n}`)) n++;
+    return `${type}-${n}`;
+  };
+
+  const addSection = (type: string) =>
+    setLayout([
+      ...theme.layout,
+      { ...newSectionInstance(type, 0), key: nextKey(type) },
+    ]);
+
+  const duplicateSection = (key: string) => {
+    const src = theme.layout.find((i) => i.key === key);
+    if (!src) return;
+    const copy: SectionInstance = {
+      ...src,
+      key: nextKey(src.type),
+      settings: { ...src.settings },
+    };
+    const layout = [...theme.layout];
+    layout.splice(layout.findIndex((i) => i.key === key) + 1, 0, copy);
+    setLayout(layout);
+  };
+
+  const setSectionSetting = (key: string, sKey: string, value: unknown) =>
+    setLayout(
+      theme.layout.map((i) =>
+        i.key === key ? { ...i, settings: { ...i.settings, [sKey]: value } } : i,
+      ),
+    );
+
+  const setText_ = (k: string, v: string) => {
+    setText((t) => ({ ...t, [k]: v }));
+    setDirty(true);
+    setSaved(false);
+  };
 
   const applyPreset = (colors: Record<string, string>) =>
     set({ colors: { ...theme.colors, ...colors } });
 
   /** Scroll the preview to a section and flash an outline (like Shopify). */
-  const focusInPreview = (id: string) =>
+  const focusInPreview = (key: string) =>
     iframeRef.current?.contentWindow?.postMessage(
-      { type: "th-focus-section", id },
+      { type: "th-focus-section", id: key },
       window.location.origin,
     );
 
   const discard = () => {
     setTheme(initial);
+    setText(initialText);
     setDirty(false);
     setSaved(false);
   };
 
-  const toggle = (id: string) =>
-    set({
-      hiddenSections: theme.hiddenSections.includes(id)
-        ? theme.hiddenSections.filter((s) => s !== id)
-        : [...theme.hiddenSections, id],
-    });
+  const reloadPreview = () => {
+    const f = iframeRef.current;
+    if (f) f.src = f.src;
+  };
 
   const onSave = () =>
     start(async () => {
-      await saveTheme(theme);
+      await saveTheme(theme, text, new Date().toISOString());
       setDirty(false);
       setSaved(true);
       // Colors/fonts/visibility preview live, but section settings are
       // server-rendered — reload the preview so they show too.
-      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
+      reloadPreview();
     });
 
   const onReset = () =>
     start(async () => {
-      await resetTheme();
+      await resetTheme(new Date().toISOString());
       const d = defaultTheme();
       setTheme(d);
       setDirty(false);
       setSaved(true);
-      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
+      reloadPreview();
     });
 
   return (
@@ -200,7 +263,7 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
         {/* Settings panel */}
         <aside className="flex w-full flex-col border-border bg-white/60 md:w-80 md:border-r">
           <div className="flex border-b border-border text-sm">
-            {(["sections", "theme"] as Tab[]).map((t) => (
+            {(["sections", "theme", "history"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -210,45 +273,99 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                     : "text-ink-soft hover:text-ink"
                 }`}
               >
-                {t === "sections" ? "Sections" : "Theme settings"}
+                {t === "sections"
+                  ? "Sections"
+                  : t === "theme"
+                    ? "Theme"
+                    : "History"}
               </button>
             ))}
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {tab === "sections" ? (
+            {tab === "history" ? (
               <div>
                 <p className="mb-3 text-xs text-ink-soft">
-                  Drag to reorder, tap a section to open its settings, or hide it.
+                  The last {versions.length} saved versions. Restoring replaces
+                  the current design (the current one is snapshotted first).
+                </p>
+                {versions.length === 0 ? (
+                  <p className="text-xs text-ink-soft">
+                    No previous versions yet — they appear after your next save.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {versions.map((v) => (
+                      <li
+                        key={v.id}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-white p-3 text-xs ring-1 ring-border"
+                      >
+                        <span className="text-ink-soft">
+                          {new Date(v.savedAt).toLocaleString("en-US", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                        <button
+                          onClick={() =>
+                            start(async () => {
+                              await restoreVersion(v.id, new Date().toISOString());
+                              setTheme(v.theme);
+                              setDirty(false);
+                              setSaved(true);
+                              reloadPreview();
+                            })
+                          }
+                          disabled={pending}
+                          className="rounded px-2 py-1 font-medium text-sage-deep hover:bg-sand disabled:opacity-50"
+                        >
+                          Restore
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : tab === "sections" ? (
+              <div>
+                <p className="mb-3 text-xs text-ink-soft">
+                  Drag to reorder, tap a section to open its settings.
                 </p>
                 <ul className="space-y-2">
-                  {theme.sectionOrder.map((id, i) => {
-                    const hidden = theme.hiddenSections.includes(id);
-                    const open = openId === id;
-                    const settings = SECTION_SETTINGS[id] ?? [];
+                  {theme.layout.map((inst, i) => {
+                    const open = openId === inst.key;
+                    const settings = SECTION_SETTINGS[inst.type] ?? [];
+                    // Global copy shows on the first instance of a type only.
+                    const firstOfType =
+                      theme.layout.findIndex((x) => x.type === inst.type) === i;
+                    const textKeys = firstOfType
+                      ? (SECTION_TEXT_FIELDS[inst.type] ?? [])
+                      : [];
                     return (
                       <li
-                        key={id}
+                        key={inst.key}
                         draggable
-                        onDragStart={() => setDragId(id)}
+                        onDragStart={() => setDragId(inst.key)}
                         onDragOver={(e) => {
                           e.preventDefault();
-                          setOverId(id);
+                          setOverId(inst.key);
                         }}
-                        onDragLeave={() => setOverId((o) => (o === id ? null : o))}
+                        onDragLeave={() =>
+                          setOverId((o) => (o === inst.key ? null : o))
+                        }
                         onDrop={(e) => {
                           e.preventDefault();
-                          dropOn(id);
+                          dropOn(inst.key);
                         }}
                         onDragEnd={() => {
                           setDragId(null);
                           setOverId(null);
                         }}
                         className={`rounded-lg bg-white text-sm ring-1 transition ${
-                          overId === id && dragId !== id
+                          overId === inst.key && dragId !== inst.key
                             ? "ring-2 ring-sage-deep"
                             : "ring-border"
-                        } ${dragId === id ? "opacity-50" : ""}`}
+                        } ${dragId === inst.key ? "opacity-50" : ""}`}
                       >
                         <div className="flex items-center gap-2 p-3">
                           <span
@@ -260,16 +377,16 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                           </span>
                           <button
                             onClick={() => {
-                              setOpenId(open ? null : id);
-                              focusInPreview(id);
+                              setOpenId(open ? null : inst.key);
+                              focusInPreview(inst.key);
                             }}
-                            className={`flex-1 text-left ${hidden ? "text-ink-soft line-through" : "text-ink"}`}
+                            className={`flex-1 text-left ${inst.hidden ? "text-ink-soft line-through" : "text-ink"}`}
                           >
-                            {sectionLabel(id)}
+                            {sectionLabel(inst.type)}
                           </button>
                           <span className="flex items-center gap-1">
                             <button
-                              onClick={() => move(id, -1)}
+                              onClick={() => move(inst.key, -1)}
                               disabled={i === 0}
                               aria-label="Move up"
                               className="rounded px-1.5 text-ink-soft hover:bg-sand disabled:opacity-30"
@@ -277,19 +394,19 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                               ↑
                             </button>
                             <button
-                              onClick={() => move(id, 1)}
-                              disabled={i === theme.sectionOrder.length - 1}
+                              onClick={() => move(inst.key, 1)}
+                              disabled={i === theme.layout.length - 1}
                               aria-label="Move down"
                               className="rounded px-1.5 text-ink-soft hover:bg-sand disabled:opacity-30"
                             >
                               ↓
                             </button>
                             <button
-                              onClick={() => toggle(id)}
-                              aria-label={hidden ? "Show section" : "Hide section"}
+                              onClick={() => toggle(inst.key)}
+                              aria-label={inst.hidden ? "Show section" : "Hide section"}
                               className="rounded px-1.5 text-ink-soft hover:bg-sand"
                             >
-                              {hidden ? "🙈" : "👁"}
+                              {inst.hidden ? "🙈" : "👁"}
                             </button>
                           </span>
                         </div>
@@ -297,28 +414,44 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                         {open && (
                           <div className="space-y-3 border-t border-border p-3">
                             <p className="text-[11px] text-ink-soft">
-                              {sectionHelp(id)}
+                              {sectionHelp(inst.type)}
                             </p>
-                            {settings.length === 0 && (
-                              <p className="text-[11px] text-ink-soft">
-                                No extra settings for this section.
-                              </p>
-                            )}
+
+                            {textKeys.map((k) => {
+                              const f = SITE_TEXT_FIELDS.find((x) => x.key === k);
+                              if (!f) return null;
+                              return (
+                                <label key={k} className="block text-xs text-ink-soft">
+                                  {f.label}
+                                  {f.multiline ? (
+                                    <textarea
+                                      rows={3}
+                                      value={text[k] ?? f.default}
+                                      onChange={(e) => setText_(k, e.target.value)}
+                                      className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
+                                    />
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={text[k] ?? f.default}
+                                      onChange={(e) => setText_(k, e.target.value)}
+                                      className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
+                                    />
+                                  )}
+                                </label>
+                              );
+                            })}
+
                             {settings.map((st) => {
-                              const val = theme.sections?.[id]?.[st.key];
+                              const val = inst.settings[st.key];
                               if (st.type === "toggle") {
                                 return (
-                                  <label
-                                    key={st.key}
-                                    className="flex items-center gap-2 text-xs text-ink"
-                                  >
+                                  <label key={st.key} className="flex items-center gap-2 text-xs text-ink">
                                     <input
                                       type="checkbox"
-                                      checked={
-                                        typeof val === "boolean" ? val : st.default
-                                      }
+                                      checked={typeof val === "boolean" ? val : st.default}
                                       onChange={(e) =>
-                                        setSectionSetting(id, st.key, e.target.checked)
+                                        setSectionSetting(inst.key, st.key, e.target.checked)
                                       }
                                     />
                                     {st.label}
@@ -332,7 +465,7 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                                     <select
                                       value={typeof val === "string" ? val : st.default}
                                       onChange={(e) =>
-                                        setSectionSetting(id, st.key, e.target.value)
+                                        setSectionSetting(inst.key, st.key, e.target.value)
                                       }
                                       className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
                                     >
@@ -342,6 +475,21 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                                         </option>
                                       ))}
                                     </select>
+                                  </label>
+                                );
+                              }
+                              if (st.type === "text") {
+                                return (
+                                  <label key={st.key} className="block text-xs text-ink-soft">
+                                    {st.label}
+                                    <input
+                                      type="text"
+                                      value={typeof val === "string" ? val : st.default}
+                                      onChange={(e) =>
+                                        setSectionSetting(inst.key, st.key, e.target.value)
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
+                                    />
                                   </label>
                                 );
                               }
@@ -355,23 +503,53 @@ export function ThemeEditor({ initial }: { initial: Theme }) {
                                     step={1}
                                     value={Number(val ?? st.default)}
                                     onChange={(e) =>
-                                      setSectionSetting(id, st.key, Number(e.target.value))
+                                      setSectionSetting(inst.key, st.key, Number(e.target.value))
                                     }
                                     className="mt-1 w-full"
                                   />
                                 </label>
                               );
                             })}
+
+                            <div className="flex gap-3 pt-1 text-xs">
+                              {ADDABLE_SECTIONS.includes(inst.type) && (
+                                <button
+                                  onClick={() => duplicateSection(inst.key)}
+                                  className="text-sage-deep hover:underline"
+                                >
+                                  Duplicate
+                                </button>
+                              )}
+                              <button
+                                onClick={() => removeSection(inst.key)}
+                                className="text-red-700 hover:underline"
+                              >
+                                Remove section
+                              </button>
+                            </div>
                           </div>
                         )}
                       </li>
                     );
                   })}
                 </ul>
-                <p className="mt-4 text-[11px] text-ink-soft">
-                  Header and footer are always shown. Edit their wording under{" "}
-                  <strong>Site text</strong>.
-                </p>
+
+                <div className="mt-4 rounded-lg border border-dashed border-border p-3">
+                  <p className="mb-2 text-xs font-medium text-ink">Add section</p>
+                  <div className="flex flex-wrap gap-2">
+                    {HOME_SECTIONS.filter((sec) =>
+                      ADDABLE_SECTIONS.includes(sec.id),
+                    ).map((sec) => (
+                      <button
+                        key={sec.id}
+                        onClick={() => addSection(sec.id)}
+                        className="rounded-lg bg-sand px-2 py-1 text-xs text-ink hover:bg-sage-deep hover:text-white"
+                      >
+                        + {sec.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">

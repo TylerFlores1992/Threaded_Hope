@@ -8,7 +8,6 @@ import { getSiteText } from "@/lib/site-text";
 import { getTheme } from "@/lib/theme";
 import { CollectionTile } from "@/components/CollectionTile";
 import { Newsletter } from "@/components/Newsletter";
-import { placeholderImage } from "@/lib/placeholder";
 
 export const revalidate = 300;
 
@@ -26,18 +25,14 @@ export default async function HomePage() {
   const homeImages = await getHomeImages();
   const text = await getSiteText();
   const theme = await getTheme();
-  // Per-section settings (Customize → section settings).
-  const raw = (sec: string, key: string): unknown => theme.sections?.[sec]?.[key];
-  const cfgStr = (sec: string, key: string, fallback: string): string => {
-    const v = raw(sec, key);
-    return typeof v === "string" ? v : fallback;
-  };
-  const cfgBool = (sec: string, key: string, fallback: boolean): boolean => {
-    const v = raw(sec, key);
-    return typeof v === "boolean" ? v : fallback;
-  };
-  const cfgNum = (sec: string, key: string, fallback: number): number => {
-    const v = Number(raw(sec, key));
+  // Per-instance section settings (Customize → section settings).
+  type S = Record<string, unknown>;
+  const str = (s: S, key: string, fallback: string): string =>
+    typeof s[key] === "string" && s[key] !== "" ? (s[key] as string) : fallback;
+  const bool = (s: S, key: string, fallback: boolean): boolean =>
+    typeof s[key] === "boolean" ? (s[key] as boolean) : fallback;
+  const num = (s: S, key: string, fallback: number): number => {
+    const v = Number(s[key]);
     return Number.isFinite(v) && v > 0 ? v : fallback;
   };
 
@@ -64,22 +59,22 @@ export default async function HomePage() {
     .filter((img) => !usedImages.has(img))
     .slice(0, 12);
 
-  const sections: Record<string, React.ReactNode> = {
-    hero: (
+  const renderers: Record<string, (S: S) => React.ReactNode> = {
+    hero: (S) => (
       <>
 {/* Hero */}
       <section className="relative overflow-hidden">
         <div
           className={`mx-auto max-w-3xl px-4 ${
-            cfgStr("hero", "padding", "normal") === "compact"
+            str(S, "padding", "normal") === "compact"
               ? "py-10 md:py-14"
-              : cfgStr("hero", "padding", "normal") === "tall"
+              : str(S, "padding", "normal") === "tall"
                 ? "py-24 md:py-36"
                 : "py-16 md:py-24"
-          } ${cfgStr("hero", "align", "center") === "left" ? "text-left" : "text-center"}`}
+          } ${str(S, "align", "center") === "left" ? "text-left" : "text-center"}`}
         >
           <div>
-            {cfgBool("hero", "showBadge", true) && (
+            {bool(S, "showBadge", true) && (
             <p className="inline-flex items-center gap-2 rounded-full bg-sand px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sage-deep">
               {text.home_hero_badge}
             </p>
@@ -87,10 +82,10 @@ export default async function HomePage() {
             <h1 className="mt-4 font-serif text-4xl leading-tight text-ink md:text-5xl">
               {text.home_hero_heading}
             </h1>
-            <p className={`mt-4 max-w-xl text-lg text-ink-soft ${cfgStr("hero", "align", "center") === "left" ? "" : "mx-auto"}`}>
+            <p className={`mt-4 max-w-xl text-lg text-ink-soft ${str(S, "align", "center") === "left" ? "" : "mx-auto"}`}>
               {text.home_hero_subtitle}
             </p>
-            <div className={`mt-7 flex flex-wrap gap-3 ${cfgStr("hero", "align", "center") === "left" ? "" : "justify-center"}`}>
+            <div className={`mt-7 flex flex-wrap gap-3 ${str(S, "align", "center") === "left" ? "" : "justify-center"}`}>
               <Link
                 href="/shop"
                 className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage"
@@ -109,22 +104,22 @@ export default async function HomePage() {
       </section>
       </>
     ),
-    collections: (
+    collections: (S) => (
       <>
 {/* Featured collections */}
       <section className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-6 flex items-end justify-between">
           <h2 className="font-serif text-3xl text-ink">
-            {text.home_collections_heading}
+            {str(S, "heading", text.home_collections_heading)}
           </h2>
           <Link href="/shop" className="text-sm font-medium text-sage-deep hover:underline">
             View all →
           </Link>
         </div>
         {/* 7 collections + a "View all" tile = 8, filling two even rows. */}
-        <div className={`grid grid-cols-2 gap-4 ${cfgStr("collections", "columns", "4") === "3" ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
+        <div className={`grid grid-cols-2 gap-4 ${str(S, "columns", "4") === "3" ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
           {featuredCollections
-            .slice(0, cfgNum("collections", "tiles", 7))
+            .slice(0, num(S, "tiles", 7))
             .map((c) => (
             <CollectionTile
               key={c.slug}
@@ -132,7 +127,7 @@ export default async function HomePage() {
               image={tileImages[c.slug]}
             />
           ))}
-          {cfgBool("collections", "showViewAll", true) && (
+          {bool(S, "showViewAll", true) && (
           <Link
             href="/shop"
             className="group flex aspect-4/3 flex-col items-center justify-center rounded-2xl bg-sand text-center ring-1 ring-border transition hover:bg-sage-deep"
@@ -149,18 +144,18 @@ export default async function HomePage() {
       </section>
       </>
     ),
-    story: (
+    story: (S) => (
       <>
 {/* Our Story teaser */}
       <section className="bg-sand">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
-          {cfgBool("story", "showImage", true) && (
+          {bool(S, "showImage", true) && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={homeImages.home_story_image ?? homeImages.home_logo ?? "/logo.png"}
               alt={store.name}
               className={`mx-auto w-full max-w-sm rounded-3xl object-contain ${
-                cfgStr("story", "imagePosition", "left") === "right" ? "md:order-2" : ""
+                str(S, "imagePosition", "left") === "right" ? "md:order-2" : ""
               }`}
             />
           )}
@@ -183,7 +178,7 @@ export default async function HomePage() {
       </section>
       </>
     ),
-    instagram: (
+    instagram: (S) => (
       <>
 {/* Instagram strip — latest posts (auto-updates), or recent product photos */}
       {(igPosts.length > 0 || fallbackImages.length > 0) && (
@@ -200,7 +195,7 @@ export default async function HomePage() {
           </h2>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {igPosts.length > 0
-              ? igPosts.slice(0, cfgNum("instagram", "posts", 6)).map((post) => (
+              ? igPosts.slice(0, num(S, "posts", 6)).map((post) => (
                   <a
                     key={post.id}
                     href={post.permalink}
@@ -216,7 +211,7 @@ export default async function HomePage() {
                     />
                   </a>
                 ))
-              : fallbackImages.slice(0, cfgNum("instagram", "posts", 6)).map((src, i) => (
+              : fallbackImages.slice(0, num(S, "posts", 6)).map((src, i) => (
                   <a
                     key={i}
                     href={store.socials.instagram}
@@ -239,11 +234,11 @@ export default async function HomePage() {
       )}
       </>
     ),
-    newsletter: (
+    newsletter: (S) => (
       <>
 {/* Newsletter */}
       <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className={`rounded-3xl px-6 py-12 ring-1 ring-border ${cfgStr("newsletter", "background", "white") === "sand" ? "bg-sand" : "bg-white/70"}`}>
+        <div className={`rounded-3xl px-6 py-12 ring-1 ring-border ${str(S, "background", "white") === "sand" ? "bg-sand" : "bg-white/70"}`}>
           <Newsletter />
         </div>
       </section>
@@ -251,17 +246,19 @@ export default async function HomePage() {
     ),
   };
 
-  // Render in the admin-configured order, skipping hidden sections. The
-  // data-section wrapper also lets the theme editor toggle them live.
-  const order = theme.sectionOrder.filter((id) => id in sections);
-
+  // Render the placed sections in order. The data-section wrapper lets the
+  // theme editor scroll to and toggle each one live.
   return (
     <>
-      {order.map((id) => (
-        <div key={id} data-section={id} hidden={theme.hiddenSections.includes(id)}>
-          {sections[id]}
-        </div>
-      ))}
+      {theme.layout.map((inst) => {
+        const render = renderers[inst.type];
+        if (!render) return null;
+        return (
+          <div key={inst.key} data-section={inst.key} hidden={inst.hidden}>
+            {render(inst.settings)}
+          </div>
+        );
+      })}
     </>
   );
 }
