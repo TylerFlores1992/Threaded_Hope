@@ -118,6 +118,18 @@ function setupStatus() {
       note: process.env.EMAIL_FROM,
     },
     {
+      label: "Shopify sync (Admin API)",
+      value:
+        process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET
+          ? "Connected"
+          : "Not set",
+      tone:
+        process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET
+          ? "live"
+          : "off",
+      note: process.env.SHOPIFY_STORE_DOMAIN,
+    },
+    {
       label: "Sales tax",
       value:
         process.env.STRIPE_TAX_ENABLED === "1"

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { isDbConfigured } from "@/lib/db";
 import { SyncShopifyClient } from "@/components/admin/SyncShopifyClient";
+import { isShopifyApiConfigured } from "@/lib/shopify";
 
 export const dynamic = "force-dynamic";
 // Room for a batch to fetch Shopify and write several products.
@@ -20,7 +21,7 @@ export default function SyncShopifyPage() {
           Connect a database to sync product details.
         </p>
       ) : (
-        <SyncShopifyClient />
+        <SyncShopifyClient apiConnected={isShopifyApiConfigured()} />
       )}
     </div>
   );
