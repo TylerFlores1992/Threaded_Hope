@@ -23,10 +23,19 @@ export function CollectionForm({
   action,
   collection,
   submitLabel = "Save collection",
+  sortMode = "manual",
+  sortModes = [],
+  seoTitle,
+  seoDescription,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   collection?: Collection;
   submitLabel?: string;
+  /** How products order on the collection page. */
+  sortMode?: string;
+  sortModes?: readonly { id: string; label: string }[];
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 }) {
   return (
     <form action={action} className="max-w-xl space-y-5">
@@ -62,6 +71,51 @@ export function CollectionForm({
           className={field}
         />
       </div>
+
+      {sortModes.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Sort products by
+          </label>
+          <select name="sortMode" defaultValue={sortMode} className={field}>
+            {sortModes.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <fieldset className="rounded-2xl bg-white/60 p-4 ring-1 ring-border">
+        <legend className="px-1 text-sm font-medium text-ink">
+          Search engine listing{" "}
+          <span className="font-normal text-ink-soft">
+            (blank = use the name and description)
+          </span>
+        </legend>
+        <label className="mt-2 block text-sm text-ink-soft">
+          Page title
+          <input
+            name="seoTitle"
+            defaultValue={seoTitle ?? ""}
+            maxLength={70}
+            placeholder={collection?.name}
+            className={field}
+          />
+        </label>
+        <label className="mt-3 block text-sm text-ink-soft">
+          Meta description
+          <textarea
+            name="seoDescription"
+            rows={2}
+            defaultValue={seoDescription ?? ""}
+            maxLength={160}
+            placeholder={collection?.description}
+            className={field}
+          />
+        </label>
+      </fieldset>
 
       <div className="flex flex-wrap gap-6 pt-1">
         <label className="flex items-center gap-2 text-sm text-ink">

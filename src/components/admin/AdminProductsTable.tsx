@@ -16,9 +16,17 @@ export type AdminProduct = {
   stock: number | null;
   inStock: boolean;
   featured: boolean;
+  status: string;
+  productType: string | null;
+  vendor: string | null;
+  /** Revenue rank over 90 days: A earns most, C least. */
+  abc: "A" | "B" | "C";
+  unitsSold30: number;
   createdAt: number;
 };
 
+/** Saved views, mirroring Shopify's tabs above the product list. */
+type View = "all" | "active" | "draft" | "archived" | "out";
 type Status = "all" | "in" | "out" | "featured";
 type Sort =
   | "newest"
@@ -27,10 +35,48 @@ type Sort =
   | "price-asc"
   | "price-desc"
   | "stock-asc"
-  | "stock-desc";
+  | "stock-desc"
+  | "sold-desc";
+
+/** Optional columns — hidden ones keep the table readable on small screens. */
+const COLUMNS = [
+  { id: "status", label: "Status" },
+  { id: "collections", label: "Collections" },
+  { id: "price", label: "Price" },
+  { id: "stock", label: "Inventory" },
+  { id: "sold", label: "Sold (30d)" },
+  { id: "abc", label: "ABC" },
+  { id: "type", label: "Product type" },
+  { id: "vendor", label: "Vendor" },
+] as const;
+
+type ColumnId = (typeof COLUMNS)[number]["id"];
+
+const DEFAULT_COLUMNS: ColumnId[] = [
+  "status",
+  "collections",
+  "price",
+  "stock",
+  "type",
+  "vendor",
+];
+
+const VIEWS: { id: View; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "active", label: "Active" },
+  { id: "draft", label: "Drafts" },
+  { id: "archived", label: "Archived" },
+  { id: "out", label: "Sold out" },
+];
 
 const selectClass =
   "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+
+const STATUS_STYLE: Record<string, string> = {
+  active: "bg-sage-deep/10 text-sage-deep",
+  draft: "bg-amber-100 text-amber-700",
+  archived: "bg-sand text-ink-soft",
+};
 
 export function AdminProductsTable({
   products,
@@ -55,23 +101,47 @@ export function AdminProductsTable({
   const [query, setQuery] = useState<string>(saved.query ?? "");
   const [collection, setCollection] = useState<string>(saved.collection ?? "all");
   const [status, setStatus] = useState<Status>(saved.status ?? "all");
+  const [view, setView] = useState<View>(saved.view ?? "all");
   const [sort, setSort] = useState<Sort>(saved.sort ?? "newest");
+  const [columns, setColumns] = useState<ColumnId[]>(
+    Array.isArray(saved.columns) && saved.columns.length > 0
+      ? saved.columns
+      : DEFAULT_COLUMNS,
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     try {
       sessionStorage.setItem(
         STORE_KEY,
-        JSON.stringify({ query, collection, status, sort }),
+        JSON.stringify({ query, collection, status, view, sort, columns }),
       );
     } catch {
       /* ignore storage errors (private mode, etc.) */
     }
-  }, [query, collection, status, sort]);
+  }, [query, collection, status, view, sort, columns]);
+
+  const shows = (id: ColumnId) => columns.includes(id);
+  const toggleColumn = (id: ColumnId) =>
+    setColumns((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
 
   const nameOf = useMemo(() => {
     const m = new Map(collections.map((c) => [c.slug, c.name]));
     return (slug: string) => m.get(slug) ?? slug;
   }, [collections]);
+
+  const counts = useMemo(
+    () => ({
+      all: products.length,
+      active: products.filter((p) => p.status === "active").length,
+      draft: products.filter((p) => p.status === "draft").length,
+      archived: products.filter((p) => p.status === "archived").length,
+      out: products.filter((p) => !p.inStock).length,
+    }),
+    [products],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -79,6 +149,8 @@ export function AdminProductsTable({
       const matchQuery =
         q === "" ||
         p.name.toLowerCase().includes(q) ||
+        (p.vendor ?? "").toLowerCase().includes(q) ||
+        (p.productType ?? "").toLowerCase().includes(q) ||
         p.collections.some((c) => nameOf(c).toLowerCase().includes(q));
       const matchCollection =
         collection === "all" || p.collections.includes(collection);
@@ -87,7 +159,10 @@ export function AdminProductsTable({
         (status === "in" && p.inStock) ||
         (status === "out" && !p.inStock) ||
         (status === "featured" && p.featured);
-      return matchQuery && matchCollection && matchStatus;
+      const matchView =
+        view === "all" ||
+        (view === "out" ? !p.inStock : p.status === view);
+      return matchQuery && matchCollection && matchStatus && matchView;
     });
 
     const sortStock = (v: number | null) => (v == null ? Infinity : v);
@@ -105,14 +180,36 @@ export function AdminProductsTable({
           return sortStock(a.stock) - sortStock(b.stock);
         case "stock-desc":
           return sortStock(b.stock) - sortStock(a.stock);
+        case "sold-desc":
+          return b.unitsSold30 - a.unitsSold30;
         default:
           return b.createdAt - a.createdAt; // newest
       }
     });
-  }, [products, query, collection, status, sort, nameOf]);
+  }, [products, query, collection, status, view, sort, nameOf]);
+
+  const colCount = 2 + columns.length + 1; // photo + name + optional + actions
 
   return (
     <div>
+      {/* Saved views */}
+      <div className="mb-3 flex flex-wrap gap-1 border-b border-border">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setView(v.id)}
+            className={`px-3 py-2 text-sm ${
+              view === v.id
+                ? "border-b-2 border-sage-deep font-medium text-ink"
+                : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {v.label}
+            <span className="ml-1 text-xs text-ink-soft">({counts[v.id]})</span>
+          </button>
+        ))}
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input
           type="search"
@@ -138,9 +235,9 @@ export function AdminProductsTable({
           value={status}
           onChange={(e) => setStatus(e.target.value as Status)}
           className={selectClass}
-          aria-label="Filter by status"
+          aria-label="Filter by availability"
         >
-          <option value="all">Any status</option>
+          <option value="all">Any availability</option>
           <option value="in">In stock</option>
           <option value="out">Sold out</option>
           <option value="featured">Featured</option>
@@ -158,7 +255,37 @@ export function AdminProductsTable({
           <option value="price-desc">Price: High to Low</option>
           <option value="stock-asc">Stock: Low to High</option>
           <option value="stock-desc">Stock: High to Low</option>
+          <option value="sold-desc">Best selling (30 days)</option>
         </select>
+
+        {/* Column picker */}
+        <div className="relative">
+          <button
+            onClick={() => setPickerOpen((o) => !o)}
+            aria-expanded={pickerOpen}
+            className="rounded-full border border-border bg-white px-3 py-1.5 text-sm text-ink-soft hover:bg-sand"
+          >
+            Columns ▾
+          </button>
+          {pickerOpen && (
+            <div className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-border bg-white p-2 shadow-lg">
+              {COLUMNS.map((c) => (
+                <label
+                  key={c.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-ink hover:bg-sand"
+                >
+                  <input
+                    type="checkbox"
+                    checked={shows(c.id)}
+                    onChange={() => toggleColumn(c.id)}
+                    className="h-4 w-4 accent-sage-deep"
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <p className="mb-3 text-sm text-ink-soft" aria-live="polite">
@@ -172,16 +299,28 @@ export function AdminProductsTable({
             <tr>
               <th className="px-4 py-3 font-medium">Photo</th>
               <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Collections</th>
-              <th className="px-4 py-3 font-medium">Price</th>
-              <th className="px-4 py-3 font-medium">Stock</th>
-              <th className="px-4 py-3 font-medium">Status</th>
+              {shows("status") && <th className="px-4 py-3 font-medium">Status</th>}
+              {shows("collections") && (
+                <th className="px-4 py-3 font-medium">Collections</th>
+              )}
+              {shows("price") && <th className="px-4 py-3 font-medium">Price</th>}
+              {shows("stock") && (
+                <th className="px-4 py-3 font-medium">Inventory</th>
+              )}
+              {shows("sold") && (
+                <th className="px-4 py-3 font-medium text-right">Sold (30d)</th>
+              )}
+              {shows("abc") && <th className="px-4 py-3 font-medium">ABC</th>}
+              {shows("type") && (
+                <th className="px-4 py-3 font-medium">Product type</th>
+              )}
+              {shows("vendor") && <th className="px-4 py-3 font-medium">Vendor</th>}
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.map((p) => (
-              <tr key={p.id}>
+              <tr key={p.id} className={p.status !== "active" ? "opacity-70" : ""}>
                 <td className="px-4 py-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -191,26 +330,60 @@ export function AdminProductsTable({
                     loading="lazy"
                   />
                 </td>
-                <td className="px-4 py-3 text-ink">{p.name}</td>
-                <td className="px-4 py-3 text-ink-soft">
-                  {p.collections.map(nameOf).join(", ")}
+                <td className="px-4 py-3 text-ink">
+                  {p.name}
+                  {p.featured && (
+                    <span className="ml-2 rounded-full bg-sand px-2 py-0.5 text-[10px] text-sage-deep">
+                      Featured
+                    </span>
+                  )}
                 </td>
-                <td className="px-4 py-3">{formatPrice(p.priceCents / 100)}</td>
-                <td className="px-4 py-3 text-ink-soft">{p.stock ?? "—"}</td>
-                <td className="px-4 py-3">
-                  <span className="flex flex-wrap gap-1">
-                    {!p.inStock && (
+                {shows("status") && (
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                        STATUS_STYLE[p.status] ?? STATUS_STYLE.archived
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </td>
+                )}
+                {shows("collections") && (
+                  <td className="px-4 py-3 text-ink-soft">
+                    {p.collections.map(nameOf).join(", ")}
+                  </td>
+                )}
+                {shows("price") && (
+                  <td className="px-4 py-3">{formatPrice(p.priceCents / 100)}</td>
+                )}
+                {shows("stock") && (
+                  <td className="px-4 py-3">
+                    {!p.inStock ? (
                       <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
                         Sold out
                       </span>
-                    )}
-                    {p.featured && (
-                      <span className="rounded-full bg-sand px-2 py-0.5 text-xs text-sage-deep">
-                        Featured
+                    ) : (
+                      <span className="text-ink-soft">
+                        {p.stock == null ? "Untracked" : `${p.stock} in stock`}
                       </span>
                     )}
-                  </span>
-                </td>
+                  </td>
+                )}
+                {shows("sold") && (
+                  <td className="px-4 py-3 text-right text-ink-soft">
+                    {p.unitsSold30}
+                  </td>
+                )}
+                {shows("abc") && (
+                  <td className="px-4 py-3 text-ink-soft">{p.abc}</td>
+                )}
+                {shows("type") && (
+                  <td className="px-4 py-3 text-ink-soft">{p.productType ?? "—"}</td>
+                )}
+                {shows("vendor") && (
+                  <td className="px-4 py-3 text-ink-soft">{p.vendor ?? "—"}</td>
+                )}
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-3">
                     <Link
@@ -226,7 +399,10 @@ export function AdminProductsTable({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-ink-soft">
+                <td
+                  colSpan={colCount}
+                  className="px-4 py-10 text-center text-ink-soft"
+                >
                   No products match your filters.
                 </td>
               </tr>

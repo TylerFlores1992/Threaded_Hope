@@ -5,17 +5,30 @@ import { store } from "@/data/store";
 
 export function Newsletter({ variant = "block" }: { variant?: "block" | "footer" }) {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "done" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">(
+    "idle",
+  );
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setStatus("error");
       return;
     }
-    // Stub: wire this to your email provider (Mailchimp, Klaviyo, etc.).
-    setStatus("done");
-    setEmail("");
+    setStatus("sending");
+    try {
+      // Recorded against the Subscriber table so signups show in admin.
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error("failed");
+      setStatus("done");
+      setEmail("");
+    } catch {
+      setStatus("error");
+    }
   };
 
   const isFooter = variant === "footer";
@@ -46,9 +59,10 @@ export function Newsletter({ variant = "block" }: { variant?: "block" | "footer"
         />
         <button
           type="submit"
-          className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sage"
+          disabled={status === "sending"}
+          className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
         >
-          Subscribe
+          {status === "sending" ? "Signing up…" : "Subscribe"}
         </button>
       </div>
       {status === "done" && (
@@ -58,7 +72,7 @@ export function Newsletter({ variant = "block" }: { variant?: "block" | "footer"
       )}
       {status === "error" && (
         <p className="mt-2 text-sm text-red-700" role="alert">
-          Please enter a valid email address.
+          Please enter a valid email address and try again.
         </p>
       )}
     </form>

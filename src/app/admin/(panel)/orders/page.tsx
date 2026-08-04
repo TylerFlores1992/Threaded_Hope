@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
-import { formatPrice } from "@/lib/format";
 import { createTestOrder } from "./actions";
 import { isShippoTestMode } from "@/lib/shipping";
-import { FulfillmentControl } from "@/components/admin/FulfillmentControl";
+import {
+  AdminOrdersTable,
+  type AdminOrder,
+} from "@/components/admin/AdminOrdersTable";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +23,37 @@ export default async function OrdersPage() {
 
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 500,
   });
+
+  const rows: AdminOrder[] = orders.map((o) => {
+    const items = (Array.isArray(o.items) ? o.items : []) as OrderItem[];
+    return {
+      id: o.id,
+      createdAt: o.createdAt.toISOString(),
+      customerName: o.customerName,
+      email: o.email,
+      itemCount: items.reduce((n, it) => n + (it.quantity ?? 1), 0),
+      itemNames: items.map((it) => it.name).join(", "),
+      amountTotalCents: o.amountTotalCents,
+      fulfillmentStatus: o.fulfillmentStatus,
+      source: o.source,
+      isGift: o.isGift,
+      pickup: o.pickup,
+      hasLabel: Boolean(o.labelUrl),
+      trackingNumber: o.trackingNumber,
+    };
+  });
+
+  // Headline counts, matching the strip Shopify shows above its order list.
+  const itemsOrdered = rows.reduce((n, o) => n + o.itemCount, 0);
+  const fulfilled = rows.filter(
+    (o) => o.fulfillmentStatus !== "unfulfilled",
+  ).length;
+  const delivered = rows.filter(
+    (o) => o.fulfillmentStatus === "delivered",
+  ).length;
+  const unfulfilled = rows.length - fulfilled;
 
   return (
     <div>
@@ -95,97 +126,31 @@ export default async function OrdersPage() {
         </div>
       )}
 
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Orders", value: rows.length },
+          { label: "Items ordered", value: itemsOrdered },
+          { label: "To fulfill", value: unfulfilled },
+          { label: "Delivered", value: delivered },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="rounded-2xl bg-white/70 p-5 ring-1 ring-border"
+          >
+            <p className="text-sm text-ink-soft">{s.label}</p>
+            <p className="mt-1 font-serif text-2xl text-ink">{s.value}</p>
+          </div>
+        ))}
+      </div>
+
       {orders.length === 0 ? (
         <p className="mt-6 rounded-lg bg-sand p-4 text-sm text-ink-soft">
           No orders yet. When a customer completes checkout, the order appears
           here.
         </p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-ink-soft">
-              <tr>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Customer</th>
-                <th className="px-4 py-3 font-medium">Items</th>
-                <th className="px-4 py-3 font-medium text-right">Total</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Slip</th>
-                <th className="px-4 py-3 font-medium text-right">Label</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {orders.map((o) => {
-                const items = (
-                  Array.isArray(o.items) ? o.items : []
-                ) as OrderItem[];
-                const count = items.reduce(
-                  (n, it) => n + (it.quantity ?? 1),
-                  0,
-                );
-                return (
-                  <tr key={o.id}>
-                    <td className="px-4 py-3 text-ink-soft">
-                      {o.createdAt.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-ink">
-                      <Link
-                        href={`/admin/orders/${o.id}`}
-                        className="font-medium text-sage-deep hover:underline"
-                      >
-                        {o.customerName ?? o.email ?? "—"}
-                      </Link>
-                      {o.source === "manual" && (
-                        <span className="ml-2 rounded-full bg-sand px-2 py-0.5 text-[10px] font-medium text-ink-soft">
-                          Manual
-                        </span>
-                      )}
-                      {o.customerName && o.email && (
-                        <span className="block text-xs text-ink-soft">
-                          {o.email}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-ink-soft">
-                      {count} item{count === 1 ? "" : "s"}
-                      <span className="block max-w-xs truncate text-xs">
-                        {items.map((it) => it.name).join(", ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-sage-deep">
-                      {formatPrice(o.amountTotalCents / 100)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <FulfillmentControl
-                        orderId={o.id}
-                        status={o.fulfillmentStatus}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/admin/orders/${o.id}/slip`}
-                        className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
-                      >
-                        Print
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/admin/orders/${o.id}/label`}
-                        className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
-                      >
-                        {o.labelUrl ? "View" : "Buy"}
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="mt-6">
+          <AdminOrdersTable orders={rows} />
         </div>
       )}
     </div>

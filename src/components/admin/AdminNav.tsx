@@ -24,6 +24,7 @@ export const NAV_GROUPS = [
     title: "Sales",
     items: [
       { href: "/admin/orders", label: "Orders", icon: "🧾" },
+      { href: "/admin/customers", label: "Customers", icon: "👤" },
       { href: "/admin/discounts", label: "Discounts", icon: "🏷" },
       { href: "/admin/traffic", label: "Traffic", icon: "📈" },
     ],

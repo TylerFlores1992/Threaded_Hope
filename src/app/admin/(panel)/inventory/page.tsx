@@ -1,5 +1,6 @@
 import { prisma, isDbConfigured } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
+import { formatPrice } from "@/lib/format";
 import { sizeAxisOf, optionAxesOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import {
@@ -60,10 +61,45 @@ export default async function InventoryPage() {
     };
   });
 
+  // Units on hand and what they're worth, across tracked products.
+  const unitsOnHand = rows.reduce((n, p) => n + (p.stock ?? 0), 0);
+  const inventoryValueCents = rows.reduce(
+    (n, p) => n + (p.stock ?? 0) * p.priceCents,
+    0,
+  );
+
   return (
     <div>
-      <h1 className="font-serif text-3xl text-ink">Inventory</h1>
-      <p className="mt-1 text-sm text-ink-soft">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-serif text-3xl text-ink">Inventory</h1>
+        {/* Route handler returning a file download — a plain <a> is correct. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a
+          href="/admin/inventory/export"
+          className="rounded-full border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
+        >
+          Export CSV ↓
+        </a>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <p className="text-sm text-ink-soft">Products</p>
+          <p className="mt-1 font-serif text-2xl text-ink">{rows.length}</p>
+        </div>
+        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <p className="text-sm text-ink-soft">Units on hand</p>
+          <p className="mt-1 font-serif text-2xl text-ink">{unitsOnHand}</p>
+        </div>
+        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <p className="text-sm text-ink-soft">Retail value on hand</p>
+          <p className="mt-1 font-serif text-2xl text-ink">
+            {formatPrice(inventoryValueCents / 100)}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm text-ink-soft">
         Set a stock count to track a product; leave blank for untracked. Products
         with sizes — or colours and other options — show a count per choice; a
         choice at 0 shows as sold out on the storefront. Stock auto-decrements

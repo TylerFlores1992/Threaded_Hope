@@ -21,6 +21,8 @@ type Row = {
   hue: number;
   featured: boolean;
   hidden: boolean;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 };
 
 function mapRow(r: Row): Collection {
@@ -31,6 +33,8 @@ function mapRow(r: Row): Collection {
     hue: r.hue,
     featured: r.featured,
     hidden: r.hidden,
+    seoTitle: r.seoTitle ?? undefined,
+    seoDescription: r.seoDescription ?? undefined,
   };
 }
 

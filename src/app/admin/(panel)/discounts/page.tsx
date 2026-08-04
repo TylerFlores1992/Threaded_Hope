@@ -43,9 +43,28 @@ export default async function DiscountsPage() {
     }
   }
 
+  // Summary strip, matching the counts Shopify puts above its discount list.
+  const activeRules = rules.filter((r) => r.active).length;
+  const activeCodes = codes.filter((c) => c.active).length;
+  const redemptions = codes.reduce((n, c) => n + c.times_redeemed, 0);
+
   return (
     <div>
       <h1 className="font-serif text-3xl text-ink">Discounts</h1>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <p className="text-sm text-ink-soft">Active automatic discounts</p>
+          <p className="mt-1 font-serif text-2xl text-ink">{activeRules}</p>
+        </div>
+        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <p className="text-sm text-ink-soft">Active promo codes</p>
+          <p className="mt-1 font-serif text-2xl text-ink">{activeCodes}</p>
+        </div>
+        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <p className="text-sm text-ink-soft">Code redemptions</p>
+          <p className="mt-1 font-serif text-2xl text-ink">{redemptions}</p>
+        </div>
+      </div>
       <p className="mt-1 text-sm text-ink-soft">
         Automatic discounts apply at checkout based on the cart — no code needed.
         Promo codes are typed in by customers. Stripe applies one discount per
