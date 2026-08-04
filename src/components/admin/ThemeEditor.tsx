@@ -7,6 +7,8 @@ import {
   BODY_FONTS,
   RADIUS_OPTIONS,
   WIDTH_OPTIONS,
+  SECTION_LIBRARY,
+  CONTENT_SECTIONS,
   HOME_SECTIONS,
   SECTION_SETTINGS,
   SECTION_TEXT_FIELDS,
@@ -26,14 +28,15 @@ import {
   type ThemeVersion,
 } from "@/app/admin/(panel)/customize/actions";
 import { SITE_TEXT_FIELDS } from "@/lib/site-text-fields";
+import { SectionImageField } from "./SectionImageField";
 
 type Tab = "sections" | "theme" | "history";
 type Device = "desktop" | "mobile";
 
 const sectionLabel = (id: string) =>
-  HOME_SECTIONS.find((s) => s.id === id)?.label ?? id;
+  SECTION_LIBRARY.find((s) => s.id === id)?.label ?? id;
 const sectionHelp = (id: string) =>
-  HOME_SECTIONS.find((s) => s.id === id)?.help ?? "";
+  SECTION_LIBRARY.find((s) => s.id === id)?.help ?? "";
 
 /**
  * Storefront appearance editor, laid out like a theme customizer: a settings
@@ -45,10 +48,13 @@ export function ThemeEditor({
   initial,
   initialText,
   versions,
+  collections,
 }: {
   initial: Theme;
   initialText: Record<string, string>;
   versions: ThemeVersion[];
+  /** Fills the collection dropdown on Featured products sections. */
+  collections: { slug: string; name: string }[];
 }) {
   const [theme, setTheme] = useState<Theme>(initial);
   const [text, setText] = useState<Record<string, string>>(initialText);
@@ -350,7 +356,9 @@ export function ThemeEditor({
             ) : tab === "sections" ? (
               <div>
                 <p className="mb-3 text-xs text-ink-soft">
-                  Drag to reorder, tap a section to open its settings.
+                  Drag to reorder, tap a section to open its settings. Colors and
+                  visibility preview instantly; text and photos appear in the
+                  preview once you Save.
                 </p>
                 <ul className="space-y-2">
                   {theme.layout.map((inst, i) => {
@@ -479,7 +487,30 @@ export function ThemeEditor({
                                   </label>
                                 );
                               }
+                              if (st.type === "image") {
+                                return (
+                                  <SectionImageField
+                                    key={st.key}
+                                    label={st.label}
+                                    value={typeof val === "string" ? val : ""}
+                                    onChange={(url) =>
+                                      setSectionSetting(inst.key, st.key, url)
+                                    }
+                                  />
+                                );
+                              }
                               if (st.type === "select") {
+                                // "dynamic" options come from live data (collections).
+                                const options =
+                                  st.dynamic === "collections"
+                                    ? [
+                                        ...st.options,
+                                        ...collections.map((c) => ({
+                                          value: c.slug,
+                                          label: c.name,
+                                        })),
+                                      ]
+                                    : st.options;
                                 return (
                                   <label key={st.key} className="block text-xs text-ink-soft">
                                     {st.label}
@@ -490,12 +521,28 @@ export function ThemeEditor({
                                       }
                                       className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
                                     >
-                                      {st.options.map((o) => (
+                                      {options.map((o) => (
                                         <option key={o.value} value={o.value}>
                                           {o.label}
                                         </option>
                                       ))}
                                     </select>
+                                  </label>
+                                );
+                              }
+                              if (st.type === "textarea") {
+                                return (
+                                  <label key={st.key} className="block text-xs text-ink-soft">
+                                    {st.label}
+                                    <textarea
+                                      rows={3}
+                                      value={typeof val === "string" ? val : st.default}
+                                      placeholder={st.placeholder}
+                                      onChange={(e) =>
+                                        setSectionSetting(inst.key, st.key, e.target.value)
+                                      }
+                                      className="mt-1 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-ink"
+                                    />
                                   </label>
                                 );
                               }
@@ -506,6 +553,7 @@ export function ThemeEditor({
                                     <input
                                       type="text"
                                       value={typeof val === "string" ? val : st.default}
+                                      placeholder={st.placeholder}
                                       onChange={(e) =>
                                         setSectionSetting(inst.key, st.key, e.target.value)
                                       }
@@ -555,20 +603,45 @@ export function ThemeEditor({
                   })}
                 </ul>
 
-                <div className="mt-4 rounded-lg border border-dashed border-border p-3">
-                  <p className="mb-2 text-xs font-medium text-ink">Add section</p>
-                  <div className="flex flex-wrap gap-2">
-                    {HOME_SECTIONS.filter((sec) =>
-                      ADDABLE_SECTIONS.includes(sec.id),
-                    ).map((sec) => (
-                      <button
-                        key={sec.id}
-                        onClick={() => addSection(sec.id)}
-                        className="rounded-lg bg-sand px-2 py-1 text-xs text-ink hover:bg-sage-deep hover:text-white"
-                      >
-                        + {sec.label}
-                      </button>
-                    ))}
+                <div className="mt-4 space-y-3 rounded-lg border border-dashed border-border p-3">
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-ink">
+                      Add a content block
+                    </p>
+                    <p className="mb-2 text-[11px] text-ink-soft">
+                      Each one you add keeps its own words and photos.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {CONTENT_SECTIONS.map((sec) => (
+                        <button
+                          key={sec.id}
+                          onClick={() => addSection(sec.id)}
+                          title={sec.help}
+                          className="rounded-lg bg-sand px-2 py-1 text-xs text-ink hover:bg-sage-deep hover:text-white"
+                        >
+                          + {sec.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-ink">
+                      Add a store section
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {HOME_SECTIONS.filter((sec) =>
+                        ADDABLE_SECTIONS.includes(sec.id),
+                      ).map((sec) => (
+                        <button
+                          key={sec.id}
+                          onClick={() => addSection(sec.id)}
+                          title={sec.help}
+                          className="rounded-lg bg-sand px-2 py-1 text-xs text-ink hover:bg-sage-deep hover:text-white"
+                        >
+                          + {sec.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
