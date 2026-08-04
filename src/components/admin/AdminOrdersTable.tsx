@@ -308,9 +308,9 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
                   ) : (
                     <span className="text-ink">{o.customerName ?? "—"}</span>
                   )}
-                  {o.source === "manual" && (
-                    <span className="ml-1.5 text-[11px] text-ink-soft">
-                      Manual
+                  {o.source !== "web" && (
+                    <span className="ml-1.5 text-[11px] capitalize text-ink-soft">
+                      {o.source}
                     </span>
                   )}
                 </td>
