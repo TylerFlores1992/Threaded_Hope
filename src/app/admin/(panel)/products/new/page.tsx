@@ -12,7 +12,7 @@ export default async function NewProductPage() {
       <Link href="/admin/products" className="text-sm text-ink-soft">
         ← Products
       </Link>
-      <h1 className="mt-2 mb-6 font-serif text-3xl text-ink">New product</h1>
+      <h1 className="mt-2 mb-6 text-xl font-semibold text-ink">New product</h1>
       <ProductForm
         action={createProduct}
         collections={collections}

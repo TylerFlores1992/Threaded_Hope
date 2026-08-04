@@ -60,7 +60,7 @@ export default async function OrderDetailPage({
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl text-ink">
+          <h1 className="text-xl font-semibold text-ink">
             Order #{order.id.slice(-8).toUpperCase()}
           </h1>
           <p className="mt-1 text-sm text-ink-soft">{date}</p>
@@ -109,7 +109,7 @@ export default async function OrderDetailPage({
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {/* Customer */}
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-soft">
             Customer
           </h2>
@@ -118,7 +118,7 @@ export default async function OrderDetailPage({
         </div>
 
         {/* Shipping */}
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-soft">
             {order.pickup ? "Pickup" : "Ship to"}
           </h2>
@@ -159,8 +159,8 @@ export default async function OrderDetailPage({
       )}
 
       {/* Items + totals */}
-      <div className="mt-4 rounded-2xl bg-white/70 p-5 ring-1 ring-border">
-        <table className="w-full text-left text-sm">
+      <div className="mt-4 admin-card p-4">
+        <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="py-2 font-medium">Item</th>

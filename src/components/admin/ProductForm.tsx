@@ -39,7 +39,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={pending || disabled}
-      className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
+      className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
     >
       {pending ? "Saving…" : label}
     </button>
@@ -289,7 +289,7 @@ export function ProductForm({
       </div>
 
       {/* Sizes — structured editor. Feeds per-size price + per-size inventory. */}
-      <fieldset className="rounded-2xl bg-white/60 p-4 ring-1 ring-border">
+      <fieldset className="admin-card p-4">
         <label className="flex items-center gap-2 text-sm font-medium text-ink">
           <input
             type="checkbox"
@@ -353,7 +353,7 @@ export function ProductForm({
       </fieldset>
 
       {/* Other options (color, style, …) — structured groups, no prices. */}
-      <fieldset className="rounded-2xl bg-white/60 p-4 ring-1 ring-border">
+      <fieldset className="admin-card p-4">
         <legend className="px-1 text-sm font-medium text-ink">
           Other options{" "}
           <span className="font-normal text-ink-soft">
@@ -508,7 +508,7 @@ export function ProductForm({
                   type="button"
                   onClick={() => removeImage(url)}
                   aria-label="Remove photo"
-                  className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 text-xs text-ink-soft hover:text-red-700"
+                  className="absolute right-1 top-1 rounded-lg bg-white/90 px-1.5 text-xs text-ink-soft hover:text-red-700"
                 >
                   ✕
                 </button>

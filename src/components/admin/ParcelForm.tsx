@@ -49,7 +49,7 @@ export function ParcelForm({
   };
 
   return (
-    <form method="get" className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+    <form method="get" className="admin-card p-4">
       <p className="mb-3 text-sm font-medium text-ink">Parcel</p>
 
       <div className="mb-3 flex items-end gap-2">

@@ -98,7 +98,7 @@ export default async function EditProductPage({
       <Link href="/admin/products" className="text-sm text-ink-soft">
         ← Products
       </Link>
-      <h1 className="mt-2 mb-6 font-serif text-3xl text-ink">
+      <h1 className="mt-2 mb-6 text-xl font-semibold text-ink">
         Edit “{row.name}”
       </h1>
       <ProductForm

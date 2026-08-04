@@ -13,7 +13,7 @@ export default function SyncShopifyPage() {
       <Link href="/admin/products" className="text-sm text-ink-soft">
         ← Products
       </Link>
-      <h1 className="mt-2 mb-4 font-serif text-3xl text-ink">
+      <h1 className="mt-2 mb-4 text-xl font-semibold text-ink">
         Sync details from Shopify
       </h1>
       {!isDbConfigured() ? (

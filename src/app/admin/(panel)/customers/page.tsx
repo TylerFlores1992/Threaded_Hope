@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+    <div className="admin-card p-4">
       <p className="text-sm text-ink-soft">{label}</p>
-      <p className="mt-1 font-serif text-3xl text-ink">{value}</p>
+      <p className="mt-1 text-xl font-semibold text-ink">{value}</p>
     </div>
   );
 }
@@ -46,7 +46,7 @@ export default async function CustomersPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl text-ink">
+        <h1 className="text-xl font-semibold text-ink">
           Customers{" "}
           <span className="text-lg text-ink-soft">({customers.length})</span>
         </h1>
@@ -54,7 +54,7 @@ export default async function CustomersPage() {
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/admin/customers/export"
-          className="rounded-full border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
+          className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
         >
           Export CSV ↓
         </a>

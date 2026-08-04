@@ -35,7 +35,7 @@ const VIEWS: { id: View; label: string }[] = [
 ];
 
 const selectClass =
-  "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
 
 const matchesView = (o: AdminOrder, view: View) => {
   switch (view) {
@@ -142,7 +142,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by customer, email, item, or tracking…"
-          className="min-w-[220px] flex-1 rounded-full border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
+          className="min-w-[220px] flex-1 rounded-lg border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
         />
         <select
           value={sort}
@@ -162,8 +162,8 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
         {orders.length === 1 ? "" : "s"}
       </p>
 
-      <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto admin-card">
+        <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Order</th>

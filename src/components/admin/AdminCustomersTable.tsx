@@ -26,7 +26,7 @@ const VIEWS: { id: View; label: string }[] = [
 ];
 
 const selectClass =
-  "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
 
 export function AdminCustomersTable({
   customers,
@@ -95,7 +95,7 @@ export function AdminCustomersTable({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search customers…"
-          className="min-w-[200px] flex-1 rounded-full border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
+          className="min-w-[200px] flex-1 rounded-lg border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
         />
         <select
           value={sort}
@@ -115,8 +115,8 @@ export function AdminCustomersTable({
         {customers.length === 1 ? "" : "s"}
       </p>
 
-      <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto admin-card">
+        <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Customer</th>
@@ -142,7 +142,7 @@ export function AdminCustomersTable({
                 </td>
                 <td className="px-4 py-3">
                   {c.subscribed ? (
-                    <span className="rounded-full bg-sage-deep/10 px-2 py-0.5 text-xs font-medium text-sage-deep">
+                    <span className="rounded-lg bg-[#cdfee1] px-2 py-0.5 text-xs font-medium text-[#0c5132]">
                       Subscribed
                     </span>
                   ) : (

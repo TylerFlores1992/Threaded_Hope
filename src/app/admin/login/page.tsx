@@ -8,7 +8,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-4">
-      <h1 className="font-serif text-3xl text-ink">Admin sign in</h1>
+      <h1 className="text-xl font-semibold text-ink">Admin sign in</h1>
       <p className="mt-2 text-sm text-ink-soft">
         Enter the store admin password to manage products and orders.
       </p>
@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
+          className="w-full rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
         >
           {pending ? "Signing in…" : "Sign in"}
         </button>

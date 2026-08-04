@@ -33,7 +33,7 @@ export default async function AdminHomePage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl text-ink">Photos</h1>
+      <h1 className="text-xl font-semibold text-ink">Photos</h1>
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
         Upload the editable non-product photos across the site. Each slot falls
         back to a sensible default when empty — the logo appears in the header,

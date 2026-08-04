@@ -44,6 +44,59 @@
   --font-sans: var(--font-body), system-ui, -apple-system, sans-serif;
 }
 
+/*
+  Admin console — a dense, neutral workspace modelled on Shopify's admin.
+  Scoped to `.admin-ui`, so it re-points the SAME tokens the storefront uses.
+  Two consequences worth knowing: every existing admin class keeps working
+  (`bg-sand`, `text-ink-soft`, `font-serif` …), and changing the storefront
+  palette in Customize no longer re-skins the admin.
+*/
+.admin-ui {
+  --cream: #f1f1f1;
+  --sand: #f7f7f7;
+  --sand-deep: #ebebeb;
+  --taupe: #8a8a8a;
+  --ink: #303030;
+  --ink-soft: #616161;
+  --sage: #4a4a4a;
+  --sage-deep: #303030;
+  --blue: #005bd3;
+  --gold: #ffb800;
+  --border: #e3e3e3;
+  --background: #f1f1f1;
+  --foreground: #303030;
+
+  /* Admin headings are sans and tight — flipping the token converts every
+     `font-serif` heading without touching a single component. */
+  --font-serif: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --heading-scale: 1;
+  --radius-scale: 0.6; /* Shopify's corners are much tighter than the shop's */
+
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.admin-ui h1,
+.admin-ui h2,
+.admin-ui h3,
+.admin-ui h4 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Admin cards sit on grey with a hairline, not a heavy ring. */
+.admin-card {
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
 * {
   border-color: var(--border);
 }

@@ -66,7 +66,7 @@ export default async function EditCollectionPage({
       <Link href="/admin/collections" className="text-sm text-ink-soft">
         ← Collections
       </Link>
-      <h1 className="mt-2 mb-6 font-serif text-3xl text-ink">
+      <h1 className="mt-2 mb-6 text-xl font-semibold text-ink">
         Edit “{row.name}”
       </h1>
       <CollectionForm
@@ -80,7 +80,7 @@ export default async function EditCollectionPage({
       />
 
       <section className="mt-10 max-w-3xl">
-        <h2 className="mb-1 font-serif text-xl text-ink">
+        <h2 className="mb-1 text-[13px] font-semibold text-ink">
           Collection items{" "}
           <span className="text-base text-ink-soft">({items.length})</span>
         </h2>

@@ -40,7 +40,7 @@ export default async function NewOrderPage({
       <Link href="/admin/orders" className="text-sm text-ink-soft">
         ← Orders
       </Link>
-      <h1 className="mt-2 font-serif text-3xl text-ink">Record a sale</h1>
+      <h1 className="mt-2 text-xl font-semibold text-ink">Record a sale</h1>
       <p className="mt-1 mb-6 max-w-2xl text-sm text-ink-soft">
         For sales made outside the website — in person, at a fair, or to a
         friend. Payment is assumed already collected; this records the sale so it
