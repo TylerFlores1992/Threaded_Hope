@@ -70,12 +70,35 @@ export const HOME_SECTIONS = [
 
 export type SectionId = (typeof HOME_SECTIONS)[number]["id"];
 
-/** Types that can be added more than once (Shopify's "Add section"). */
+/**
+ * Content blocks you can add to the page. Unlike the five built-ins above,
+ * these carry their OWN copy and images in the instance's settings — so two
+ * text blocks say two different things. That's what makes "Add section" useful.
+ */
+export const CONTENT_SECTIONS = [
+  { id: "richtext", label: "Text block", help: "A heading, paragraph, and optional button." },
+  { id: "imageText", label: "Image with text", help: "A photo beside copy and a button." },
+  { id: "banner", label: "Image banner", help: "A wide photo with a headline over it." },
+  { id: "products", label: "Featured products", help: "Products from a collection you pick." },
+  { id: "quote", label: "Quote", help: "A customer quote or short testimonial." },
+  { id: "iconColumns", label: "Icon columns", help: "Up to four short selling points." },
+  { id: "faq", label: "FAQ", help: "Up to six expandable questions." },
+  { id: "spacer", label: "Spacer / divider", help: "Blank space, with an optional line." },
+] as const;
+
+/** Every placeable section type — the built-ins plus the content blocks. */
+export const SECTION_LIBRARY: { id: string; label: string; help: string }[] = [
+  ...HOME_SECTIONS,
+  ...CONTENT_SECTIONS,
+];
+
+/** Types that can be added (Shopify's "Add section"). */
 export const ADDABLE_SECTIONS: string[] = [
   "collections",
   "story",
   "instagram",
   "newsletter",
+  ...CONTENT_SECTIONS.map((s) => s.id),
 ];
 
 /**
@@ -104,23 +127,65 @@ export const SECTION_TEXT_FIELDS: Record<string, string[]> = {
 
 /** Per-section settings (Shopify's "section settings" panel). */
 export type SectionSetting =
-  | { key: string; label: string; type: "text"; default: string }
+  | { key: string; label: string; type: "text"; default: string; placeholder?: string }
+  | { key: string; label: string; type: "textarea"; default: string; placeholder?: string }
+  | { key: string; label: string; type: "image"; default: string }
   | { key: string; label: string; type: "toggle"; default: boolean }
-  | { key: string; label: string; type: "select"; default: string; options: { value: string; label: string }[] }
+  | { key: string; label: string; type: "select"; default: string; options: { value: string; label: string }[]; dynamic?: "collections" }
   | { key: string; label: string; type: "number"; default: number; min: number; max: number };
+
+/**
+ * Background applies to every section, so the page can alternate bands without
+ * touching the global palette. "default" keeps whatever the section ships with.
+ */
+const background = (dflt = "default"): SectionSetting => ({
+  key: "background",
+  label: "Background",
+  type: "select",
+  default: dflt,
+  options: [
+    { value: "default", label: "Default" },
+    { value: "cream", label: "Page background" },
+    { value: "sand", label: "Sand" },
+    { value: "white", label: "White" },
+  ],
+});
+
+const padding: SectionSetting = {
+  key: "padding",
+  label: "Section height",
+  type: "select",
+  default: "normal",
+  options: [
+    { value: "compact", label: "Compact" },
+    { value: "normal", label: "Normal" },
+    { value: "tall", label: "Tall" },
+  ],
+};
+
+const align: SectionSetting = {
+  key: "align",
+  label: "Text alignment",
+  type: "select",
+  default: "center",
+  options: [
+    { value: "center", label: "Centered" },
+    { value: "left", label: "Left" },
+  ],
+};
+
+/** Button label + link, used by several content blocks. */
+const buttonFields = (label = ""): SectionSetting[] => [
+  { key: "buttonLabel", label: "Button label (blank = no button)", type: "text", default: label },
+  { key: "buttonHref", label: "Button link", type: "text", default: "/shop", placeholder: "/shop" },
+];
 
 export const SECTION_SETTINGS: Record<string, SectionSetting[]> = {
   hero: [
-    { key: "align", label: "Text alignment", type: "select", default: "center", options: [
-      { value: "center", label: "Centered" },
-      { value: "left", label: "Left" },
-    ] },
+    align,
     { key: "showBadge", label: "Show badge pill", type: "toggle", default: true },
-    { key: "padding", label: "Section height", type: "select", default: "normal", options: [
-      { value: "compact", label: "Compact" },
-      { value: "normal", label: "Normal" },
-      { value: "tall", label: "Tall" },
-    ] },
+    padding,
+    background(),
   ],
   collections: [
     { key: "heading", label: "Heading override (blank = use Site text)", type: "text", default: "" },
@@ -130,6 +195,7 @@ export const SECTION_SETTINGS: Record<string, SectionSetting[]> = {
       { value: "4", label: "4" },
     ] },
     { key: "showViewAll", label: "Show “View all” tile", type: "toggle", default: true },
+    background(),
   ],
   story: [
     { key: "imagePosition", label: "Image position", type: "select", default: "left", options: [
@@ -137,15 +203,104 @@ export const SECTION_SETTINGS: Record<string, SectionSetting[]> = {
       { value: "right", label: "Right" },
     ] },
     { key: "showImage", label: "Show image", type: "toggle", default: true },
+    background("sand"),
   ],
   instagram: [
     { key: "posts", label: "Number of posts", type: "number", default: 6, min: 3, max: 12 },
+    background(),
   ],
   newsletter: [
-    { key: "background", label: "Card background", type: "select", default: "white", options: [
+    { key: "cardBackground", label: "Card background", type: "select", default: "white", options: [
       { value: "white", label: "White" },
       { value: "sand", label: "Sand" },
     ] },
+    background(),
+  ],
+
+  // ---- Content blocks: everything they show lives in these settings ----
+  richtext: [
+    { key: "heading", label: "Heading", type: "text", default: "A heading" },
+    { key: "body", label: "Text", type: "textarea", default: "Tell your customers something here." },
+    ...buttonFields(),
+    align,
+    padding,
+    background(),
+  ],
+  imageText: [
+    { key: "image", label: "Image", type: "image", default: "" },
+    { key: "heading", label: "Heading", type: "text", default: "A heading" },
+    { key: "body", label: "Text", type: "textarea", default: "Pair a photo with a few words about it." },
+    ...buttonFields(),
+    { key: "imagePosition", label: "Image position", type: "select", default: "left", options: [
+      { value: "left", label: "Left" },
+      { value: "right", label: "Right" },
+    ] },
+    background(),
+  ],
+  banner: [
+    { key: "image", label: "Image", type: "image", default: "" },
+    { key: "heading", label: "Heading", type: "text", default: "A headline" },
+    { key: "subheading", label: "Subheading", type: "text", default: "" },
+    ...buttonFields("Shop now"),
+    { key: "height", label: "Banner height", type: "select", default: "medium", options: [
+      { value: "short", label: "Short" },
+      { value: "medium", label: "Medium" },
+      { value: "tall", label: "Tall" },
+    ] },
+    { key: "overlay", label: "Darken image (for readable text)", type: "toggle", default: true },
+  ],
+  products: [
+    { key: "heading", label: "Heading", type: "text", default: "Featured" },
+    { key: "collection", label: "Collection", type: "select", default: "", dynamic: "collections", options: [
+      { value: "", label: "All products" },
+    ] },
+    { key: "count", label: "How many products", type: "number", default: 4, min: 2, max: 12 },
+    { key: "columns", label: "Columns (desktop)", type: "select", default: "4", options: [
+      { value: "2", label: "2" },
+      { value: "3", label: "3" },
+      { value: "4", label: "4" },
+    ] },
+    ...buttonFields("Shop all"),
+    background(),
+  ],
+  quote: [
+    { key: "quote", label: "Quote", type: "textarea", default: "Add a customer's kind words here." },
+    { key: "attribution", label: "Who said it", type: "text", default: "" },
+    padding,
+    background("sand"),
+  ],
+  iconColumns: [
+    { key: "heading", label: "Heading (blank = none)", type: "text", default: "" },
+    { key: "icon1", label: "1 · Icon (emoji)", type: "text", default: "🧵" },
+    { key: "title1", label: "1 · Title", type: "text", default: "Handmade" },
+    { key: "body1", label: "1 · Text", type: "text", default: "Every piece sewn by hand." },
+    { key: "icon2", label: "2 · Icon (emoji)", type: "text", default: "📦" },
+    { key: "title2", label: "2 · Title", type: "text", default: "Ships quickly" },
+    { key: "body2", label: "2 · Text", type: "text", default: "Most orders go out in two days." },
+    { key: "icon3", label: "3 · Icon (emoji)", type: "text", default: "🎁" },
+    { key: "title3", label: "3 · Title", type: "text", default: "Gift ready" },
+    { key: "body3", label: "3 · Text", type: "text", default: "Add a free gift note at checkout." },
+    { key: "icon4", label: "4 · Icon (emoji)", type: "text", default: "" },
+    { key: "title4", label: "4 · Title (blank = hide)", type: "text", default: "" },
+    { key: "body4", label: "4 · Text", type: "text", default: "" },
+    background(),
+  ],
+  faq: [
+    { key: "heading", label: "Heading", type: "text", default: "Common questions" },
+    ...Array.from({ length: 6 }, (_, n): SectionSetting[] => [
+      { key: `q${n + 1}`, label: `${n + 1} · Question (blank = hide)`, type: "text", default: "" },
+      { key: `a${n + 1}`, label: `${n + 1} · Answer`, type: "textarea", default: "" },
+    ]).flat(),
+    background(),
+  ],
+  spacer: [
+    { key: "size", label: "Height", type: "select", default: "medium", options: [
+      { value: "small", label: "Small" },
+      { value: "medium", label: "Medium" },
+      { value: "large", label: "Large" },
+    ] },
+    { key: "divider", label: "Show a divider line", type: "toggle", default: false },
+    background(),
   ],
 };
 
@@ -253,7 +408,7 @@ function normalizeLayout(
   t: Record<string, unknown>,
   base: Theme,
 ): SectionInstance[] {
-  const known = new Set<string>(HOME_SECTIONS.map((s) => s.id));
+  const known = new Set<string>(SECTION_LIBRARY.map((s) => s.id));
 
   if (Array.isArray(t.layout)) {
     const layout = (t.layout as SectionInstance[])
@@ -267,6 +422,7 @@ function normalizeLayout(
     return layout.length > 0 ? layout : base.layout;
   }
 
+  // Legacy shape: only the five built-ins ever existed here.
   const order = Array.isArray(t.sectionOrder)
     ? (t.sectionOrder as string[]).filter((id) => known.has(id))
     : [];
