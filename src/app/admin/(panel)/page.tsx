@@ -5,6 +5,13 @@ import {
   MetricsCard,
   type MetricSeries,
 } from "@/components/admin/MetricsCard";
+import { RangePicker } from "@/components/admin/RangePicker";
+import {
+  DEFAULT_RANGE,
+  bucketKey,
+  isRangeId,
+  resolveRange,
+} from "@/lib/date-range";
 
 export const dynamic = "force-dynamic";
 
@@ -107,23 +114,18 @@ function setupStatus() {
   return rows;
 }
 
-const DAYS = 30;
-const DAY_MS = 86_400_000;
-const dayKey = (d: Date) => d.toISOString().slice(0, 10);
-const shortLabel = (iso: string) =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-
 /** Percent change, or null when the previous period had nothing to compare to. */
 function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return current > 0 ? 100 : null;
   return ((current - previous) / previous) * 100;
 }
 
-export default async function AdminDashboard() {
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range: rangeParam } = await searchParams;
   if (!isDbConfigured() || !prisma) {
     return (
       <div>
@@ -136,47 +138,41 @@ export default async function AdminDashboard() {
     );
   }
 
-  const nowMs = new Date().getTime();
-  const start30 = new Date(nowMs - DAYS * DAY_MS);
-  const start60 = new Date(nowMs - 2 * DAYS * DAY_MS);
+  // Single impure clock read for the whole page.
+  const now = new Date();
+  const range = resolveRange(
+    isRangeId(rangeParam) ? rangeParam : DEFAULT_RANGE,
+    now,
+  );
 
-  const [productCount, orderCount, revenue, toShip, orders60, views60] =
+  const [productCount, orderCount, revenue, toShip, ordersWindow, viewsWindow] =
     await Promise.all([
       prisma.product.count(),
       prisma.order.count(),
       prisma.order.aggregate({ _sum: { amountTotalCents: true } }),
       prisma.order.count({ where: { fulfillmentStatus: "unfulfilled" } }),
       prisma.order.findMany({
-        where: { createdAt: { gte: start60 } },
+        where: { createdAt: { gte: range.start } },
         select: { createdAt: true, amountTotalCents: true, items: true },
       }),
       prisma.pageview.findMany({
-        where: { createdAt: { gte: start60 } },
+        where: { createdAt: { gte: range.start } },
         select: { createdAt: true },
       }),
     ]);
 
-  // Bucket both periods by day so each metric has 30 current + 30 previous.
-  const buckets = (offsetDays: number) => {
-    const keys: string[] = [];
-    for (let i = DAYS - 1; i >= 0; i--) {
-      keys.push(dayKey(new Date(nowMs - (i + offsetDays) * DAY_MS)));
-    }
-    return keys;
-  };
-  const currentKeys = buckets(0);
-  const previousKeys = buckets(DAYS);
-
+  // Bucket both periods at the range's granularity (days, or months for the
+  // long ranges) so every metric lines up point for point.
   const zero = (keys: string[]) => new Map(keys.map((k) => [k, 0]));
-  const salesCur = zero(currentKeys);
-  const salesPrev = zero(previousKeys);
-  const ordersCur = zero(currentKeys);
-  const ordersPrev = zero(previousKeys);
-  const viewsCur = zero(currentKeys);
-  const viewsPrev = zero(previousKeys);
+  const salesCur = zero(range.currentKeys);
+  const salesPrev = zero(range.previousKeys);
+  const ordersCur = zero(range.currentKeys);
+  const ordersPrev = zero(range.previousKeys);
+  const viewsCur = zero(range.currentKeys);
+  const viewsPrev = zero(range.previousKeys);
 
-  for (const o of orders60) {
-    const k = dayKey(o.createdAt);
+  for (const o of ordersWindow) {
+    const k = bucketKey(o.createdAt, range.bucketing);
     if (salesCur.has(k)) {
       salesCur.set(k, (salesCur.get(k) ?? 0) + o.amountTotalCents);
       ordersCur.set(k, (ordersCur.get(k) ?? 0) + 1);
@@ -185,8 +181,8 @@ export default async function AdminDashboard() {
       ordersPrev.set(k, (ordersPrev.get(k) ?? 0) + 1);
     }
   }
-  for (const v of views60) {
-    const k = dayKey(v.createdAt);
+  for (const v of viewsWindow) {
+    const k = bucketKey(v.createdAt, range.bucketing);
     if (viewsCur.has(k)) viewsCur.set(k, (viewsCur.get(k) ?? 0) + 1);
     else if (viewsPrev.has(k)) viewsPrev.set(k, (viewsPrev.get(k) ?? 0) + 1);
   }
@@ -195,42 +191,34 @@ export default async function AdminDashboard() {
     keys.map((k) => m.get(k) ?? 0);
   const sum = (a: number[]) => a.reduce((n, v) => n + v, 0);
 
-  const sessionsCurArr = series(viewsCur, currentKeys);
-  const sessionsPrevArr = series(viewsPrev, previousKeys);
-  const salesCurArr = series(salesCur, currentKeys);
-  const salesPrevArr = series(salesPrev, previousKeys);
-  const ordersCurArr = series(ordersCur, currentKeys);
-  const ordersPrevArr = series(ordersPrev, previousKeys);
+  const sessionsCurArr = series(viewsCur, range.currentKeys);
+  const sessionsPrevArr = series(viewsPrev, range.previousKeys);
+  const salesCurArr = series(salesCur, range.currentKeys);
+  const salesPrevArr = series(salesPrev, range.previousKeys);
+  const ordersCurArr = series(ordersCur, range.currentKeys);
+  const ordersPrevArr = series(ordersPrev, range.previousKeys);
 
-  const sessions30 = sum(sessionsCurArr);
-  const sessionsPrev30 = sum(sessionsPrevArr);
-  const revenue30 = sum(salesCurArr);
-  const revenuePrev30 = sum(salesPrevArr);
-  const orders30 = sum(ordersCurArr);
-  const ordersPrev30 = sum(ordersPrevArr);
+  const sessionsTotal = sum(sessionsCurArr);
+  const sessionsPrevTotal = sum(sessionsPrevArr);
+  const revenueTotal = sum(salesCurArr);
+  const revenuePrevTotal = sum(salesPrevArr);
+  const ordersTotal = sum(ordersCurArr);
+  const ordersPrevTotal = sum(ordersPrevArr);
 
-  // Conversion per day, so the chart shows the trend rather than one number.
+  // Conversion per bucket, so the chart shows the trend rather than one number.
   const convSeries = (o: number[], s: number[]) =>
     o.map((v, i) => (s[i] > 0 ? (v / s[i]) * 100 : 0));
-  const conversion = sessions30 > 0 ? (orders30 / sessions30) * 100 : null;
+  const conversion =
+    sessionsTotal > 0 ? (ordersTotal / sessionsTotal) * 100 : null;
   const conversionPrev =
-    sessionsPrev30 > 0 ? (ordersPrev30 / sessionsPrev30) * 100 : null;
+    sessionsPrevTotal > 0 ? (ordersPrevTotal / sessionsPrevTotal) * 100 : null;
 
   const metrics: MetricSeries[] = [
     {
-      id: "sessions",
-      label: "Sessions",
-      display: sessions30.toLocaleString(),
-      delta: pctChange(sessions30, sessionsPrev30),
-      current: sessionsCurArr,
-      previous: sessionsPrevArr,
-      unit: "count",
-    },
-    {
       id: "sales",
       label: "Total sales",
-      display: formatPrice(revenue30 / 100),
-      delta: pctChange(revenue30, revenuePrev30),
+      display: formatPrice(revenueTotal / 100),
+      delta: pctChange(revenueTotal, revenuePrevTotal),
       current: salesCurArr,
       previous: salesPrevArr,
       unit: "money",
@@ -238,10 +226,19 @@ export default async function AdminDashboard() {
     {
       id: "orders",
       label: "Orders",
-      display: String(orders30),
-      delta: pctChange(orders30, ordersPrev30),
+      display: String(ordersTotal),
+      delta: pctChange(ordersTotal, ordersPrevTotal),
       current: ordersCurArr,
       previous: ordersPrevArr,
+      unit: "count",
+    },
+    {
+      id: "sessions",
+      label: "Sessions",
+      display: sessionsTotal.toLocaleString(),
+      delta: pctChange(sessionsTotal, sessionsPrevTotal),
+      current: sessionsCurArr,
+      previous: sessionsPrevArr,
       unit: "count",
     },
     {
@@ -258,10 +255,10 @@ export default async function AdminDashboard() {
     },
   ];
 
-  // Best sellers across the same 60-day pull, current period only.
+  // Best sellers over the selected period only.
   const unitsByName = new Map<string, number>();
-  for (const o of orders60) {
-    if (o.createdAt < start30) continue;
+  for (const o of ordersWindow) {
+    if (o.createdAt < range.currentStart) continue;
     const items = (Array.isArray(o.items) ? o.items : []) as {
       name?: string;
       quantity?: number;
@@ -280,19 +277,15 @@ export default async function AdminDashboard() {
     take: 5,
   });
 
-  const rangeLabel = `${shortLabel(currentKeys[0])} – ${shortLabel(
-    currentKeys[currentKeys.length - 1],
-  )}`;
-  const previousLabel = `${shortLabel(previousKeys[0])} – ${shortLabel(
-    previousKeys[previousKeys.length - 1],
-  )}`;
-
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-[12px] text-ink-soft">All channels</p>
-          <h1 className="text-[15px] font-semibold text-ink">Last 30 days</h1>
+        <div className="flex items-center gap-3">
+          <div>
+            <p className="text-[12px] text-ink-soft">All channels</p>
+            <h1 className="text-[15px] font-semibold text-ink">{range.label}</h1>
+          </div>
+          <RangePicker value={range.id} />
         </div>
         <div className="flex flex-wrap gap-2">
           {[
@@ -313,9 +306,9 @@ export default async function AdminDashboard() {
 
       <MetricsCard
         metrics={metrics}
-        labels={currentKeys.map(shortLabel)}
-        rangeLabel={rangeLabel}
-        previousLabel={previousLabel}
+        labels={range.labels}
+        rangeLabel={range.rangeLabel}
+        previousLabel={range.previousLabel}
       />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
@@ -355,7 +348,9 @@ export default async function AdminDashboard() {
 
         <section className="admin-card p-4">
           <h2 className="text-[13px] font-semibold text-ink">Best sellers</h2>
-          <p className="text-[11px] text-ink-soft">Units sold, last 30 days</p>
+          <p className="text-[11px] text-ink-soft">
+            Units sold, {range.label.toLowerCase()}
+          </p>
           {bestSellers.length === 0 ? (
             <p className="mt-3 text-[13px] text-ink-soft">No sales yet.</p>
           ) : (
