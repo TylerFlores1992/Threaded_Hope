@@ -32,6 +32,33 @@ async function uploadHomeImage(file: File, key: string): Promise<string> {
   return blob.url;
 }
 
+/**
+ * Photos are uploaded to Blob storage from the browser, so what arrives here is
+ * a URL. The logo still needs its border trimmed server-side, so for that slot
+ * we pull the blob back, trim it, and store the trimmed copy; every other slot
+ * keeps the uploaded URL as-is.
+ */
+async function resolveUploadedUrl(url: string, key: string): Promise<string> {
+  if (key !== "home_logo") return url;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const trimmed = await sharp(Buffer.from(await res.arrayBuffer()))
+      .trim()
+      .png()
+      .toBuffer();
+    const blob = await put(`home/${key}-${Date.now()}.png`, trimmed, {
+      access: "public",
+      contentType: "image/png",
+      addRandomSuffix: false,
+    });
+    return blob.url;
+  } catch {
+    // If the trim fails, the untrimmed upload is still a perfectly good logo.
+    return url;
+  }
+}
+
 /** Save uploaded home images and cleared slots, then revalidate the site. */
 export async function saveHomeImages(formData: FormData): Promise<void> {
   getPrisma(); // throws a clear error if no DB is configured
@@ -50,10 +77,13 @@ export async function saveHomeImages(formData: FormData): Promise<void> {
       await setSetting(key, ""); // empty → falls back to the default
       continue;
     }
-    const file = formData.get(key);
-    if (file instanceof File && file.size > 0) {
-      const url = await uploadHomeImage(file, key);
-      await setSetting(key, url);
+    const value = formData.get(key);
+    if (typeof value === "string" && value.startsWith("http")) {
+      // Normal path: the browser already uploaded it and submitted the URL.
+      await setSetting(key, await resolveUploadedUrl(value, key));
+    } else if (value instanceof File && value.size > 0) {
+      // Fallback for a plain (non-JS) submit — subject to the request size cap.
+      await setSetting(key, await uploadHomeImage(value, key));
     }
   }
 
