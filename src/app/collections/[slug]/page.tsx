@@ -23,15 +23,17 @@ export async function generateMetadata({
   // Include hidden so a direct link to a hidden collection still has metadata.
   const collection = await getCollectionBySlug(slug, { includeHidden: true });
   if (!collection) return {};
+  // Admin-set search-engine overrides win; otherwise fall back to the copy.
   const description =
+    collection.seoDescription ||
     collection.description ||
     `Shop handmade ${collection.name.toLowerCase()} from Threaded Hope — sewn in small batches.`;
   return {
-    title: collection.name,
+    title: collection.seoTitle || collection.name,
     description,
     alternates: { canonical: `/collections/${collection.slug}` },
     openGraph: {
-      title: `${collection.name} · Threaded Hope`,
+      title: `${collection.seoTitle || collection.name} · Threaded Hope`,
       description,
       type: "website",
     },

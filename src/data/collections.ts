@@ -10,7 +10,10 @@ export type Collection = {
   description: string;
   hue: number; // 0–360, used by the SVG placeholder generator
   featured?: boolean;
-  hidden?: boolean; // hidden from the storefront (still valid for existing products)
+  hidden?: boolean;
+  /** Search-engine overrides set in admin; blank falls back to name/description. */
+  seoTitle?: string;
+  seoDescription?: string; // hidden from the storefront (still valid for existing products)
 };
 
 export const collections: Collection[] = [

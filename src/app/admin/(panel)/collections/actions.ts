@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPrisma } from "@/lib/db";
+import { SORT_IDS } from "@/lib/collection-sort";
 
 const slugify = (s: string) =>
   s
@@ -26,7 +27,11 @@ type Parsed = {
   hue: number;
   featured: boolean;
   hidden: boolean;
+  sortMode: string;
+  seoTitle: string | null;
+  seoDescription: string | null;
 };
+
 
 function parseForm(formData: FormData): Parsed {
   const name = String(formData.get("name") ?? "").trim();
@@ -40,7 +45,49 @@ function parseForm(formData: FormData): Parsed {
     hue,
     featured: formData.get("featured") === "on",
     hidden: formData.get("hidden") === "on",
+    sortMode: (() => {
+      const m = String(formData.get("sortMode") ?? "manual").trim();
+      return SORT_IDS.has(m) ? m : "manual";
+    })(),
+    seoTitle: String(formData.get("seoTitle") ?? "").trim() || null,
+    seoDescription: String(formData.get("seoDescription") ?? "").trim() || null,
   };
+}
+
+/**
+ * Save a manual product arrangement for one collection. Each product stores its
+ * own position map ({slug: index}) so a product can sit differently in each
+ * collection it belongs to.
+ */
+export async function saveCollectionOrder(
+  collectionSlug: string,
+  productIds: string[],
+): Promise<void> {
+  const prisma = getPrisma();
+  const rows = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, collectionOrder: true },
+  });
+  const existing = new Map(rows.map((r) => [r.id, r.collectionOrder]));
+
+  await prisma.$transaction(
+    productIds.map((id, index) => {
+      const current = existing.get(id);
+      const order =
+        current && typeof current === "object"
+          ? { ...(current as Record<string, number>) }
+          : {};
+      order[collectionSlug] = index;
+      return prisma.product.update({
+        where: { id },
+        data: { collectionOrder: order },
+      });
+    }),
+  );
+
+  revalidatePath(`/collections/${collectionSlug}`);
+  revalidatePath("/collections/[slug]", "page");
+  revalidatePath("/admin/collections");
 }
 
 export async function createCollection(formData: FormData): Promise<void> {

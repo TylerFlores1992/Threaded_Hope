@@ -40,6 +40,9 @@ export default async function EditProductPage({
     featured: row.featured,
     stock: row.stock,
     weightOz: row.weightOz,
+    status: row.status,
+    productType: row.productType,
+    vendor: row.vendor,
     image: row.image ?? undefined,
     images: Array.isArray(row.images)
       ? (row.images as string[])

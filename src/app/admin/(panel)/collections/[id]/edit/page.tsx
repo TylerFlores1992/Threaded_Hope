@@ -3,9 +3,18 @@ import { notFound } from "next/navigation";
 import { getPrisma } from "@/lib/db";
 import type { Collection } from "@/data/collections";
 import { CollectionForm } from "@/components/admin/CollectionForm";
+import { CollectionItemsEditor } from "@/components/admin/CollectionItemsEditor";
 import { updateCollection } from "../../actions";
+import { SORT_MODES } from "@/lib/collection-sort";
 
 export const dynamic = "force-dynamic";
+
+/** Manual position of a product within this collection; missing sorts last. */
+function positionIn(order: unknown, slug: string): number {
+  if (!order || typeof order !== "object") return Number.MAX_SAFE_INTEGER;
+  const v = (order as Record<string, unknown>)[slug];
+  return typeof v === "number" ? v : Number.MAX_SAFE_INTEGER;
+}
 
 export default async function EditCollectionPage({
   params,
@@ -27,6 +36,31 @@ export default async function EditCollectionPage({
   };
   const action = updateCollection.bind(null, id);
 
+  // Products in this collection, in their current manual order.
+  const productRows = await prisma.product.findMany({
+    where: {
+      OR: [
+        { collectionSlug: row.slug },
+        { collections: { array_contains: row.slug } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      collectionOrder: true,
+      createdAt: true,
+    },
+  });
+  const items = [...productRows]
+    .sort(
+      (a, b) =>
+        positionIn(a.collectionOrder, row.slug) -
+          positionIn(b.collectionOrder, row.slug) ||
+        a.createdAt.getTime() - b.createdAt.getTime(),
+    )
+    .map((p) => ({ id: p.id, name: p.name, image: p.image ?? undefined }));
+
   return (
     <div>
       <Link href="/admin/collections" className="text-sm text-ink-soft">
@@ -39,7 +73,27 @@ export default async function EditCollectionPage({
         action={action}
         collection={collection}
         submitLabel="Save changes"
+        sortMode={row.sortMode}
+        sortModes={SORT_MODES}
+        seoTitle={row.seoTitle}
+        seoDescription={row.seoDescription}
       />
+
+      <section className="mt-10 max-w-3xl">
+        <h2 className="mb-1 font-serif text-xl text-ink">
+          Collection items{" "}
+          <span className="text-base text-ink-soft">({items.length})</span>
+        </h2>
+        <p className="mb-3 text-xs text-ink-soft">
+          Saved separately from the fields above — the Save order button applies
+          the arrangement on its own.
+        </p>
+        <CollectionItemsEditor
+          collectionSlug={row.slug}
+          items={items}
+          manual={row.sortMode === "manual"}
+        />
+      </section>
     </div>
   );
 }

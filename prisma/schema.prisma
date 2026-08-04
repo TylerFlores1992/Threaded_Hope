@@ -32,11 +32,17 @@ model Product {
   sizeStock      Json     @default("{}") // per-size counts, e.g. {"S":5,"M":0}; empty = not per-size
   optionStock    Json     @default("{}") // per-option counts for non-size groups, e.g. {"Color":{"Sage":3}}
   weightOz       Float? // shipping weight of one unit, in ounces (used for label rates)
+  status         String   @default("active") // active (live) | draft (hidden) | archived
+  productType    String? // free-form type, e.g. "Tote Bag"
+  vendor         String? // maker/brand, e.g. "Threaded Hope"
+  /// Manual position within each collection: {"faith-based": 3}. Missing = end.
+  collectionOrder Json    @default("{}")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([collectionSlug])
   @@index([featured])
+  @@index([status])
 }
 
 /** Product collection (category). Seeded from the static list; managed in admin. */
@@ -49,10 +55,23 @@ model Collection {
   featured    Boolean  @default(false)
   hidden      Boolean  @default(false)
   sortOrder   Int      @default(0)
+  /// How products are ordered on the collection page. "manual" uses each
+  /// product's collectionOrder position (drag-and-drop in admin).
+  sortMode       String  @default("manual")
+  seoTitle       String?
+  seoDescription String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([hidden])
+}
+
+/// A newsletter signup. Drives the "Subscribed" column on Customers.
+model Subscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  createdAt      DateTime  @default(now())
+  unsubscribedAt DateTime?
 }
 
 /**

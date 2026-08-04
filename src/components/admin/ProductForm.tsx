@@ -20,6 +20,9 @@ export type ProductFormValues = {
   featured: boolean;
   stock: number | null;
   weightOz: number | null;
+  status?: string;
+  productType?: string | null;
+  vendor?: string | null;
   image?: string;
   images?: string[];
 };
@@ -236,6 +239,44 @@ export function ProductForm({
           ))}
         </div>
       </fieldset>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="block text-sm font-medium text-ink">Status</label>
+          <select
+            name="status"
+            defaultValue={product?.status ?? "active"}
+            className={field}
+          >
+            <option value="active">Active — visible in the shop</option>
+            <option value="draft">Draft — hidden while you work on it</option>
+            <option value="archived">Archived — hidden, kept for records</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Product type{" "}
+            <span className="font-normal text-ink-soft">(optional)</span>
+          </label>
+          <input
+            name="productType"
+            defaultValue={product?.productType ?? ""}
+            placeholder="Tote Bag"
+            className={field}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Vendor <span className="font-normal text-ink-soft">(optional)</span>
+          </label>
+          <input
+            name="vendor"
+            defaultValue={product?.vendor ?? ""}
+            placeholder="Threaded Hope"
+            className={field}
+          />
+        </div>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-ink">Description</label>

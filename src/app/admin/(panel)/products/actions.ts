@@ -71,7 +71,12 @@ type Parsed = {
   stock: number | null;
   weightOz: number | null;
   variants: Variant[];
+  status: string;
+  productType: string | null;
+  vendor: string | null;
 };
+
+const STATUSES = new Set(["active", "draft", "archived"]);
 
 function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
   const name = String(formData.get("name") ?? "").trim();
@@ -148,6 +153,12 @@ function parseForm(formData: FormData, validSlugs: Set<string>): Parsed {
         ? null
         : Math.max(0, Number(weightRaw)),
     variants,
+    status: (() => {
+      const s = String(formData.get("status") ?? "active").trim();
+      return STATUSES.has(s) ? s : "active";
+    })(),
+    productType: String(formData.get("productType") ?? "").trim() || null,
+    vendor: String(formData.get("vendor") ?? "").trim() || null,
   };
 }
 
@@ -190,6 +201,9 @@ export async function createProduct(formData: FormData): Promise<void> {
       stock: data.stock,
       weightOz: data.weightOz,
       variants: data.variants,
+      status: data.status,
+      productType: data.productType,
+      vendor: data.vendor,
       images,
       ...(images[0] ? { image: images[0] } : {}),
     },
@@ -222,6 +236,9 @@ export async function updateProduct(
       featured: data.featured,
       variants: data.variants,
       weightOz: data.weightOz,
+      status: data.status,
+      productType: data.productType,
+      vendor: data.vendor,
       images,
       image: images[0] ?? null,
       // stock / inStock are managed by the live inventory editors (on this page
