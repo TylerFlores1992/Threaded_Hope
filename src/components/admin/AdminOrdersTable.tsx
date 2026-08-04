@@ -334,10 +334,12 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
                   {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
                 </td>
                 <td className="px-3 py-2.5 text-ink-soft">
+                  {/* Carrier can be an empty string, not just null, so ?? isn't
+                      enough — an unnamed carrier left a dangling separator. */}
                   {o.pickup
                     ? "Local pickup"
                     : o.trackingNumber
-                      ? `${o.carrier ?? "Shipping"} · ${o.trackingNumber}`
+                      ? [o.carrier || "Shipping", o.trackingNumber].join(" · ")
                       : "Shipping"}
                   {o.isGift && (
                     <span className="ml-1.5 text-[11px] text-ink">Gift</span>
