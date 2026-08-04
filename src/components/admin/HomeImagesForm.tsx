@@ -12,7 +12,7 @@ function SubmitButton({ disabled }: { disabled?: boolean }) {
     <button
       type="submit"
       disabled={pending || disabled}
-      className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
+      className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
     >
       {pending ? "Saving…" : "Save changes"}
     </button>
@@ -61,7 +61,7 @@ function Slot({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-white/70 p-4 ring-1 ring-border sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 admin-card p-4 sm:flex-row sm:items-center">
       <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand ring-1 ring-border">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -137,7 +137,7 @@ export function HomeImagesForm({
 
       {collectionSlots.length > 0 && (
         <>
-          <h2 className="pt-4 font-serif text-xl text-ink">
+          <h2 className="pt-4 text-[13px] font-semibold text-ink">
             Collection banners
           </h2>
           <p className="-mt-2 text-sm text-ink-soft">

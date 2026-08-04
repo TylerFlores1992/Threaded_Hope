@@ -70,12 +70,13 @@ const VIEWS: { id: View; label: string }[] = [
 ];
 
 const selectClass =
-  "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
 
+/** Shopify's status badge colours: success green, attention amber, neutral. */
 const STATUS_STYLE: Record<string, string> = {
-  active: "bg-sage-deep/10 text-sage-deep",
-  draft: "bg-amber-100 text-amber-700",
-  archived: "bg-sand text-ink-soft",
+  active: "bg-[#cdfee1] text-[#0c5132]",
+  draft: "bg-[#ffd6a4] text-[#5e4200]",
+  archived: "bg-[#e3e3e3] text-[#4a4a4a]",
 };
 
 export function AdminProductsTable({
@@ -216,7 +217,7 @@ export function AdminProductsTable({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search products…"
-          className="min-w-[200px] flex-1 rounded-full border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
+          className="min-w-[200px] flex-1 rounded-lg border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
         />
         <select
           value={collection}
@@ -263,7 +264,7 @@ export function AdminProductsTable({
           <button
             onClick={() => setPickerOpen((o) => !o)}
             aria-expanded={pickerOpen}
-            className="rounded-full border border-border bg-white px-3 py-1.5 text-sm text-ink-soft hover:bg-sand"
+            className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm text-ink-soft hover:bg-sand"
           >
             Columns ▾
           </button>
@@ -293,8 +294,8 @@ export function AdminProductsTable({
         {products.length === 1 ? "" : "s"}
       </p>
 
-      <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto admin-card">
+        <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Photo</th>

@@ -19,9 +19,9 @@ function Card({
   help?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+    <div className="admin-card p-4">
       <p className="text-sm text-ink-soft">{label}</p>
-      <p className="mt-1 font-serif text-2xl text-ink">{value}</p>
+      <p className="mt-1 text-[15px] font-semibold text-ink">{value}</p>
       {help && <p className="mt-1 text-xs text-ink-soft">{help}</p>}
     </div>
   );
@@ -130,20 +130,20 @@ export default async function AdminProductsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-serif text-3xl text-ink">
+        <h1 className="text-xl font-semibold text-ink">
           Products{" "}
           <span className="text-lg text-ink-soft">({products.length})</span>
         </h1>
         <div className="flex items-center gap-3">
           <Link
             href="/admin/products/sync"
-            className="rounded-full border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
+            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
           >
             Sync from Shopify
           </Link>
           <Link
             href="/admin/products/new"
-            className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
+            className="rounded-lg bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
           >
             + New product
           </Link>

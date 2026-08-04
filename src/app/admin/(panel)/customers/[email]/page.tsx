@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+    <div className="admin-card p-4">
       <p className="text-sm text-ink-soft">{label}</p>
-      <p className="mt-1 font-serif text-2xl text-ink">{value}</p>
+      <p className="mt-1 text-[15px] font-semibold text-ink">{value}</p>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export default async function CustomerDetailPage({
       <Link href="/admin/customers" className="text-sm text-ink-soft">
         ← Customers
       </Link>
-      <h1 className="mt-2 font-serif text-3xl text-ink">
+      <h1 className="mt-2 text-xl font-semibold text-ink">
         {customer.name ?? customer.email}
       </h1>
       <p className="mt-1 text-sm text-ink-soft">
@@ -63,14 +63,14 @@ export default async function CustomerDetailPage({
       </div>
 
       <section className="mt-10">
-        <h2 className="mb-3 font-serif text-xl text-ink">Order history</h2>
+        <h2 className="mb-3 text-[13px] font-semibold text-ink">Order history</h2>
         {customer.orders.length === 0 ? (
           <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
             Subscribed to the newsletter but hasn&apos;t ordered yet.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto admin-card">
+            <table className="w-full text-left text-[13px]">
               <thead className="border-b border-border text-ink-soft">
                 <tr>
                   <th className="px-4 py-3 font-medium">Date</th>

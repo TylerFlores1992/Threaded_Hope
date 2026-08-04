@@ -17,7 +17,7 @@ export default async function SiteTextPage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl text-ink">Site text</h1>
+      <h1 className="text-xl font-semibold text-ink">Site text</h1>
       <p className="mt-1 mb-6 max-w-2xl text-sm text-ink-soft">
         Edit the wording across the storefront — headings, buttons, and blurbs on
         the home page, Our Story, and the shop. Changes appear on the site within

@@ -32,20 +32,20 @@ export default async function AdminCollectionsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-serif text-3xl text-ink">
+        <h1 className="text-xl font-semibold text-ink">
           Collections{" "}
           <span className="text-lg text-ink-soft">({collections.length})</span>
         </h1>
         <Link
           href="/admin/collections/new"
-          className="rounded-full bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
+          className="rounded-lg bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
         >
           + New collection
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto admin-card">
+        <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>

@@ -46,7 +46,7 @@ export function DiscountForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-full bg-sage-deep px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
+        className="rounded-lg bg-sage-deep px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
       >
         {pending ? "Creating…" : "Create discount"}
       </button>

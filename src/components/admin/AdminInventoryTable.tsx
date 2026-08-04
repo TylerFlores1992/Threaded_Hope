@@ -28,7 +28,7 @@ type Sort = "name-asc" | "name-desc" | "stock-asc" | "stock-desc";
 const LOW_STOCK = 3;
 
 const selectClass =
-  "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
 
 export function AdminInventoryTable({
   items,
@@ -102,7 +102,7 @@ export function AdminInventoryTable({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search products…"
-          className="min-w-[200px] flex-1 rounded-full border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
+          className="min-w-[200px] flex-1 rounded-lg border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
         />
         <select
           value={collection}
@@ -146,8 +146,8 @@ export function AdminInventoryTable({
         {filtered.length} of {items.length} product{items.length === 1 ? "" : "s"}
       </p>
 
-      <div className="mt-3 overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-        <table className="w-full text-left text-sm">
+      <div className="mt-3 overflow-x-auto admin-card">
+        <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Photo</th>

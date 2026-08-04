@@ -20,7 +20,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
+      className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
     >
       {pending ? "Saving…" : "Record sale"}
     </button>
@@ -58,7 +58,7 @@ export function ManualOrderForm({ products }: { products: PickerProduct[] }) {
 
   return (
     <form action={createManualOrder} className="max-w-2xl space-y-5">
-      <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+      <div className="admin-card p-4">
         <p className="mb-3 text-sm font-medium text-ink">Items</p>
         <div className="space-y-3">
           {rows.map((row, i) => {
@@ -162,7 +162,7 @@ export function ManualOrderForm({ products }: { products: PickerProduct[] }) {
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-2xl bg-white/70 p-5 ring-1 ring-border sm:grid-cols-2">
+      <div className="grid gap-3 admin-card p-4 sm:grid-cols-2">
         <label className="text-xs text-ink-soft">
           Customer name (optional)
           <input name="customerName" type="text" className={field} />
@@ -188,7 +188,7 @@ export function ManualOrderForm({ products }: { products: PickerProduct[] }) {
         </label>
       </div>
 
-      <div className="space-y-2 rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+      <div className="space-y-2 admin-card p-4">
         <label className="flex items-start gap-2 text-sm text-ink">
           <input type="checkbox" name="decrement" defaultChecked className="mt-0.5" />
           <span>

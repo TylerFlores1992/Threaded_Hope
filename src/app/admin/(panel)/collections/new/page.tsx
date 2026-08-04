@@ -11,7 +11,7 @@ export default function NewCollectionPage() {
       <Link href="/admin/collections" className="text-sm text-ink-soft">
         ← Collections
       </Link>
-      <h1 className="mt-2 mb-6 font-serif text-3xl text-ink">New collection</h1>
+      <h1 className="mt-2 mb-6 text-xl font-semibold text-ink">New collection</h1>
       <CollectionForm
         action={createCollection}
         submitLabel="Create collection"

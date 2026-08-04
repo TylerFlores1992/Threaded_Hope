@@ -50,19 +50,19 @@ export default async function DiscountsPage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl text-ink">Discounts</h1>
+      <h1 className="text-xl font-semibold text-ink">Discounts</h1>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Active automatic discounts</p>
-          <p className="mt-1 font-serif text-2xl text-ink">{activeRules}</p>
+          <p className="mt-1 text-[15px] font-semibold text-ink">{activeRules}</p>
         </div>
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Active promo codes</p>
-          <p className="mt-1 font-serif text-2xl text-ink">{activeCodes}</p>
+          <p className="mt-1 text-[15px] font-semibold text-ink">{activeCodes}</p>
         </div>
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Code redemptions</p>
-          <p className="mt-1 font-serif text-2xl text-ink">{redemptions}</p>
+          <p className="mt-1 text-[15px] font-semibold text-ink">{redemptions}</p>
         </div>
       </div>
       <p className="mt-1 text-sm text-ink-soft">
@@ -74,15 +74,15 @@ export default async function DiscountsPage() {
 
       {/* ── Automatic discounts ── */}
       <section className="mt-8">
-        <h2 className="mb-3 font-serif text-2xl text-ink">Automatic discounts</h2>
+        <h2 className="mb-3 text-[15px] font-semibold text-ink">Automatic discounts</h2>
         {!isDbConfigured() ? (
           <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
             Connect a database to create automatic discount rules.
           </p>
         ) : (
           <>
-            <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
-              <h3 className="mb-4 font-serif text-lg text-ink">New rule</h3>
+            <div className="admin-card p-4">
+              <h3 className="mb-4 text-[13px] font-semibold text-ink">New rule</h3>
               <AutoDiscountForm />
             </div>
             <div className="mt-4">
@@ -91,8 +91,8 @@ export default async function DiscountsPage() {
                   No automatic rules yet. e.g. “3+ items → 10% off”.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto admin-card">
+                  <table className="w-full text-left text-[13px]">
                     <thead className="border-b border-border text-ink-soft">
                       <tr>
                         <th className="px-4 py-3 font-medium">Name</th>
@@ -133,15 +133,15 @@ export default async function DiscountsPage() {
 
       {/* ── Manual promo codes (Stripe) ── */}
       <section className="mt-10">
-        <h2 className="mb-3 font-serif text-2xl text-ink">Promo codes</h2>
+        <h2 className="mb-3 text-[15px] font-semibold text-ink">Promo codes</h2>
         {!isStripeConfigured() ? (
           <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
             Add your Stripe keys to create and manage promo codes.
           </p>
         ) : (
           <>
-            <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
-              <h3 className="mb-4 font-serif text-lg text-ink">New code</h3>
+            <div className="admin-card p-4">
+              <h3 className="mb-4 text-[13px] font-semibold text-ink">New code</h3>
               <DiscountForm />
             </div>
             <div className="mt-4">
@@ -154,8 +154,8 @@ export default async function DiscountsPage() {
                   No promo codes yet.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-2xl bg-white/70 ring-1 ring-border">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto admin-card">
+                  <table className="w-full text-left text-[13px]">
                     <thead className="border-b border-border text-ink-soft">
                       <tr>
                         <th className="px-4 py-3 font-medium">Code</th>

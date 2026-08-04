@@ -71,29 +71,29 @@ export default async function InventoryPage() {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl text-ink">Inventory</h1>
+        <h1 className="text-xl font-semibold text-ink">Inventory</h1>
         {/* Route handler returning a file download — a plain <a> is correct. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/admin/inventory/export"
-          className="rounded-full border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
+          className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
         >
           Export CSV ↓
         </a>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Products</p>
-          <p className="mt-1 font-serif text-2xl text-ink">{rows.length}</p>
+          <p className="mt-1 text-[15px] font-semibold text-ink">{rows.length}</p>
         </div>
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Units on hand</p>
-          <p className="mt-1 font-serif text-2xl text-ink">{unitsOnHand}</p>
+          <p className="mt-1 text-[15px] font-semibold text-ink">{unitsOnHand}</p>
         </div>
-        <div className="rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+        <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Retail value on hand</p>
-          <p className="mt-1 font-serif text-2xl text-ink">
+          <p className="mt-1 text-[15px] font-semibold text-ink">
             {formatPrice(inventoryValueCents / 100)}
           </p>
         </div>

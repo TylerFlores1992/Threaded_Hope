@@ -96,7 +96,7 @@ export function SyncShopifyClient({ apiConnected }: { apiConnected: boolean }) {
         <button
           onClick={run}
           disabled={running}
-          className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
+          className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
         >
           {running ? "Syncing…" : done ? "Run again" : "Start sync"}
         </button>
@@ -104,7 +104,7 @@ export function SyncShopifyClient({ apiConnected }: { apiConnected: boolean }) {
           <button
             onClick={test}
             disabled={testing || running}
-            className="rounded-full border border-border px-4 py-3 text-sm font-medium text-ink-soft hover:bg-sand disabled:opacity-60"
+            className="rounded-lg border border-border px-4 py-3 text-sm font-medium text-ink-soft hover:bg-sand disabled:opacity-60"
           >
             {testing ? "Checking…" : "Test connection"}
           </button>

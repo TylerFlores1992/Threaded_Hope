@@ -16,7 +16,7 @@ export default async function PackagingPage() {
       <Link href="/admin/orders" className="text-sm text-ink-soft">
         ← Orders
       </Link>
-      <h1 className="mt-2 mb-1 font-serif text-3xl text-ink">Packaging</h1>
+      <h1 className="mt-2 mb-1 text-xl font-semibold text-ink">Packaging</h1>
       <p className="mb-6 text-sm text-ink-soft">
         Presets you can pick when buying a label. The weight is the empty
         packaging (mailer/box + padding); it’s added to the item weights to
@@ -29,7 +29,7 @@ export default async function PackagingPage() {
         </p>
       )}
 
-      <div className="divide-y divide-border rounded-2xl bg-white/70 ring-1 ring-border">
+      <div className="divide-y divide-border admin-card">
         {options.map((o) => (
           <div
             key={o.id}
@@ -56,7 +56,7 @@ export default async function PackagingPage() {
 
       <form
         action={addPackagingOption}
-        className="mt-5 rounded-2xl bg-white/70 p-5 ring-1 ring-border"
+        className="mt-5 admin-card p-4"
       >
         <p className="mb-3 text-sm font-medium text-ink">Add packaging</p>
         <div className="grid grid-cols-[1fr_120px] gap-3">

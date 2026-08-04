@@ -27,7 +27,7 @@ export default async function CustomizePage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl text-ink">Customize</h1>
+      <h1 className="text-xl font-semibold text-ink">Customize</h1>
       <p className="mt-1 mb-4 max-w-2xl text-sm text-ink-soft">
         Change how the storefront looks — colors, fonts, layout, and the home
         page itself. Add sections, fill in their text and photos, drag them into

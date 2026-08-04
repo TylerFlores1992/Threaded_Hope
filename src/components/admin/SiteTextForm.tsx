@@ -17,7 +17,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
+      className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
     >
       {pending ? "Saving…" : "Save text"}
     </button>
@@ -30,8 +30,8 @@ export function SiteTextForm({ current }: { current: SiteText }) {
     <form action={saveSiteText} className="max-w-2xl space-y-8">
       {SITE_TEXT_GROUPS.map((group) => (
         <section key={group}>
-          <h2 className="mb-3 font-serif text-xl text-ink">{group}</h2>
-          <div className="space-y-4 rounded-2xl bg-white/70 p-5 ring-1 ring-border">
+          <h2 className="mb-3 text-[13px] font-semibold text-ink">{group}</h2>
+          <div className="space-y-4 admin-card p-4">
             {SITE_TEXT_FIELDS.filter((f) => f.group === group).map((f) => (
               <label key={f.key} className="block text-xs text-ink-soft">
                 {f.label}

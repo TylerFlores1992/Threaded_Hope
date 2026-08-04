@@ -9,7 +9,7 @@ function SubmitButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
+      className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
     >
       {pending ? "Saving…" : label}
     </button>
@@ -87,7 +87,7 @@ export function CollectionForm({
         </div>
       )}
 
-      <fieldset className="rounded-2xl bg-white/60 p-4 ring-1 ring-border">
+      <fieldset className="admin-card p-4">
         <legend className="px-1 text-sm font-medium text-ink">
           Search engine listing{" "}
           <span className="font-normal text-ink-soft">
