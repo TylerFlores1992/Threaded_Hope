@@ -105,6 +105,9 @@ model Setting {
 model Order {
   id               String   @id @default(cuid())
   stripeSessionId  String   @unique
+  /// Identity in an outside system (e.g. a Shopify order gid) so re-running an
+  /// import updates rather than duplicates. Null for orders that started here.
+  externalId       String?  @unique
   email            String?
   customerName     String?
   amountTotalCents Int

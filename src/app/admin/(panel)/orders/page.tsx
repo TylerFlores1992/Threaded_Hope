@@ -83,6 +83,12 @@ export default async function OrdersPage() {
         <h1 className="text-xl font-semibold text-ink">Orders</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Link
+            href="/admin/orders/import"
+            className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"
+          >
+            Import from Shopify
+          </Link>
+          <Link
             href="/admin/orders/packaging"
             className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"
           >
