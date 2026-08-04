@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { sendOrderConfirmation, sendOwnerNewOrder } from "@/lib/email";
+import { computeInStock } from "@/lib/stock";
+import type { Variant } from "@/data/products";
 
 export const runtime = "nodejs";
 
@@ -47,6 +49,24 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         product && typeof product === "object"
           ? (product.metadata?.size ?? null)
           : null,
+      // Non-size selections (colour, style, …) as { group: option }.
+      options: ((): Record<string, string> => {
+        const raw =
+          product && typeof product === "object"
+            ? product.metadata?.options
+            : undefined;
+        if (!raw) return {};
+        try {
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+          return Object.fromEntries(
+            Object.entries(parsed)
+              .filter(([, v]) => typeof v === "string")
+              .map(([k, v]) => [k, v as string]),
+          );
+        } catch {
+          return {};
+        }
+      })(),
       quantity: li.quantity ?? 1,
       unitAmountCents: li.price?.unit_amount ?? 0,
     };
@@ -97,18 +117,43 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         product.sizeStock && typeof product.sizeStock === "object"
           ? ({ ...(product.sizeStock as Record<string, number>) })
           : {};
+      const optionStock: Record<string, Record<string, number>> = {};
+      if (product.optionStock && typeof product.optionStock === "object") {
+        for (const [g, counts] of Object.entries(
+          product.optionStock as Record<string, Record<string, number>>,
+        )) {
+          if (counts && typeof counts === "object") optionStock[g] = { ...counts };
+        }
+      }
+
+      const data: Prisma.ProductUpdateInput = {};
+      let variantTracked = false;
 
       if (it.size && typeof sizeStock[it.size] === "number") {
-        // Per-size product: decrement the purchased size, mark sold out at 0.
+        // Per-size product: decrement the purchased size, sold out at 0.
         sizeStock[it.size] = Math.max(0, sizeStock[it.size] - it.quantity);
-        const anyLeft = Object.values(sizeStock).some((n) => n > 0);
-        await tx.product.update({
-          where: { id: product.id },
-          data: {
-            sizeStock: sizeStock as Prisma.InputJsonValue,
-            inStock: anyLeft && product.inStock,
-          },
-        });
+        data.sizeStock = sizeStock as Prisma.InputJsonValue;
+        variantTracked = true;
+      }
+      // Each tracked non-size group (colour, style, …) decrements independently.
+      for (const [group, option] of Object.entries(it.options)) {
+        const counts = optionStock[group];
+        if (counts && typeof counts[option] === "number") {
+          counts[option] = Math.max(0, counts[option] - it.quantity);
+          data.optionStock = optionStock as Prisma.InputJsonValue;
+          variantTracked = true;
+        }
+      }
+
+      if (variantTracked) {
+        const variants = (
+          Array.isArray(product.variants) ? product.variants : []
+        ) as Variant[];
+        data.inStock = computeInStock(
+          { variants, sizeStock, optionStock, inStock: product.inStock },
+          product.inStock,
+        );
+        await tx.product.update({ where: { id: product.id }, data });
       } else if (product.stock != null) {
         const newStock = Math.max(0, product.stock - it.quantity);
         await tx.product.update({

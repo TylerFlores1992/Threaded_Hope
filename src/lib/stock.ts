@@ -11,7 +11,12 @@ import type { Product, Variant } from "@/data/products";
  * untracked (always available), so partial tracking never sells out a size by
  * accident.
  */
-type StockShape = Pick<Product, "variants" | "sizeStock" | "inStock">;
+type StockShape = Pick<Product, "variants" | "sizeStock" | "inStock"> & {
+  optionStock?: OptionStock;
+};
+
+/** Per-option counts for non-size variant groups: { Color: { Sage: 3 } }. */
+export type OptionStock = Record<string, Record<string, number>>;
 
 export function sizeAxisOf(
   product: Pick<Product, "variants">,
@@ -21,6 +26,31 @@ export function sizeAxisOf(
   );
   if (priced) return priced;
   return product.variants.find((v) => /size/i.test(v.name)) ?? null;
+}
+
+/**
+ * The non-size option groups (color, style, …). Each one can carry its own
+ * counts in `optionStock`, exactly like sizes do in `sizeStock`.
+ */
+export function optionAxesOf(product: Pick<Product, "variants">): Variant[] {
+  const axis = sizeAxisOf(product);
+  return product.variants.filter((v) => v !== axis);
+}
+
+/** A non-size option is sold out only if explicitly tracked at 0. */
+export function optionSoldOut(
+  product: StockShape,
+  group: string,
+  option?: string,
+): boolean {
+  if (!option) return false;
+  const count = product.optionStock?.[group]?.[option];
+  return typeof count === "number" && count <= 0;
+}
+
+/** True when this option group has any counts entered. */
+function tracksGroup(product: StockShape, group: string): boolean {
+  return Object.keys(product.optionStock?.[group] ?? {}).length > 0;
 }
 
 /** True when this product has any per-size counts entered. */
@@ -45,19 +75,22 @@ export function isAvailable(
 ): boolean {
   if (!product.inStock) return false;
   const axis = sizeAxisOf(product);
-  if (axis) return !sizeSoldOut(product, options[axis.name]);
+  if (axis && sizeSoldOut(product, options[axis.name])) return false;
+  // Every tracked non-size group must also have the chosen option in stock.
+  for (const v of optionAxesOf(product)) {
+    if (optionSoldOut(product, v.name, options[v.name])) return false;
+  }
   return true;
 }
 
-/** Default option for a variant — the first in-stock size on the size axis. */
+/** Default option for a variant — the first one that isn't sold out. */
 export function defaultOption(product: StockShape, variant: Variant): string {
   const axis = sizeAxisOf(product);
-  if (axis && axis.name === variant.name) {
-    return (
-      variant.options.find((o) => !sizeSoldOut(product, o)) ?? variant.options[0]
-    );
-  }
-  return variant.options[0];
+  const soldOut =
+    axis && axis.name === variant.name
+      ? (o: string) => sizeSoldOut(product, o)
+      : (o: string) => optionSoldOut(product, variant.name, o);
+  return variant.options.find((o) => !soldOut(o)) ?? variant.options[0];
 }
 
 /** Overall in-stock flag, given the product-level flag and per-size counts. */
@@ -67,8 +100,21 @@ export function computeInStock(
 ): boolean {
   if (!productLevelInStock) return false;
   const axis = sizeAxisOf(product);
-  if (axis && Object.keys(product.sizeStock ?? {}).length > 0) {
-    return axis.options.some((o) => !sizeSoldOut(product, o));
+  if (
+    axis &&
+    Object.keys(product.sizeStock ?? {}).length > 0 &&
+    !axis.options.some((o) => !sizeSoldOut(product, o))
+  ) {
+    return false;
+  }
+  // A tracked colour/style group with every option at 0 sells the product out.
+  for (const v of optionAxesOf(product)) {
+    if (
+      tracksGroup(product, v.name) &&
+      !v.options.some((o) => !optionSoldOut(product, v.name, o))
+    ) {
+      return false;
+    }
   }
   return true;
 }

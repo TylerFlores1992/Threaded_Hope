@@ -26,7 +26,8 @@ type Sort =
   | "name-desc"
   | "price-asc"
   | "price-desc"
-  | "stock-asc";
+  | "stock-asc"
+  | "stock-desc";
 
 const selectClass =
   "rounded-full border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
@@ -102,6 +103,8 @@ export function AdminProductsTable({
           return b.priceCents - a.priceCents;
         case "stock-asc":
           return sortStock(a.stock) - sortStock(b.stock);
+        case "stock-desc":
+          return sortStock(b.stock) - sortStock(a.stock);
         default:
           return b.createdAt - a.createdAt; // newest
       }
@@ -154,6 +157,7 @@ export function AdminProductsTable({
           <option value="price-asc">Price: Low to High</option>
           <option value="price-desc">Price: High to Low</option>
           <option value="stock-asc">Stock: Low to High</option>
+          <option value="stock-desc">Stock: High to Low</option>
         </select>
       </div>
 

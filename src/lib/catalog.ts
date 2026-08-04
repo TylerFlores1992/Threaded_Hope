@@ -37,6 +37,7 @@ type ProductRow = {
   images?: unknown;
   variants: unknown;
   sizeStock?: unknown;
+  optionStock?: unknown;
   featured: boolean;
   inStock: boolean;
   createdAt: Date;
@@ -58,6 +59,10 @@ function mapRow(row: ProductRow, collectionMap: CollectionMap): Product {
     row.sizeStock && typeof row.sizeStock === "object"
       ? (row.sizeStock as Record<string, number>)
       : {};
+  const optionStock =
+    row.optionStock && typeof row.optionStock === "object"
+      ? (row.optionStock as Record<string, Record<string, number>>)
+      : {};
   return {
     collection: row.collectionSlug,
     collections,
@@ -66,7 +71,11 @@ function mapRow(row: ProductRow, collectionMap: CollectionMap): Product {
     description: row.description,
     variants,
     sizeStock,
-    inStock: computeInStock({ variants, sizeStock, inStock: row.inStock }, row.inStock),
+    optionStock,
+    inStock: computeInStock(
+      { variants, sizeStock, optionStock, inStock: row.inStock },
+      row.inStock,
+    ),
     featured: row.featured,
     slug: row.slug,
     createdAt: row.createdAt.toISOString(),

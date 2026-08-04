@@ -1,6 +1,6 @@
 import { prisma, isDbConfigured } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
-import { sizeAxisOf } from "@/lib/stock";
+import { sizeAxisOf, optionAxesOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import {
   AdminInventoryTable,
@@ -31,9 +31,14 @@ export default async function InventoryPage() {
       p.sizeStock && typeof p.sizeStock === "object"
         ? (p.sizeStock as Record<string, number>)
         : {};
+    const optionStock =
+      p.optionStock && typeof p.optionStock === "object"
+        ? (p.optionStock as Record<string, Record<string, number>>)
+        : {};
     return {
       id: p.id,
       name: p.name,
+      image: p.image ?? undefined,
       collections:
         stored.length > 0
           ? Array.from(new Set([p.collectionSlug, ...stored]))
@@ -44,6 +49,14 @@ export default async function InventoryPage() {
       sizes: axis
         ? axis.options.map((o) => ({ label: o, count: sizeStock[o] ?? null }))
         : null,
+      // Colour/style groups each get their own counts, just like sizes do.
+      optionGroups: optionAxesOf({ variants }).map((v) => ({
+        name: v.name,
+        options: v.options.map((o) => ({
+          label: o,
+          count: optionStock[v.name]?.[o] ?? null,
+        })),
+      })),
     };
   });
 
@@ -52,8 +65,9 @@ export default async function InventoryPage() {
       <h1 className="font-serif text-3xl text-ink">Inventory</h1>
       <p className="mt-1 text-sm text-ink-soft">
         Set a stock count to track a product; leave blank for untracked. Products
-        with sizes show a count per size — a size at 0 shows as sold out on the
-        storefront. Stock auto-decrements when an order is paid.
+        with sizes — or colours and other options — show a count per choice; a
+        choice at 0 shows as sold out on the storefront. Stock auto-decrements
+        when an order is paid.
       </p>
 
       <AdminInventoryTable

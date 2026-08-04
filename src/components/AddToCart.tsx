@@ -4,7 +4,13 @@ import { useState } from "react";
 import type { Product } from "@/data/products";
 import { useCart, makeLineId } from "@/lib/cart-context";
 import { resolveUnitPrice } from "@/lib/pricing";
-import { sizeAxisOf, sizeSoldOut, isAvailable, defaultOption } from "@/lib/stock";
+import {
+  sizeAxisOf,
+  sizeSoldOut,
+  optionSoldOut,
+  isAvailable,
+  defaultOption,
+} from "@/lib/stock";
 import { formatPrice } from "@/lib/format";
 import { QtyStepper } from "./CartDrawer";
 
@@ -47,8 +53,12 @@ export function AddToCart({ product }: { product: Product }) {
             {variant.options.map((option) => {
               const active = selected[variant.name] === option;
               const optionPrice = variant.prices?.[option];
+              // Sizes come off the size axis; every other group (colour, style)
+              // has its own tracked counts.
               const soldOut =
-                sizeAxis?.name === variant.name && sizeSoldOut(product, option);
+                sizeAxis?.name === variant.name
+                  ? sizeSoldOut(product, option)
+                  : optionSoldOut(product, variant.name, option);
               return (
                 <button
                   key={option}

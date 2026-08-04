@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { upload } from "@vercel/blob/client";
 import type { Collection } from "@/data/collections";
 import type { Variant } from "@/data/products";
 import { sizeAxisOf } from "@/lib/stock";
@@ -23,12 +24,18 @@ export type ProductFormValues = {
   images?: string[];
 };
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({
+  label,
+  disabled,
+}: {
+  label: string;
+  disabled?: boolean;
+}) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
     >
       {pending ? "Saving…" : label}
@@ -59,7 +66,37 @@ export function ProductForm({
       : product?.image
         ? [product.image]
         : [];
-  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  // Photos are uploaded to Blob storage as soon as they're picked, so the form
+  // only ever submits URLs — a phone photo never has to fit in a request body.
+  const [images, setImages] = useState<string[]>(existingImages);
+  const [uploading, setUploading] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const addFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    setUploadError(null);
+    setUploading((n) => n + files.length);
+    for (const file of files) {
+      try {
+        const blob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/blob/upload",
+        });
+        setImages((prev) => [...prev, blob.url]);
+      } catch (err) {
+        setUploadError(
+          err instanceof Error ? err.message : "That photo couldn't upload.",
+        );
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+  };
+
+  const removeImage = (url: string) =>
+    setImages((prev) => prev.filter((u) => u !== url));
+  const makeMain = (url: string) =>
+    setImages((prev) => [url, ...prev.filter((u) => u !== url)]);
 
   // Split existing variants into the size axis (structured editor below) and
   // any other option groups (color, etc. — kept in the free-text field).
@@ -279,7 +316,7 @@ export function ProductForm({
         <legend className="px-1 text-sm font-medium text-ink">
           Other options{" "}
           <span className="font-normal text-ink-soft">
-            (non-size choices like color)
+            (non-size choices like color — each gets its own tracked stock)
           </span>
         </legend>
         <input type="hidden" name="otherOptions" value={otherOptionsJson} />
@@ -349,11 +386,11 @@ export function ProductForm({
           </label>
           {inventoryEditor ? (
             <div className="mt-1">{inventoryEditor}</div>
-          ) : hasSizes ? (
+          ) : hasSizes || optionGroups.length > 0 ? (
             <p className="mt-1 rounded-lg bg-sand px-3 py-2 text-sm text-ink-soft">
-              Set per-size stock on the{" "}
-              <span className="font-medium text-ink">Inventory</span> page after
-              saving.
+              Stock is tracked per choice (size, colour, …). Set the counts on
+              the <span className="font-medium text-ink">Inventory</span> page
+              after saving.
             </p>
           ) : (
             <input
@@ -398,71 +435,71 @@ export function ProductForm({
         <label className="block text-sm font-medium text-ink">Photos</label>
         <p className="text-xs text-ink-soft">
           The first photo is the main image. Add several to build a gallery.
-          Uncheck a photo to remove it on save.
+          Photos upload as soon as you pick them — save to apply the changes.
         </p>
 
-        {existingImages.length > 0 && (
+        {images.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-3">
-            {existingImages.map((url, i) => (
-              <label
-                key={url}
-                className="relative block cursor-pointer"
-                title="Uncheck to remove"
-              >
+            {images.map((url, i) => (
+              <div key={url} className="relative">
+                {/* The gallery, in order — the server rebuilds it from these. */}
+                <input type="hidden" name="keepImage" value={url} />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={url}
                   alt=""
                   className="h-20 w-20 rounded-lg object-cover ring-1 ring-border"
                 />
-                {i === 0 && (
+                {i === 0 ? (
                   <span className="absolute left-1 top-1 rounded bg-sage-deep px-1 text-[10px] font-medium text-white">
                     Main
                   </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => makeMain(url)}
+                    className="absolute left-1 top-1 rounded bg-white/90 px-1 text-[10px] font-medium text-ink-soft hover:text-sage-deep"
+                  >
+                    Make main
+                  </button>
                 )}
-                {/* Checked = keep. Its value is the URL to keep, in order. */}
-                <input
-                  type="checkbox"
-                  name="keepImage"
-                  value={url}
-                  defaultChecked
-                  className="absolute right-1 top-1 h-4 w-4"
-                />
-              </label>
+                <button
+                  type="button"
+                  onClick={() => removeImage(url)}
+                  aria-label="Remove photo"
+                  className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 text-xs text-ink-soft hover:text-red-700"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
           </div>
         )}
 
         <div className="mt-3">
           <input
-            name="images"
             type="file"
             accept="image/*"
             multiple
             onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              setNewPreviews(files.map((f) => URL.createObjectURL(f)));
+              void addFiles(Array.from(e.target.files ?? []));
+              e.target.value = ""; // allow re-picking the same file
             }}
             className="text-sm text-ink-soft"
           />
-          {newPreviews.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {newPreviews.map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={src}
-                  alt=""
-                  className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
-                />
-              ))}
-            </div>
+          {uploading > 0 && (
+            <p className="mt-2 text-sm text-ink-soft" aria-live="polite">
+              Uploading {uploading} photo{uploading === 1 ? "" : "s"}…
+            </p>
+          )}
+          {uploadError && (
+            <p className="mt-2 text-sm text-red-700">{uploadError}</p>
           )}
         </div>
       </div>
 
       <div className="flex items-center gap-3 pt-2">
-        <SubmitButton label={submitLabel} />
+        <SubmitButton label={submitLabel} disabled={uploading > 0} />
       </div>
     </form>
   );
