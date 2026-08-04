@@ -51,12 +51,16 @@ src/
       (panel)/                   authenticated admin (shared sidebar layout)
         page.tsx                 dashboard (stats + revenue chart + best sellers)
         products/                list · new · [id]/edit (+ live inventory) · actions.ts
+        products/sync/           pull full descriptions/stock/weights from Shopify
         orders/                  recorded orders (+ actions.ts: labels, sample order)
+        orders/new/              record an off-site sale (manual order)
         orders/[id]/             order detail (items, totals, actions)
         orders/export/route.ts   CSV export of all orders
         orders/[id]/label/       buy + print a Shippo shipping label
         orders/packaging/        manage packaging presets (name + weight)
         home/                    "Photos" tab — all editable non-product images
+        text/                    "Site text" — editable storefront copy
+        customize/               theme editor (sections, colors, fonts, history)
         inventory/               stock editing (+ actions.ts)
         discounts/               Stripe promo codes (+ actions.ts)
         traffic/                 page-view analytics
@@ -65,14 +69,15 @@ src/
     not-found.tsx                themed 404
   middleware.ts                  gates /admin/* on the session cookie
   components/                    Header, Footer, CartDrawer, ProductCard,
-                                 ProductGallery, JsonLd, ChromeGate,
-                                 TrafficTracker, admin/*
+                                 ProductGallery, JsonLd, ChromeGate, ThemeStyle,
+                                 ThemePreviewBridge, TrafficTracker, admin/*
   data/                          store.ts, collections.ts, products.ts, faqs.ts,
                                  blog.ts (static seed + fallback catalog + blog)
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
                                  shipping (Shippo REST), packaging, stock, discounts,
-                                 settings, email (Resend), seo (SITE_URL + keywords)
+                                 settings, email (Resend), seo (SITE_URL + keywords),
+                                 site-text (+ -fields), theme (+ theme-config)
 prisma/
   schema.prisma                  Product, Collection, Order, Pageview,
                                  DiscountRule, Setting models
@@ -83,6 +88,7 @@ scripts/
   backfill-collections.ts        apply static-catalog collection membership to DB
   seo-descriptions.ts            append keyword-aware SEO lines to descriptions
   scrape-shopify-images.mjs      re-pull full/multiple photos from Shopify → Blob
+  sync-shopify-details.mjs       full descriptions + availability + weights
   clean-descriptions.ts          strip emoji from product descriptions in the DB
 ```
 
@@ -132,7 +138,8 @@ seed + fallback — see below.
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
   `shippingCents` / `taxCents`, captured from Stripe in the webhook), gift fields
   (`isGift` / `giftMessage`), a `pickup` flag (local pickup chosen at
-  checkout), and fulfillment state (`fulfillmentStatus`
+  checkout), `source` ("web" | "manual") + `notes` for sales recorded by hand,
+  and fulfillment state (`fulfillmentStatus`
   unfulfilled|shipped|delivered, `shippedAt`, `deliveredAt`).
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
@@ -271,6 +278,67 @@ seed + fallback — see below.
   pages, Article on blog posts. Metadata is keyword-rich + canonicalized with OG /
   Twitter cards. `scripts/seo-descriptions.ts` appends a keyword-aware, per-type,
   per-slug-varied sentence to product descriptions (non-destructive, idempotent).
+- **Editable site copy** (`lib/site-text.ts` + `-fields.ts`). Every editable
+  string is declared in `SITE_TEXT_FIELDS` with **its current copy as the
+  default**, so nothing changes until edited. Overrides live per key in the
+  `Setting` table (`text_<key>`) and are read through a cached `getSiteText()`
+  (tag `site-text`). Clearing a field restores the default. Edit at
+  `/admin/text`, or inside a section's panel in Customize. To make another
+  string editable: add a field, then render `text.<key>`.
+- **Theme customizer** (`/admin/customize`, `lib/theme.ts` + `theme-config.ts`).
+  A Shopify-style editor: settings panel beside a live preview, with Save /
+  Discard / Reset and a desktop/mobile width toggle.
+  - **Storage.** The whole theme is one JSON blob in `Setting` (`theme`), read
+    via a cached `getTheme()` (tag `site-theme`). Defaults reproduce the current
+    design exactly, so an unconfigured site looks unchanged.
+  - **Appearance.** `ThemeStyle` (in the root layout `<head>`) emits the theme as
+    `:root` custom-property overrides — the tokens in `globals.css` already drive
+    the whole site, so colors/fonts re-skin everything — plus a Google Fonts
+    `<link>` for non-default fonts. Corner radius / page width / heading scale
+    are extra vars consumed by rules in `globals.css`.
+  - **Sections are placed instances**, not a fixed list: `layout: {key, type,
+    settings, hidden}[]`, so a type can appear more than once (e.g. two
+    collection rows). Add / duplicate / remove / drag-reorder in the panel;
+    `HOME_SECTIONS` defines the types, `SECTION_SETTINGS` their per-instance
+    settings, `ADDABLE_SECTIONS` which may repeat. The home page renders
+    `theme.layout` in order, each wrapped in `[data-section]`. Older saved themes
+    using `{sectionOrder, hiddenSections, sections}` are **upgraded on read** by
+    `normalizeLayout`, so nothing breaks.
+  - **Copy in the section panel.** `SECTION_TEXT_FIELDS` maps a section type to
+    site-text keys, shown on the *first* instance of that type (those strings are
+    global) and saved alongside the theme. Collection rows also take a
+    per-instance `heading` override so duplicates can differ.
+  - **Live preview.** `ThemePreviewBridge` runs only inside the editor iframe
+    (`window.self !== window.top`, same-origin checked) and applies draft vars,
+    fonts, and hidden sections over `postMessage`; it also scrolls to and flashes
+    a section when one is selected. Colors/fonts/visibility update instantly;
+    **section settings are server-rendered, so the preview reloads after Save**.
+  - **Version history.** Each save/reset/restore snapshots the previous theme
+    (last 10) under the `theme_history` setting; the History tab restores any of
+    them (and snapshots first, so it's reversible). Timestamps come from the
+    client — server render can't call `Date.now()` (lint forbids impure calls),
+    which is also why new instance keys are derived from existing keys.
+  - **Mobile.** Panel and preview can't sit side by side on a phone, so the
+    editor switches between **Edit** and **Preview**; the container uses `svh`
+    so browser chrome doesn't clip it.
+- **Manual orders.** `/admin/orders/new` records a sale made off-site (in person,
+  a fair, a friend): products with size/qty and an **editable price**, optional
+  customer/shipping/note, saved as a paid order so it counts toward revenue and
+  best-sellers. Optionally decrements inventory in the same transaction, and can
+  be marked already handed over. Flagged `source = "manual"` (badge in the list,
+  note on the detail page, columns in the CSV).
+- **Collection banners.** Each collection has an admin-uploaded banner
+  (`Setting` key `collection_hero_<slug>`, edited in the Photos tab), falling
+  back to the generated pattern. The Photos save action is **key-driven** (it
+  derives slots from the submitted fields) so these dynamic per-collection slots
+  work alongside the static ones.
+- **Admin navigation** (`components/admin/AdminNav.tsx`). Grouped into Overview /
+  Catalog / Sales / Storefront with an active-page highlight; the dashboard also
+  carries quick-action shortcuts. The sidebar logo links to the storefront.
+- **Home page composition.** The home page builds a `renderers` map keyed by
+  section type (each taking that instance's settings) and renders
+  `theme.layout`. Collection tiles fill from featured collections first, then
+  top up from the rest, so the grid always fills its configured tile count.
 - **Blog ("Journal").** File-based in `src/data/blog.ts` (structured blocks, no
   markdown lib). `/blog` list + `/blog/[slug]` posts (statically generated),
   linked from the footer and the sitemap. Add a post by appending to the array.
@@ -321,12 +389,18 @@ seed + fallback — see below.
   (`h-auto`) — square/`object-cover` framing cropped them and square/`contain`
   left side bars. The storefront renders plain `<img>`, so there are intentional
   `@next/next/no-img-element` lint **warnings** (not errors).
-- **Re-import photos from Shopify.** `scripts/scrape-shopify-images.mjs` matches
-  each product by title and writes full-res multi-image galleries to
-  `Product.images`, pulling every image from the store's `/products.json` (needs
-  local DB + Blob env). An in-admin batch importer existed while the initial
-  import was pending and was removed once it ran; the script remains for future
-  re-imports.
+- **Re-import from Shopify.** Two things are pulled from the live store's public
+  `/products.json`, both matching products by title:
+  - **Photos** — `scripts/scrape-shopify-images.mjs` writes full-res multi-image
+    galleries to `Product.images` (needs local DB + Blob env).
+  - **Details** — full descriptions (`body_html` → clean text with paragraphs and
+    bullets), in/out-of-stock, and unit weight (grams → oz). Available both as
+    `scripts/sync-shopify-details.mjs` and, so it can be run from a phone, as an
+    in-admin page at **`/admin/products/sync`** that batches the same work
+    server-side. Product descriptions render with `whitespace-pre-line`.
+  - ⚠️ **Shopify's public feed has no stock quantities** — only `available`
+    true/false per variant. Counts require Admin API credentials; set them in the
+    Inventory page instead.
 - **Google Merchant feed.** `app/feed.xml/route.ts` emits an RSS 2.0 + `g:`
   product feed (id/title/price/availability/brand + gallery images) for free
   Google Shopping listings. Products without a real hosted image are skipped.
