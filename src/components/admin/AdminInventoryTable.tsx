@@ -158,10 +158,10 @@ export function AdminInventoryTable({
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Photo</th>
-              <th className="px-4 py-3 font-medium">Product</th>
-              <th className="px-4 py-3 font-medium">Collections</th>
+              <th className="w-full px-4 py-3 font-medium">Product</th>
+              <th className="whitespace-nowrap px-4 py-3 font-medium">Collections</th>
               <th className="px-4 py-3 font-medium">On hand</th>
-              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="w-28 whitespace-nowrap px-4 py-3 font-medium">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -179,7 +179,7 @@ export function AdminInventoryTable({
                     />
                   </td>
                   <td className="px-4 py-3 text-ink">{p.name}</td>
-                  <td className="px-4 py-3 text-ink-soft">
+                  <td className="max-w-[16rem] truncate whitespace-nowrap px-4 py-3 text-ink-soft">
                     {p.collections.map(nameOf).join(", ")}
                   </td>
                   <td className="px-4 py-3">
@@ -218,19 +218,19 @@ export function AdminInventoryTable({
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="w-28 whitespace-nowrap px-4 py-3">
                     {!p.inStock ? (
-                      <span className="rounded-lg bg-[#ffd6d6] px-2 py-0.5 text-[12px] font-medium text-[#8e1f0b]">
+                      <span className="inline-block whitespace-nowrap rounded-lg bg-[#ffd6d6] px-2 py-0.5 text-[12px] font-medium text-[#8e1f0b]">
                         Sold out
                       </span>
                     ) : p.sizes ? (
-                      <span className="text-[12px] text-ink-soft">In stock</span>
+                      <span className="whitespace-nowrap text-[12px] text-ink-soft">In stock</span>
                     ) : isLow ? (
-                      <span className="rounded-lg bg-[#ffd6a4] px-2 py-0.5 text-[12px] font-medium text-[#5e4200]">
+                      <span className="inline-block whitespace-nowrap rounded-lg bg-[#ffd6a4] px-2 py-0.5 text-[12px] font-medium text-[#5e4200]">
                         Low
                       </span>
                     ) : (
-                      <span className="text-[12px] text-ink-soft">In stock</span>
+                      <span className="whitespace-nowrap text-[12px] text-ink-soft">In stock</span>
                     )}
                   </td>
                 </tr>

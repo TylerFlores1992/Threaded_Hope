@@ -23,6 +23,19 @@ const fmt = (v: number, unit: MetricSeries["unit"]) =>
       ? `${v.toFixed(2)}%`
       : String(Math.round(v));
 
+/** Axis ticks are short — "$1.2K" rather than "$1,200.00" — so they always fit. */
+const fmtAxis = (v: number, unit: MetricSeries["unit"]) => {
+  if (unit === "percent") return `${v.toFixed(v < 10 ? 1 : 0)}%`;
+  const n = unit === "money" ? v / 100 : v;
+  const short =
+    n >= 1000
+      ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}K`
+      : unit === "money" && n % 1 !== 0
+        ? n.toFixed(2)
+        : String(Math.round(n));
+  return unit === "money" ? `$${short}` : short;
+};
+
 /**
  * A smooth curve through the points, scaled into the viewBox. Uses a cardinal
  * spline (each control point derived from the neighbours) so daily noise reads
@@ -100,8 +113,10 @@ export function MetricsCard({
   const step =
     metric && metric.current.length > 1 ? W / (metric.current.length - 1) : W;
 
-  // Evenly spaced date labels — every 7th day, never a stray final tick.
-  const tickIdx = labels.map((_, i) => i).filter((i) => i % 7 === 0);
+  // Aim for ~6 evenly spaced date labels whatever the bucket count is, so a
+  // year of months reads as cleanly as a month of days.
+  const tickEvery = Math.max(1, Math.ceil(labels.length / 6));
+  const tickIdx = labels.map((_, i) => i).filter((i) => i % tickEvery === 0);
 
   return (
     <div className="admin-card p-4">
@@ -144,7 +159,7 @@ export function MetricsCard({
           {metric?.label} over time
         </p>
         <svg
-          viewBox={`-56 -10 ${W + 66} ${H + 46}`}
+          viewBox={`-68 -10 ${W + 78} ${H + 46}`}
           className="mt-2 w-full"
           role="img"
           aria-label={`${metric?.label} over time, current period versus previous`}
@@ -166,7 +181,7 @@ export function MetricsCard({
                 fontSize={16}
                 fill="#616161"
               >
-                {metric ? fmt(max * t, metric.unit) : ""}
+                {metric ? fmtAxis(max * t, metric.unit) : ""}
               </text>
             </g>
           ))}

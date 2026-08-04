@@ -1,31 +1,12 @@
 import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
-import { formatPrice } from "@/lib/format";
 import {
   AdminProductsTable,
   type AdminProduct,
 } from "@/components/admin/AdminProductsTable";
 
 export const dynamic = "force-dynamic";
-
-function Card({
-  label,
-  value,
-  help,
-}: {
-  label: string;
-  value: string;
-  help?: string;
-}) {
-  return (
-    <div className="admin-card p-4">
-      <p className="text-sm text-ink-soft">{label}</p>
-      <p className="mt-1 text-[15px] font-semibold text-ink">{value}</p>
-      {help && <p className="mt-1 text-xs text-ink-soft">{help}</p>}
-    </div>
-  );
-}
 
 export default async function AdminProductsPage() {
   if (!isDbConfigured() || !prisma) {
@@ -71,17 +52,6 @@ export default async function AdminProductsPage() {
   }
 
   /**
-   * Sell-through rate = units sold ÷ (units sold + units still on hand) over the
-   * last 30 days — "of everything I had available, how much moved?"
-   */
-  const totalOnHand = rows.reduce((n, p) => n + (p.stock ?? 0), 0);
-  const totalSold30 = [...soldUnits30.values()].reduce((n, v) => n + v, 0);
-  const sellThrough =
-    totalSold30 + totalOnHand > 0
-      ? (totalSold30 / (totalSold30 + totalOnHand)) * 100
-      : 0;
-
-  /**
    * ABC analysis: rank products by 90-day revenue, then split on cumulative
    * share — A is the top 80% of revenue, B the next 15%, C the rest. Anything
    * that sold nothing is a C.
@@ -100,9 +70,6 @@ export default async function AdminProductsPage() {
     );
     cumulative += r.revenue;
   }
-  const revenueByGrade = { A: 0, B: 0, C: 0 };
-  for (const r of ranked) revenueByGrade[grade.get(r.slug) ?? "C"] += r.revenue;
-
   const products: AdminProduct[] = rows.map((p) => {
     const stored = Array.isArray(p.collections) ? (p.collections as string[]) : [];
     return {
@@ -148,26 +115,6 @@ export default async function AdminProductsPage() {
             + New product
           </Link>
         </div>
-      </div>
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Card
-          label="Average sell-through rate"
-          value={`${sellThrough.toFixed(2)}%`}
-          help="Units sold vs. units available, last 30 days"
-        />
-        <Card
-          label="Units sold"
-          value={String(totalSold30)}
-          help="Last 30 days, across all products"
-        />
-        <Card
-          label="ABC product analysis"
-          value={`${formatPrice(revenueByGrade.A / 100)} A · ${formatPrice(
-            revenueByGrade.B / 100,
-          )} B · ${formatPrice(revenueByGrade.C / 100)} C`}
-          help="Revenue by rank, last 90 days — A earns the most"
-        />
       </div>
 
       <AdminProductsTable
