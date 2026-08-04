@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import { FulfillmentControl } from "./FulfillmentControl";
+import { deleteOrders } from "@/app/admin/(panel)/orders/actions";
 
 export type AdminOrder = {
   id: string;
@@ -99,6 +100,23 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
   const [sort, setSort] = useState<Sort>(saved.sort ?? "newest");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
+  const [deleting, startDelete] = useTransition();
+
+  /** Deleting orders is irreversible, so it asks first. */
+  const removeSelected = () => {
+    const n = selected.length;
+    if (
+      !window.confirm(
+        `Permanently delete ${n} order${n === 1 ? "" : "s"}? This can't be undone.`,
+      )
+    ) {
+      return;
+    }
+    startDelete(async () => {
+      await deleteOrders(selected);
+      setSelected([]);
+    });
+  };
 
   /** Changing what you're looking at resets the page and the selection. */
   const reset = () => {
@@ -233,6 +251,13 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
           >
             Export selected
           </a>
+          <button
+            onClick={removeSelected}
+            disabled={deleting}
+            className="rounded px-2 py-1 text-[#ff8a80] hover:bg-white/10 disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
           <button
             onClick={() => setSelected([])}
             className="ml-auto rounded px-2 py-1 text-white/70 hover:bg-white/10 hover:text-white"
