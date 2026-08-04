@@ -101,20 +101,12 @@ export default async function AdminProductsPage() {
           Products{" "}
           <span className="text-lg text-ink-soft">({products.length})</span>
         </h1>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/products/sync"
-            className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
-          >
-            Sync from Shopify
-          </Link>
-          <Link
-            href="/admin/products/new"
-            className="rounded-lg bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
-          >
-            + New product
-          </Link>
-        </div>
+        <Link
+          href="/admin/products/new"
+          className="rounded-lg bg-[#303030] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#1a1a1a]"
+        >
+          Add product
+        </Link>
       </div>
 
       <AdminProductsTable
