@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { put } from "@vercel/blob";
 import { getPrisma } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
-import { sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 
 const slugify = (s: string) =>
@@ -48,8 +47,9 @@ async function uploadImages(files: File[]): Promise<string[]> {
 }
 
 /**
- * Resolve the final gallery from the form: kept existing URLs (in their checkbox
- * order) followed by any newly uploaded files. The first entry is the primary.
+ * Resolve the final gallery from the form. Photos are uploaded client-side
+ * straight to Blob storage, so this is normally just the submitted URL list in
+ * order (first = primary); the file field is a fallback for non-JS submits.
  */
 async function resolveImages(formData: FormData): Promise<string[]> {
   const kept = formData
@@ -183,9 +183,10 @@ export async function createProduct(formData: FormData): Promise<void> {
       collectionSlug: data.collectionSlug,
       collections: data.collections,
       featured: data.featured,
-      // Sized products start available; per-size counts (set in Inventory)
-      // take over from there. Unsized products follow their stock count.
-      inStock: sizeAxisOf({ variants: data.variants }) ? true : derivedInStock(data),
+      // Products with options (sizes, colours, …) start available; their
+      // per-choice counts, set in Inventory, take over from there. Unsized,
+      // optionless products follow their single stock count.
+      inStock: data.variants.length > 0 ? true : derivedInStock(data),
       stock: data.stock,
       weightOz: data.weightOz,
       variants: data.variants,

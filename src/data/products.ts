@@ -50,6 +50,8 @@ export type Product = Required<
   hue: number;
   /** Per-size stock counts ({ "S": 5, "M": 0 }); empty when not tracked per size. */
   sizeStock: Record<string, number>;
+  /** Per-option counts for non-size groups ({ Color: { Sage: 3 } }); empty = untracked. */
+  optionStock: Record<string, Record<string, number>>;
   /** Real product photo URL (primary); falls back to a generated placeholder. */
   image?: string;
   /** All photo URLs for the gallery; the first is the primary (`image`). */
@@ -240,6 +242,7 @@ export const products: Product[] = seed.map((s, i) => {
     variants: s.variants ?? [],
     images: s.image ? [s.image] : [],
     sizeStock: {},
+    optionStock: {},
     inStock: s.inStock ?? true,
     featured: s.featured ?? false,
     createdAt: s.createdAt ?? new Date(BASE + i * 86_400_000).toISOString(),

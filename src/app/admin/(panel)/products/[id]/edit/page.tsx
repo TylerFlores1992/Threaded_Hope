@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPrisma } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
-import { sizeAxisOf } from "@/lib/stock";
+import { sizeAxisOf, optionAxesOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { StockField } from "@/components/admin/StockField";
 import { SizeStockField } from "@/components/admin/SizeStockField";
+import { OptionStockField } from "@/components/admin/OptionStockField";
 import { updateProduct } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -56,14 +57,37 @@ export default async function EditProductPage({
     row.sizeStock && typeof row.sizeStock === "object"
       ? (row.sizeStock as Record<string, number>)
       : {};
-  const inventoryEditor = sizeAxis ? (
-    <div className="flex flex-wrap gap-x-4 gap-y-2">
-      {sizeAxis.options.map((o) => (
-        <SizeStockField key={o} id={id} size={o} initial={sizeStock[o] ?? null} />
+  const optionStock =
+    row.optionStock && typeof row.optionStock === "object"
+      ? (row.optionStock as Record<string, Record<string, number>>)
+      : {};
+  const optionAxes = optionAxesOf({ variants: values.variants });
+  const inventoryEditor = (
+    <div className="space-y-2">
+      {sizeAxis ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {sizeAxis.options.map((o) => (
+            <SizeStockField key={o} id={id} size={o} initial={sizeStock[o] ?? null} />
+          ))}
+        </div>
+      ) : (
+        optionAxes.length === 0 && <StockField id={id} initial={row.stock} />
+      )}
+      {optionAxes.map((v) => (
+        <div key={v.name} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="text-xs font-medium text-ink">{v.name}</span>
+          {v.options.map((o) => (
+            <OptionStockField
+              key={o}
+              id={id}
+              group={v.name}
+              option={o}
+              initial={optionStock[v.name]?.[o] ?? null}
+            />
+          ))}
+        </div>
       ))}
     </div>
-  ) : (
-    <StockField id={id} initial={row.stock} />
   );
 
   return (

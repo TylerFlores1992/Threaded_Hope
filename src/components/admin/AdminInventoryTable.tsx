@@ -1,17 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { placeholderImage } from "@/lib/placeholder";
 import { StockField } from "./StockField";
 import { SizeStockField } from "./SizeStockField";
+import { OptionStockField } from "./OptionStockField";
 
 export type AdminInventoryItem = {
   id: string;
   name: string;
+  image?: string;
   collections: string[];
   stock: number | null;
   inStock: boolean;
   /** Per-size rows when the product has a size axis; null otherwise. */
   sizes: { label: string; count: number | null }[] | null;
+  /** Per-option rows for each non-size group (colour, style, …). */
+  optionGroups: {
+    name: string;
+    options: { label: string; count: number | null }[];
+  }[];
 };
 
 type Status = "all" | "in" | "out" | "tracked" | "untracked";
@@ -142,6 +150,7 @@ export function AdminInventoryTable({
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-ink-soft">
             <tr>
+              <th className="px-4 py-3 font-medium">Photo</th>
               <th className="px-4 py-3 font-medium">Product</th>
               <th className="px-4 py-3 font-medium">Collections</th>
               <th className="px-4 py-3 font-medium">Stock</th>
@@ -153,25 +162,54 @@ export function AdminInventoryTable({
               const isLow = p.stock != null && p.stock <= LOW_STOCK;
               return (
                 <tr key={p.id}>
+                  <td className="px-4 py-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.image || placeholderImage(p.name, 145)}
+                      alt=""
+                      className="h-10 w-10 rounded-md object-cover ring-1 ring-border"
+                      loading="lazy"
+                    />
+                  </td>
                   <td className="px-4 py-3 text-ink">{p.name}</td>
                   <td className="px-4 py-3 text-ink-soft">
                     {p.collections.map(nameOf).join(", ")}
                   </td>
                   <td className="px-4 py-3">
-                    {p.sizes ? (
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        {p.sizes.map((s) => (
-                          <SizeStockField
-                            key={s.label}
-                            id={p.id}
-                            size={s.label}
-                            initial={s.count}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <StockField id={p.id} initial={p.stock} />
-                    )}
+                    <div className="space-y-1.5">
+                      {p.sizes ? (
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                          {p.sizes.map((s) => (
+                            <SizeStockField
+                              key={s.label}
+                              id={p.id}
+                              size={s.label}
+                              initial={s.count}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        p.optionGroups.length === 0 && (
+                          <StockField id={p.id} initial={p.stock} />
+                        )
+                      )}
+                      {p.optionGroups.map((g) => (
+                        <div key={g.name} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="text-xs font-medium text-ink">
+                            {g.name}
+                          </span>
+                          {g.options.map((o) => (
+                            <OptionStockField
+                              key={o.label}
+                              id={p.id}
+                              group={g.name}
+                              option={o.label}
+                              initial={o.count}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {!p.inStock ? (
@@ -193,7 +231,7 @@ export function AdminInventoryTable({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-ink-soft">
+                <td colSpan={5} className="px-4 py-10 text-center text-ink-soft">
                   No products match your filters.
                 </td>
               </tr>

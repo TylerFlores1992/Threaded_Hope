@@ -108,14 +108,10 @@ export default async function HomePage() {
       <>
 {/* Featured collections */}
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-6 flex items-end justify-between">
-          <h2 className="font-serif text-3xl text-ink">
-            {str(S, "heading", text.home_collections_heading)}
-          </h2>
-          <Link href="/shop" className="text-sm font-medium text-sage-deep hover:underline">
-            View all →
-          </Link>
-        </div>
+        {/* No "View all" link here — the grid's own View all tile covers it. */}
+        <h2 className="mb-6 font-serif text-3xl text-ink">
+          {str(S, "heading", text.home_collections_heading)}
+        </h2>
         {/* 7 collections + a "View all" tile = 8, filling two even rows. */}
         <div className={`grid grid-cols-2 gap-4 ${str(S, "columns", "4") === "3" ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
           {featuredCollections

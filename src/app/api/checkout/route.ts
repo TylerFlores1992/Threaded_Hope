@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getProductBySlug } from "@/lib/catalog";
 import { resolveUnitPrice } from "@/lib/pricing";
-import { isAvailable, sizeAxisOf } from "@/lib/stock";
+import { isAvailable, sizeAxisOf, optionAxesOf } from "@/lib/stock";
 import { getActiveDiscountRules, pickBestRule } from "@/lib/discounts";
 import { store } from "@/data/store";
 
@@ -95,6 +95,21 @@ export async function POST(req: Request) {
       continue;
     }
 
+    // Same check for every other option group (colour, style, …), and collect
+    // the valid selections so the webhook can decrement their counts.
+    const selectedOptions: Record<string, string> = {};
+    let bogusOption = false;
+    for (const v of optionAxesOf(product)) {
+      const chosen = item.options?.[v.name];
+      if (!chosen) continue;
+      if (!v.options.includes(chosen)) {
+        bogusOption = true;
+        break;
+      }
+      selectedOptions[v.name] = chosen;
+    }
+    if (bogusOption) continue;
+
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 1)));
     // Price is resolved server-side from the selected options (e.g. size), so a
     // tampered client price — or a mismatched variant — can't change the charge.
@@ -130,6 +145,9 @@ export async function POST(req: Request) {
           metadata: {
             slug: product.slug,
             ...(selectedSize ? { size: selectedSize } : {}),
+            ...(Object.keys(selectedOptions).length > 0
+              ? { options: JSON.stringify(selectedOptions) }
+              : {}),
           },
         },
       },
