@@ -3,6 +3,7 @@ import { prisma, isDbConfigured } from "@/lib/db";
 import { createTestOrder } from "./actions";
 import { isShippoTestMode } from "@/lib/shipping";
 import { StatStrip } from "@/components/admin/StatStrip";
+import { RemoveSampleOrders } from "@/components/admin/RemoveSampleOrders";
 import {
   AdminOrdersTable,
   type AdminOrder,
@@ -47,6 +48,11 @@ export default async function OrdersPage() {
       trackingNumber: o.trackingNumber,
     };
   });
+
+  // Placeholder orders from Shippo test mode, identifiable by their session id.
+  const sampleCount = orders.filter((o) =>
+    o.stripeSessionId.startsWith("test_"),
+  ).length;
 
   const itemsOrdered = rows.reduce((n, o) => n + o.itemCount, 0);
   const fulfilled = rows.filter(
@@ -121,6 +127,8 @@ export default async function OrdersPage() {
           { label: "Order to fulfillment", value: fulfillmentTime },
         ]}
       />
+
+      {sampleCount > 0 && <RemoveSampleOrders count={sampleCount} />}
 
       {isShippoTestMode() && (
         <div className="mt-3 flex flex-wrap items-center gap-2">

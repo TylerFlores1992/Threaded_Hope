@@ -160,3 +160,29 @@ export async function setFulfillment(
   if (firstShip) await sendShippingNotification(toEmailOrder(updated));
   revalidatePath("/admin/orders");
 }
+
+/** Permanently delete orders. Used by the list's bulk actions. */
+export async function deleteOrders(ids: string[]): Promise<{ deleted: number }> {
+  const prisma = getPrisma();
+  if (ids.length === 0) return { deleted: 0 };
+  const { count } = await prisma.order.deleteMany({ where: { id: { in: ids } } });
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/customers");
+  return { deleted: count };
+}
+
+/**
+ * Remove the sample orders created while Shippo was in test mode. They're
+ * identifiable by their placeholder session id, so this can't touch a real one.
+ */
+export async function deleteSampleOrders(): Promise<{ deleted: number }> {
+  const prisma = getPrisma();
+  const { count } = await prisma.order.deleteMany({
+    where: { stripeSessionId: { startsWith: "test_" } },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/customers");
+  return { deleted: count };
+}
