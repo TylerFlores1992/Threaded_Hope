@@ -28,7 +28,7 @@ type Sort = "name-asc" | "name-desc" | "stock-asc" | "stock-desc";
 const LOW_STOCK = 3;
 
 const selectClass =
-  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink";
 
 export function AdminInventoryTable({
   items,
@@ -87,22 +87,41 @@ export function AdminInventoryTable({
 
   return (
     <div>
-      <div className="mt-4 flex flex-wrap gap-3 text-sm">
-        <span className="rounded-full bg-sand px-3 py-1 text-ink-soft">
-          {tracked} tracked
-        </span>
-        <span className="rounded-full bg-red-100 px-3 py-1 text-red-700">
-          {lowOrOut} low / out
+      <div className="mb-3 flex flex-wrap gap-1 border-b border-border">
+        {(
+          [
+            { id: "all", label: "All", n: items.length },
+            { id: "in", label: "In stock", n: items.filter((p) => p.inStock).length },
+            { id: "out", label: "Sold out", n: items.filter((p) => !p.inStock).length },
+            { id: "tracked", label: "Tracked", n: tracked },
+            { id: "untracked", label: "Untracked", n: items.length - tracked },
+          ] as { id: Status; label: string; n: number }[]
+        ).map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setStatus(v.id)}
+            className={`px-3 py-2 text-[13px] ${
+              status === v.id
+                ? "border-b-2 border-ink font-semibold text-ink"
+                : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {v.label}
+            <span className="ml-1 text-[12px] text-ink-soft">({v.n})</span>
+          </button>
+        ))}
+        <span className="ml-auto self-center rounded-lg bg-[#ffd6a4] px-2 py-0.5 text-[12px] font-medium text-[#5e4200]">
+          {lowOrOut} low or out
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products…"
-          className="min-w-[200px] flex-1 rounded-lg border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
+          placeholder="Search products"
+          className="min-w-[200px] flex-1 rounded-lg border border-border bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink"
         />
         <select
           value={collection}
@@ -118,18 +137,6 @@ export function AdminInventoryTable({
           ))}
         </select>
         <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as Status)}
-          className={selectClass}
-          aria-label="Filter by status"
-        >
-          <option value="all">Any status</option>
-          <option value="in">In stock</option>
-          <option value="out">Sold out</option>
-          <option value="tracked">Tracked</option>
-          <option value="untracked">Untracked</option>
-        </select>
-        <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
           className={selectClass}
@@ -142,18 +149,18 @@ export function AdminInventoryTable({
         </select>
       </div>
 
-      <p className="mt-3 text-sm text-ink-soft" aria-live="polite">
+      <p className="mb-3 text-[13px] text-ink-soft" aria-live="polite">
         {filtered.length} of {items.length} product{items.length === 1 ? "" : "s"}
       </p>
 
-      <div className="mt-3 overflow-x-auto admin-card">
+      <div className="overflow-x-auto admin-card">
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Photo</th>
               <th className="px-4 py-3 font-medium">Product</th>
               <th className="px-4 py-3 font-medium">Collections</th>
-              <th className="px-4 py-3 font-medium">Stock</th>
+              <th className="px-4 py-3 font-medium">On hand</th>
               <th className="px-4 py-3 font-medium">Status</th>
             </tr>
           </thead>
@@ -213,17 +220,17 @@ export function AdminInventoryTable({
                   </td>
                   <td className="px-4 py-3">
                     {!p.inStock ? (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                      <span className="rounded-lg bg-[#ffd6d6] px-2 py-0.5 text-[12px] font-medium text-[#8e1f0b]">
                         Sold out
                       </span>
                     ) : p.sizes ? (
-                      <span className="text-xs text-ink-soft">In stock</span>
+                      <span className="text-[12px] text-ink-soft">In stock</span>
                     ) : isLow ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                      <span className="rounded-lg bg-[#ffd6a4] px-2 py-0.5 text-[12px] font-medium text-[#5e4200]">
                         Low
                       </span>
                     ) : (
-                      <span className="text-xs text-ink-soft">In stock</span>
+                      <span className="text-[12px] text-ink-soft">In stock</span>
                     )}
                   </td>
                 </tr>

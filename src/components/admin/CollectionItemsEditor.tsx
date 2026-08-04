@@ -25,6 +25,7 @@ export function CollectionItemsEditor({
   manual: boolean;
 }) {
   const [order, setOrder] = useState<CollectionItem[]>(items);
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -82,7 +83,24 @@ export function CollectionItemsEditor({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-ink-soft">
+        {/* Grid / list toggle, as on Shopify's Collection items card. */}
+        <div className="flex gap-0.5 rounded-lg border border-border p-0.5">
+          {(["grid", "list"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setLayout(v)}
+              aria-pressed={layout === v}
+              className={`rounded px-2 py-1 text-[12px] capitalize ${
+                layout === v
+                  ? "bg-black/[0.06] font-medium text-ink"
+                  : "text-ink-soft"
+              }`}
+            >
+              {v === "grid" ? "▦" : "☰"} {v}
+            </button>
+          ))}
+        </div>
+        <p className="min-w-0 flex-1 text-[12px] text-ink-soft">
           {manual
             ? "Drag a product to move it. The first one shows first in the shop."
             : "This collection sorts automatically, so the order can't be arranged by hand. Switch its sort to “Manually” above to rearrange."}
@@ -90,12 +108,12 @@ export function CollectionItemsEditor({
         {manual && (
           <span className="flex items-center gap-3">
             {saved && !dirty && (
-              <span className="text-xs text-sage-deep">Saved ✓</span>
+              <span className="text-[12px] text-[#0c5132]">Saved ✓</span>
             )}
             <button
               onClick={onSave}
               disabled={!dirty || pending}
-              className="rounded-lg bg-sage-deep px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-[#303030] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#1a1a1a] disabled:opacity-50"
             >
               {pending ? "Saving…" : "Save order"}
             </button>
@@ -103,7 +121,13 @@ export function CollectionItemsEditor({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div
+        className={
+          layout === "grid"
+            ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+            : "divide-y divide-border rounded-lg border border-border"
+        }
+      >
         {order.map((item, i) => (
           <div
             key={item.id}
@@ -122,10 +146,18 @@ export function CollectionItemsEditor({
               setDragId(null);
               setOverId(null);
             }}
-            className={`rounded-xl bg-white p-2 ring-1 transition ${
-              overId === item.id && dragId !== item.id
-                ? "ring-2 ring-sage-deep"
-                : "ring-border"
+            className={`transition ${
+              layout === "grid"
+                ? `rounded-xl bg-white p-2 ring-1 ${
+                    overId === item.id && dragId !== item.id
+                      ? "ring-2 ring-ink"
+                      : "ring-border"
+                  }`
+                : `flex items-center gap-3 bg-white px-3 py-2 ${
+                    overId === item.id && dragId !== item.id
+                      ? "ring-2 ring-inset ring-ink"
+                      : ""
+                  }`
             } ${dragId === item.id ? "opacity-50" : ""} ${
               manual ? "cursor-grab active:cursor-grabbing" : ""
             }`}
@@ -134,14 +166,31 @@ export function CollectionItemsEditor({
             <img
               src={item.image || placeholderImage(item.name, 145)}
               alt=""
-              className="aspect-square w-full rounded-lg object-cover"
+              className={
+                layout === "grid"
+                  ? "aspect-square w-full rounded-lg object-cover"
+                  : "h-9 w-9 shrink-0 rounded object-cover ring-1 ring-border"
+              }
               loading="lazy"
             />
-            <p className="mt-2 truncate text-xs text-ink" title={item.name}>
+            <p
+              className={
+                layout === "grid"
+                  ? "mt-2 truncate text-[12px] text-ink"
+                  : "min-w-0 flex-1 truncate text-[13px] text-ink"
+              }
+              title={item.name}
+            >
               {i + 1}. {item.name}
             </p>
             {manual && (
-              <div className="mt-1 flex justify-center gap-1">
+              <div
+                className={
+                  layout === "grid"
+                    ? "mt-1 flex justify-center gap-1"
+                    : "flex shrink-0 gap-1"
+                }
+              >
                 <button
                   onClick={() => nudge(item.id, -1)}
                   disabled={i === 0}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { createTestOrder } from "./actions";
 import { isShippoTestMode } from "@/lib/shipping";
+import { StatStrip } from "@/components/admin/StatStrip";
 import {
   AdminOrdersTable,
   type AdminOrder,
@@ -14,7 +15,7 @@ type OrderItem = { name: string; quantity: number };
 export default async function OrdersPage() {
   if (!isDbConfigured() || !prisma) {
     return (
-      <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
+      <p className="rounded-lg bg-sand p-4 text-[13px] text-ink-soft">
         Connect a database to see recorded orders. Your paid orders are always
         available in the Stripe Dashboard.
       </p>
@@ -23,7 +24,7 @@ export default async function OrdersPage() {
 
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
-    take: 500,
+    take: 1000,
   });
 
   const rows: AdminOrder[] = orders.map((o) => {
@@ -36,16 +37,17 @@ export default async function OrdersPage() {
       itemCount: items.reduce((n, it) => n + (it.quantity ?? 1), 0),
       itemNames: items.map((it) => it.name).join(", "),
       amountTotalCents: o.amountTotalCents,
+      status: o.status,
       fulfillmentStatus: o.fulfillmentStatus,
       source: o.source,
       isGift: o.isGift,
       pickup: o.pickup,
       hasLabel: Boolean(o.labelUrl),
+      carrier: o.carrier,
       trackingNumber: o.trackingNumber,
     };
   });
 
-  // Headline counts, matching the strip Shopify shows above its order list.
   const itemsOrdered = rows.reduce((n, o) => n + o.itemCount, 0);
   const fulfilled = rows.filter(
     (o) => o.fulfillmentStatus !== "unfulfilled",
@@ -55,101 +57,97 @@ export default async function OrdersPage() {
   ).length;
   const unfulfilled = rows.length - fulfilled;
 
+  /**
+   * Average time from order to shipment — Shopify's "order to fulfillment
+   * time". Only orders we actually shipped have a `shippedAt` to measure.
+   */
+  const shipped = orders.filter((o) => o.shippedAt);
+  const avgHours =
+    shipped.length > 0
+      ? shipped.reduce(
+          (n, o) =>
+            n + (o.shippedAt!.getTime() - o.createdAt.getTime()) / 3_600_000,
+          0,
+        ) / shipped.length
+      : null;
+  const fulfillmentTime =
+    avgHours == null
+      ? "—"
+      : avgHours < 24
+        ? `${avgHours.toFixed(1)} hrs`
+        : `${(avgHours / 24).toFixed(1)} days`;
+
   return (
     <div>
-      <h1 className="text-xl font-semibold text-ink">
-        Orders <span className="text-lg text-ink-soft">({orders.length})</span>
-      </h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Recorded from Stripe on payment. Full details (receipts, refunds) live
-        in your Stripe Dashboard.
-      </p>
-
-      <div className="mt-4">
-        <Link
-          href="/admin/orders/new"
-          className="rounded-lg bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
-        >
-          + Record a sale
-        </Link>
-        <span className="ml-2 text-xs text-ink-soft">
-          For orders made outside the website.
-        </span>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold text-ink">Orders</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/orders/packaging"
+            className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"
+          >
+            Packaging
+          </Link>
+          {/* Route handler returning a file download — a plain <a> is correct. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a
+            href="/admin/orders/export"
+            className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"
+          >
+            Export
+          </a>
+          <Link
+            href="/admin/orders/new"
+            className="rounded-lg bg-[#303030] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#1a1a1a]"
+          >
+            Create order
+          </Link>
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-4">
-        <Link
-          href="/admin/orders/packaging"
-          className="text-sm font-medium text-sage-deep hover:underline"
-        >
-          Manage packaging →
-        </Link>
-        {/* Route handler returning a file download — a plain <a> is correct. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a
-          href="/admin/orders/export"
-          className="text-sm font-medium text-sage-deep hover:underline"
-        >
-          Export CSV ↓
-        </a>
-      </div>
+      <StatStrip
+        period="All time"
+        stats={[
+          { label: "Orders", value: String(rows.length) },
+          { label: "Items ordered", value: String(itemsOrdered) },
+          { label: "To fulfill", value: String(unfulfilled) },
+          { label: "Delivered", value: String(delivered) },
+          { label: "Order to fulfillment", value: fulfillmentTime },
+        ]}
+      />
 
       {isShippoTestMode() && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <form action={createTestOrder.bind(null, false, false)}>
-            <button
-              type="submit"
-              className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {[
+            { label: "Sample order", gift: false, pickup: false },
+            { label: "Sample gift order", gift: true, pickup: false },
+            { label: "Sample pickup order", gift: false, pickup: true },
+          ].map((s) => (
+            <form
+              key={s.label}
+              action={createTestOrder.bind(null, s.gift, s.pickup)}
             >
-              + Create sample order (test mode)
-            </button>
-          </form>
-          <form action={createTestOrder.bind(null, true, false)}>
-            <button
-              type="submit"
-              className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
-            >
-              + Create sample gift order
-            </button>
-          </form>
-          <form action={createTestOrder.bind(null, false, true)}>
-            <button
-              type="submit"
-              className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:bg-sand"
-            >
-              + Create sample pickup order
-            </button>
-          </form>
-          <span className="text-xs text-ink-soft">
+              <button
+                type="submit"
+                className="rounded-lg border border-border bg-white px-2.5 py-1 text-[12px] font-medium text-ink-soft hover:bg-sand"
+              >
+                + {s.label}
+              </button>
+            </form>
+          ))}
+          <span className="text-[11px] text-ink-soft">
             Only shown while a Shippo test token is set.
           </span>
         </div>
       )}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Orders", value: rows.length },
-          { label: "Items ordered", value: itemsOrdered },
-          { label: "To fulfill", value: unfulfilled },
-          { label: "Delivered", value: delivered },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="admin-card p-4"
-          >
-            <p className="text-sm text-ink-soft">{s.label}</p>
-            <p className="mt-1 text-[15px] font-semibold text-ink">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
       {orders.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-sand p-4 text-sm text-ink-soft">
+        <p className="mt-4 rounded-lg bg-sand p-4 text-[13px] text-ink-soft">
           No orders yet. When a customer completes checkout, the order appears
           here.
         </p>
       ) : (
-        <div className="mt-6">
+        <div className="mt-4">
           <AdminOrdersTable orders={rows} />
         </div>
       )}

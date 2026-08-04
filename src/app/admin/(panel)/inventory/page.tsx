@@ -1,6 +1,7 @@
 import { prisma, isDbConfigured } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
 import { formatPrice } from "@/lib/format";
+import { StatStrip } from "@/components/admin/StatStrip";
 import { sizeAxisOf, optionAxesOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import {
@@ -68,42 +69,40 @@ export default async function InventoryPage() {
     0,
   );
 
+  const soldOut = rows.filter((p) => !p.inStock).length;
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink">Inventory</h1>
         {/* Route handler returning a file download — a plain <a> is correct. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/admin/inventory/export"
-          className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-sand"
+          className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"
         >
-          Export CSV ↓
+          Export
         </a>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div className="admin-card p-4">
-          <p className="text-sm text-ink-soft">Products</p>
-          <p className="mt-1 text-[15px] font-semibold text-ink">{rows.length}</p>
-        </div>
-        <div className="admin-card p-4">
-          <p className="text-sm text-ink-soft">Units on hand</p>
-          <p className="mt-1 text-[15px] font-semibold text-ink">{unitsOnHand}</p>
-        </div>
-        <div className="admin-card p-4">
-          <p className="text-sm text-ink-soft">Retail value on hand</p>
-          <p className="mt-1 text-[15px] font-semibold text-ink">
-            {formatPrice(inventoryValueCents / 100)}
-          </p>
-        </div>
-      </div>
+      <StatStrip
+        period="Right now"
+        stats={[
+          { label: "Products", value: String(rows.length) },
+          { label: "Units on hand", value: String(unitsOnHand) },
+          {
+            label: "Retail value on hand",
+            value: formatPrice(inventoryValueCents / 100),
+          },
+          { label: "Sold out", value: String(soldOut) },
+        ]}
+      />
 
-      <p className="mt-4 text-sm text-ink-soft">
-        Set a stock count to track a product; leave blank for untracked. Products
-        with sizes — or colours and other options — show a count per choice; a
-        choice at 0 shows as sold out on the storefront. Stock auto-decrements
-        when an order is paid.
+      <p className="mb-3 mt-3 text-[12px] text-ink-soft">
+        Set a count to track a product; leave blank for untracked. Products with
+        sizes — or colours and other options — show a count per choice, and a
+        choice at 0 shows as sold out on the storefront. Counts drop
+        automatically when an order is paid.
       </p>
 
       <AdminInventoryTable

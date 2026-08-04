@@ -9,7 +9,7 @@ function SubmitButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-sage-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage disabled:opacity-60"
+      className="rounded-lg bg-[#303030] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#1a1a1a] disabled:opacity-60"
     >
       {pending ? "Saving…" : label}
     </button>
@@ -38,14 +38,16 @@ export function CollectionForm({
   seoDescription?: string | null;
 }) {
   return (
-    <form action={action} className="max-w-xl space-y-5">
+    <form action={action} className="max-w-3xl space-y-4">
+      {/* Details */}
+      <div className="admin-card space-y-4 p-4">
       <div>
-        <label className="block text-sm font-medium text-ink">Name</label>
+        <label className="block text-[13px] font-medium text-ink">Title</label>
         <input name="name" required defaultValue={collection?.name} className={field} />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-ink">Description</label>
+        <label className="block text-[13px] font-medium text-ink">Description</label>
         <textarea
           name="description"
           rows={2}
@@ -55,7 +57,7 @@ export function CollectionForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-ink">
+        <label className="block text-[13px] font-medium text-ink">
           Accent hue{" "}
           <span className="font-normal text-ink-soft">
             (0–360 — tints the placeholder image when a collection has no photo)
@@ -72,9 +74,12 @@ export function CollectionForm({
         />
       </div>
 
+      </div>
+
+      {/* Product ordering */}
       {sortModes.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-ink">
+        <div className="admin-card p-4">
+          <label className="block text-[13px] font-medium text-ink">
             Sort products by
           </label>
           <select name="sortMode" defaultValue={sortMode} className={field}>
@@ -88,13 +93,13 @@ export function CollectionForm({
       )}
 
       <fieldset className="admin-card p-4">
-        <legend className="px-1 text-sm font-medium text-ink">
+        <legend className="px-1 text-[13px] font-medium text-ink">
           Search engine listing{" "}
           <span className="font-normal text-ink-soft">
             (blank = use the name and description)
           </span>
         </legend>
-        <label className="mt-2 block text-sm text-ink-soft">
+        <label className="mt-2 block text-[13px] text-ink-soft">
           Page title
           <input
             name="seoTitle"
@@ -104,7 +109,7 @@ export function CollectionForm({
             className={field}
           />
         </label>
-        <label className="mt-3 block text-sm text-ink-soft">
+        <label className="mt-3 block text-[13px] text-ink-soft">
           Meta description
           <textarea
             name="seoDescription"
@@ -117,8 +122,8 @@ export function CollectionForm({
         </label>
       </fieldset>
 
-      <div className="flex flex-wrap gap-6 pt-1">
-        <label className="flex items-center gap-2 text-sm text-ink">
+      <div className="admin-card flex flex-wrap gap-6 p-4">
+        <label className="flex items-center gap-2 text-[13px] text-ink">
           <input
             type="checkbox"
             name="featured"
@@ -126,7 +131,7 @@ export function CollectionForm({
           />
           Featured (shown in “Shop by collection” on the home page)
         </label>
-        <label className="flex items-center gap-2 text-sm text-ink">
+        <label className="flex items-center gap-2 text-[13px] text-ink">
           <input
             type="checkbox"
             name="hidden"

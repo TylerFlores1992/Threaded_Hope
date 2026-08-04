@@ -66,7 +66,7 @@ export default async function EditCollectionPage({
       <Link href="/admin/collections" className="text-sm text-ink-soft">
         ← Collections
       </Link>
-      <h1 className="mt-2 mb-6 text-xl font-semibold text-ink">
+      <h1 className="mt-2 mb-4 text-xl font-semibold text-ink">
         Edit “{row.name}”
       </h1>
       <CollectionForm
@@ -79,14 +79,14 @@ export default async function EditCollectionPage({
         seoDescription={row.seoDescription}
       />
 
-      <section className="mt-10 max-w-3xl">
+      <section className="admin-card mt-4 max-w-3xl p-4">
         <h2 className="mb-1 text-[13px] font-semibold text-ink">
           Collection items{" "}
-          <span className="text-base text-ink-soft">({items.length})</span>
+          <span className="font-normal text-ink-soft">({items.length})</span>
         </h2>
-        <p className="mb-3 text-xs text-ink-soft">
-          Saved separately from the fields above — the Save order button applies
-          the arrangement on its own.
+        <p className="mb-3 text-[12px] text-ink-soft">
+          Saved separately from the fields above — Save order applies the
+          arrangement on its own.
         </p>
         <CollectionItemsEditor
           collectionSlug={row.slug}
