@@ -3,11 +3,17 @@
 import { useState } from "react";
 import {
   syncShopifyBatch,
+  testShopifyConnection,
   type SyncProgress,
 } from "@/app/admin/(panel)/products/sync/actions";
 
 /** Drives the Shopify detail sync in batches so it can run from a phone. */
-export function SyncShopifyClient() {
+export function SyncShopifyClient({ apiConnected }: { apiConnected: boolean }) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [total, setTotal] = useState(0);
@@ -45,27 +51,77 @@ export function SyncShopifyClient() {
     }
   }
 
+  async function test() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      setTestResult(await testShopifyConnection());
+    } finally {
+      setTesting(false);
+    }
+  }
+
   const pct = total > 0 ? Math.round((processed / total) * 100) : 0;
 
   return (
     <div className="max-w-xl">
-      <p className="text-sm text-ink-soft">
-        Pulls each product’s <strong>full description</strong> from your Shopify
-        store, plus in/out-of-stock and item weight. Matched by product name.
-        Safe to re-run.
-      </p>
-      <p className="mt-2 text-xs text-ink-soft">
-        Note: Shopify’s public data doesn’t include stock <em>numbers</em> — only
-        whether something is in stock. Set counts on the Inventory page.
+      <div
+        className={`rounded-lg p-3 text-sm ring-1 ${
+          apiConnected
+            ? "bg-sage-deep/5 text-ink ring-sage-deep/30"
+            : "bg-sand text-ink-soft ring-border"
+        }`}
+      >
+        {apiConnected ? (
+          <>
+            <strong>Admin API connected.</strong> This sync pulls real stock
+            counts, descriptions, product type, vendor and status.
+          </>
+        ) : (
+          <>
+            <strong>Using public Shopify data.</strong> Descriptions, weights and
+            in/out-of-stock only — public data never includes stock{" "}
+            <em>numbers</em>. Add the Shopify API credentials in Vercel to sync
+            real counts.
+          </>
+        )}
+      </div>
+
+      <p className="mt-3 text-sm text-ink-soft">
+        Products are matched by name, and only changed fields are written. Safe
+        to re-run.
       </p>
 
-      <button
-        onClick={run}
-        disabled={running}
-        className="mt-4 rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
-      >
-        {running ? "Syncing…" : done ? "Run again" : "Start sync"}
-      </button>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          onClick={run}
+          disabled={running}
+          className="rounded-full bg-sage-deep px-6 py-3 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
+        >
+          {running ? "Syncing…" : done ? "Run again" : "Start sync"}
+        </button>
+        {apiConnected && (
+          <button
+            onClick={test}
+            disabled={testing || running}
+            className="rounded-full border border-border px-4 py-3 text-sm font-medium text-ink-soft hover:bg-sand disabled:opacity-60"
+          >
+            {testing ? "Checking…" : "Test connection"}
+          </button>
+        )}
+      </div>
+
+      {testResult && (
+        <p
+          className={`mt-3 rounded-lg p-3 text-sm ${
+            testResult.ok
+              ? "bg-sage-deep/10 text-ink"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {testResult.message}
+        </p>
+      )}
 
       {(running || done) && (
         <div className="mt-5">
