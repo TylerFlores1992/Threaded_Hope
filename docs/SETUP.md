@@ -97,15 +97,24 @@ On the next deploy, `prisma/deploy.mjs` runs `prisma db push` to create the
 tables and seeds the 116 starter products **once** (it skips seeding if the
 catalog already has rows, so it never overwrites admin edits).
 
-**Using the admin:** go to `/admin`, sign in with `ADMIN_PASSWORD`, then manage
-Products (create/edit/delete with photo upload, including per-size/-unit stock and
-shipping weight), Orders (with printable packing slips and Shippo shipping
-labels — see below), Inventory, Discounts (Stripe promo codes), and Traffic. The
-dashboard shows a 30-day revenue chart + best sellers, and the Orders page has a
-**CSV export** for bookkeeping. Storefront pages revalidate automatically when you
-save, so changes appear within moments. A discreet **Admin** link in the site
-footer gives quick access; keep `ADMIN_PASSWORD` strong since it also derives the
-admin session key.
+**Using the admin:** go to `/admin` and sign in with `ADMIN_PASSWORD`. The nav is
+grouped:
+
+- **Overview** — Dashboard: stats, a 30-day revenue chart, best sellers, a
+  read-only **Setup status** panel (which integrations are live/test), and
+  quick-action shortcuts.
+- **Catalog** — Products (create/edit/delete, photo gallery, per-size/-unit stock,
+  shipping weight; plus **Sync from Shopify** for full descriptions/stock/weights),
+  Collections, Inventory.
+- **Sales** — Orders (packing slips, Shippo labels, CSV export, and **Record a
+  sale** for orders made outside the website), Discounts, Traffic.
+- **Storefront** — **Customize** (theme editor: sections, colors, fonts, layout,
+  version history), **Site text** (all editable wording), **Photos** (logo, home
+  imagery, Our Story image, and a banner per collection).
+
+Storefront pages revalidate automatically when you save, so changes appear within
+moments. A discreet **Admin** link in the site footer gives quick access; keep
+`ADMIN_PASSWORD` strong since it also derives the admin session key.
 
 To run the data scripts locally, first get the env vars into `.env.local`. The
 easiest way is the Vercel CLI:
@@ -184,6 +193,28 @@ In the admin, edit a product to add/remove/reorder photos manually (first = main
 (An in-admin batch importer existed while the first import was pending; it was
 removed after running.)
 
+### Sync product details (descriptions, stock, weights) from Shopify
+
+Pulls each product's **full description** (the original import kept only the
+first sentences), **in/out-of-stock**, and **unit weight** from the live store,
+matching by product name. Safe to re-run.
+
+- **From a phone / no setup:** **Admin → Products → Sync from Shopify → Start
+  sync.** Runs server-side in batches with a progress bar and lists anything that
+  didn't match by name.
+- **Locally:**
+
+  ```bash
+  node --env-file=.env.local scripts/sync-shopify-details.mjs --dry-run
+  node --env-file=.env.local scripts/sync-shopify-details.mjs
+  ```
+
+  Flags: `--skip-stock`, `--skip-weight`, `--store <domain>`.
+
+> ⚠️ Shopify's public data exposes only **whether** a variant is in stock, never
+> the quantity — set real counts on the Inventory page. Weights improve the
+> shipping-label parcel prefill.
+
 ### Backfill collection memberships
 
 The static catalog (`src/data/products.ts`) carries each product's real
@@ -227,6 +258,26 @@ appending an entry to the `posts` array — `{ slug, title, excerpt, date,
 keywords, body }`, where `body` is an array of `{ type: "p" | "h2" | "ul" }`
 blocks. It appears on `/blog`, gets its own page with Article structured data,
 and is added to the sitemap automatically.
+
+### Customizing the storefront (no code)
+
+Two admin tabs cover appearance and wording; both are safe to experiment with
+since defaults reproduce the original design and nothing is public until saved.
+
+- **Customize** (`/admin/customize`) — a theme editor with a live preview:
+  - **Sections:** drag to reorder, show/hide, **add / duplicate / remove**
+    (a type like "Shop by collection" can appear more than once), and open a
+    section for its own settings *and* its wording.
+  - **Theme:** color schemes or individual colors, heading/body font, heading
+    size, corner style, page width.
+  - **History:** restore any of the last 10 saved versions.
+  - On a phone the editor toggles between **Edit** and **Preview**.
+  - Colors/fonts/visibility preview instantly; section settings apply on **Save**
+    (the preview reloads automatically).
+- **Site text** (`/admin/text`) — every editable string across the home page, Our
+  Story, and shop. **Clear a field to restore its original wording.**
+- **Photos** (`/admin/home`) — logo, home hero images, story images, the Our Story
+  photo, and a **banner per collection**.
 
 ### SEO checklist
 
