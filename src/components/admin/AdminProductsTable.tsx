@@ -299,23 +299,23 @@ export function AdminProductsTable({
           <thead className="border-b border-border text-ink-soft">
             <tr>
               <th className="px-4 py-3 font-medium">Photo</th>
-              <th className="px-4 py-3 font-medium">Name</th>
-              {shows("status") && <th className="px-4 py-3 font-medium">Status</th>}
+              <th className="w-full px-4 py-3 font-medium">Name</th>
+              {shows("status") && <th className="whitespace-nowrap px-4 py-3 font-medium">Status</th>}
               {shows("collections") && (
-                <th className="px-4 py-3 font-medium">Collections</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium">Collections</th>
               )}
-              {shows("price") && <th className="px-4 py-3 font-medium">Price</th>}
+              {shows("price") && <th className="whitespace-nowrap px-4 py-3 font-medium">Price</th>}
               {shows("stock") && (
-                <th className="px-4 py-3 font-medium">Inventory</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium">Inventory</th>
               )}
               {shows("sold") && (
-                <th className="px-4 py-3 font-medium text-right">Sold (30d)</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-right">Sold (30d)</th>
               )}
               {shows("abc") && <th className="px-4 py-3 font-medium">ABC</th>}
               {shows("type") && (
-                <th className="px-4 py-3 font-medium">Product type</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium">Product type</th>
               )}
-              {shows("vendor") && <th className="px-4 py-3 font-medium">Vendor</th>}
+              {shows("vendor") && <th className="whitespace-nowrap px-4 py-3 font-medium">Vendor</th>}
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
@@ -340,9 +340,9 @@ export function AdminProductsTable({
                   )}
                 </td>
                 {shows("status") && (
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                      className={`inline-block whitespace-nowrap rounded-lg px-2 py-0.5 text-[12px] font-medium capitalize ${
                         STATUS_STYLE[p.status] ?? STATUS_STYLE.archived
                       }`}
                     >
@@ -351,17 +351,19 @@ export function AdminProductsTable({
                   </td>
                 )}
                 {shows("collections") && (
-                  <td className="px-4 py-3 text-ink-soft">
+                  <td className="max-w-[14rem] truncate whitespace-nowrap px-4 py-3 text-ink-soft">
                     {p.collections.map(nameOf).join(", ")}
                   </td>
                 )}
                 {shows("price") && (
-                  <td className="px-4 py-3">{formatPrice(p.priceCents / 100)}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {formatPrice(p.priceCents / 100)}
+                  </td>
                 )}
                 {shows("stock") && (
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3">
                     {!p.inStock ? (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                      <span className="inline-block whitespace-nowrap rounded-lg bg-[#ffd6d6] px-2 py-0.5 text-[12px] font-medium text-[#8e1f0b]">
                         Sold out
                       </span>
                     ) : (
@@ -380,10 +382,14 @@ export function AdminProductsTable({
                   <td className="px-4 py-3 text-ink-soft">{p.abc}</td>
                 )}
                 {shows("type") && (
-                  <td className="px-4 py-3 text-ink-soft">{p.productType ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-soft">
+                    {p.productType ?? "—"}
+                  </td>
                 )}
                 {shows("vendor") && (
-                  <td className="px-4 py-3 text-ink-soft">{p.vendor ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-soft">
+                    {p.vendor ?? "—"}
+                  </td>
                 )}
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-3">
