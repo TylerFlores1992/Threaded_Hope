@@ -107,7 +107,11 @@ model Order {
   stripeSessionId  String   @unique
   /// Identity in an outside system (e.g. a Shopify order gid) so re-running an
   /// import updates rather than duplicates. Null for orders that started here.
-  externalId       String?  @unique
+  /// Indexed, not unique: adding a unique constraint to a populated table makes
+  /// `prisma db push` demand --accept-data-loss, and putting that flag in the
+  /// build would wave through genuinely destructive changes later. The import
+  /// looks the row up before writing, which is enough for a single-admin tool.
+  externalId       String?
   email            String?
   customerName     String?
   amountTotalCents Int
@@ -133,6 +137,7 @@ model Order {
   createdAt        DateTime @default(now())
 
   @@index([createdAt])
+  @@index([externalId])
 }
 
 /// A single storefront page view, for the admin traffic dashboard.

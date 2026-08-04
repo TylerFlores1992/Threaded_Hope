@@ -102,7 +102,7 @@ export async function importShopifyOrdersBatch(
     if (!oldestSeen || o.createdAt < oldestSeen) oldestSeen = o.createdAt;
 
     const data = toOrderData(o);
-    const existing = await prisma.order.findUnique({
+    const existing = await prisma.order.findFirst({
       where: { externalId: o.id },
       select: { id: true },
     });
