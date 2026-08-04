@@ -13,11 +13,13 @@ export type AdminOrder = {
   itemCount: number;
   itemNames: string;
   amountTotalCents: number;
+  status: string;
   fulfillmentStatus: string;
   source: string;
   isGift: boolean;
   pickup: boolean;
   hasLabel: boolean;
+  carrier: string | null;
   trackingNumber: string | null;
 };
 
@@ -34,8 +36,34 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "gift", label: "Gifts" },
 ];
 
+const PER_PAGE = 50;
+
 const selectClass =
-  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-sage-deep";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink";
+
+/** Shopify's badge vocabulary: a dot plus a short status word. */
+function Badge({
+  tone,
+  children,
+}: {
+  tone: "success" | "attention" | "info" | "critical";
+  children: React.ReactNode;
+}) {
+  const style = {
+    success: "bg-[#cdfee1] text-[#0c5132]",
+    attention: "bg-[#ffd6a4] text-[#5e4200]",
+    info: "bg-[#e3e3e3] text-[#4a4a4a]",
+    critical: "bg-[#ffd6d6] text-[#8e1f0b]",
+  }[tone];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-[12px] font-medium ${style}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+      {children}
+    </span>
+  );
+}
 
 const matchesView = (o: AdminOrder, view: View) => {
   switch (view) {
@@ -69,6 +97,14 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
   const [query, setQuery] = useState<string>(saved.query ?? "");
   const [view, setView] = useState<View>(saved.view ?? "all");
   const [sort, setSort] = useState<Sort>(saved.sort ?? "newest");
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<string[]>([]);
+
+  /** Changing what you're looking at resets the page and the selection. */
+  const reset = () => {
+    setPage(0);
+    setSelected([]);
+  };
 
   useEffect(() => {
     try {
@@ -81,7 +117,10 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
   const counts = useMemo(
     () =>
       Object.fromEntries(
-        VIEWS.map((v) => [v.id, orders.filter((o) => matchesView(o, v.id)).length]),
+        VIEWS.map((v) => [
+          v.id,
+          orders.filter((o) => matchesView(o, v.id)).length,
+        ]),
       ) as Record<View, number>,
     [orders],
   );
@@ -117,36 +156,61 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
     });
   }, [orders, query, view, sort]);
 
+  const pages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const start = page * PER_PAGE;
+  const rows = filtered.slice(start, start + PER_PAGE);
+
+  const allOnPageSelected =
+    rows.length > 0 && rows.every((o) => selected.includes(o.id));
+  const toggleAll = () =>
+    setSelected(allOnPageSelected ? [] : rows.map((o) => o.id));
+  const toggleOne = (id: string) =>
+    setSelected((s) =>
+      s.includes(id) ? s.filter((x) => x !== id) : [...s, id],
+    );
+
   return (
     <div>
+      {/* Saved views */}
       <div className="mb-3 flex flex-wrap gap-1 border-b border-border">
         {VIEWS.map((v) => (
           <button
             key={v.id}
-            onClick={() => setView(v.id)}
-            className={`px-3 py-2 text-sm ${
+            onClick={() => {
+              setView(v.id);
+              reset();
+            }}
+            className={`px-3 py-2 text-[13px] ${
               view === v.id
-                ? "border-b-2 border-sage-deep font-medium text-ink"
+                ? "border-b-2 border-ink font-semibold text-ink"
                 : "text-ink-soft hover:text-ink"
             }`}
           >
             {v.label}
-            <span className="ml-1 text-xs text-ink-soft">({counts[v.id]})</span>
+            <span className="ml-1 text-[12px] text-ink-soft">
+              ({counts[v.id]})
+            </span>
           </button>
         ))}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by customer, email, item, or tracking…"
-          className="min-w-[220px] flex-1 rounded-lg border border-border bg-white px-4 py-1.5 text-sm outline-none focus:border-sage-deep"
+          onChange={(e) => {
+            setQuery(e.target.value);
+            reset();
+          }}
+          placeholder="Search by customer, email, item, or tracking"
+          className="min-w-[220px] flex-1 rounded-lg border border-border bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink"
         />
         <select
           value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
+          onChange={(e) => {
+            setSort(e.target.value as Sort);
+            reset();
+          }}
           className={selectClass}
           aria-label="Sort orders"
         >
@@ -157,123 +221,181 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
         </select>
       </div>
 
-      <p className="mb-3 text-sm text-ink-soft" aria-live="polite">
-        {filtered.length} of {orders.length} order
-        {orders.length === 1 ? "" : "s"}
-      </p>
+      {/* Bulk action bar, shown once anything is ticked. */}
+      {selected.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-3 rounded-lg bg-[#1a1a1a] px-3 py-2 text-[13px] text-white">
+          <span className="font-medium">{selected.length} selected</span>
+          {/* Route handler returning a file download — a plain <a> is correct. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a
+            href={`/admin/orders/export?ids=${selected.join(",")}`}
+            className="rounded px-2 py-1 hover:bg-white/10"
+          >
+            Export selected
+          </a>
+          <button
+            onClick={() => setSelected([])}
+            className="ml-auto rounded px-2 py-1 text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       <div className="overflow-x-auto admin-card">
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
-              <th className="px-4 py-3 font-medium">Order</th>
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Customer</th>
-              <th className="px-4 py-3 font-medium">Items</th>
-              <th className="px-4 py-3 font-medium">Delivery</th>
-              <th className="px-4 py-3 font-medium text-right">Total</th>
-              <th className="px-4 py-3 font-medium">Fulfillment</th>
-              <th className="px-4 py-3 font-medium text-right">Slip</th>
-              <th className="px-4 py-3 font-medium text-right">Label</th>
+              <th className="w-10 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  checked={allOnPageSelected}
+                  onChange={toggleAll}
+                  aria-label="Select all orders on this page"
+                  className="h-4 w-4 accent-[#303030]"
+                />
+              </th>
+              <th className="px-3 py-2.5 font-medium">Order</th>
+              <th className="px-3 py-2.5 font-medium">Date</th>
+              <th className="px-3 py-2.5 font-medium">Customer</th>
+              <th className="px-3 py-2.5 font-medium">Total</th>
+              <th className="px-3 py-2.5 font-medium">Payment</th>
+              <th className="px-3 py-2.5 font-medium">Fulfillment</th>
+              <th className="px-3 py-2.5 font-medium">Items</th>
+              <th className="px-3 py-2.5 font-medium">Delivery method</th>
+              <th className="px-3 py-2.5 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((o) => (
-              <tr key={o.id}>
-                <td className="px-4 py-3">
+            {rows.map((o) => (
+              <tr
+                key={o.id}
+                className={`group/row ${
+                  selected.includes(o.id) ? "bg-[#f1f8ff]" : "hover:bg-black/[0.02]"
+                }`}
+              >
+                <td className="px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(o.id)}
+                    onChange={() => toggleOne(o.id)}
+                    aria-label={`Select order ${o.id.slice(-8)}`}
+                    className="h-4 w-4 accent-[#303030]"
+                  />
+                </td>
+                <td className="px-3 py-2.5">
                   <Link
                     href={`/admin/orders/${o.id}`}
-                    className="font-mono text-xs font-medium text-sage-deep hover:underline"
+                    className="font-semibold text-ink hover:underline"
                   >
                     #{o.id.slice(-8).toUpperCase()}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-ink-soft">
+                <td className="whitespace-nowrap px-3 py-2.5 text-ink-soft">
                   {new Date(o.createdAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
-                    year: "numeric",
                   })}
                 </td>
-                <td className="px-4 py-3 text-ink">
+                <td className="px-3 py-2.5">
                   {o.email ? (
                     <Link
                       href={`/admin/customers/${encodeURIComponent(o.email)}`}
-                      className="font-medium text-sage-deep hover:underline"
+                      className="text-[#005bd3] hover:underline"
                     >
                       {o.customerName ?? o.email}
                     </Link>
                   ) : (
-                    (o.customerName ?? "—")
+                    <span className="text-ink">{o.customerName ?? "—"}</span>
                   )}
                   {o.source === "manual" && (
-                    <span className="ml-2 rounded-full bg-sand px-2 py-0.5 text-[10px] font-medium text-ink-soft">
+                    <span className="ml-1.5 text-[11px] text-ink-soft">
                       Manual
                     </span>
                   )}
-                  {o.customerName && o.email && (
-                    <span className="block text-xs text-ink-soft">{o.email}</span>
-                  )}
                 </td>
-                <td className="px-4 py-3 text-ink-soft">
-                  {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
-                  <span className="block max-w-xs truncate text-xs">
-                    {o.itemNames}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="flex flex-wrap gap-1">
-                    {o.pickup && (
-                      <span className="rounded-full bg-sand px-2 py-0.5 text-xs text-ink-soft">
-                        Pickup
-                      </span>
-                    )}
-                    {o.isGift && (
-                      <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs text-ink">
-                        Gift
-                      </span>
-                    )}
-                    {!o.pickup && !o.isGift && (
-                      <span className="text-xs text-ink-soft">Shipping</span>
-                    )}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right font-medium text-sage-deep">
+                <td className="whitespace-nowrap px-3 py-2.5 font-medium text-ink">
                   {formatPrice(o.amountTotalCents / 100)}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5">
+                  {o.status === "paid" ? (
+                    <Badge tone="info">Paid</Badge>
+                  ) : (
+                    <Badge tone="attention">{o.status}</Badge>
+                  )}
+                </td>
+                <td className="px-3 py-2.5">
                   <FulfillmentControl
                     orderId={o.id}
                     status={o.fulfillmentStatus}
                   />
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="whitespace-nowrap px-3 py-2.5 text-ink-soft">
+                  {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
+                </td>
+                <td className="px-3 py-2.5 text-ink-soft">
+                  {o.pickup
+                    ? "Local pickup"
+                    : o.trackingNumber
+                      ? `${o.carrier ?? "Shipping"} · ${o.trackingNumber}`
+                      : "Shipping"}
+                  {o.isGift && (
+                    <span className="ml-1.5 text-[11px] text-ink">Gift</span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right">
                   <Link
                     href={`/admin/orders/${o.id}/slip`}
-                    className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
+                    className="rounded px-1.5 py-1 text-[#005bd3] hover:bg-black/5"
                   >
-                    Print
+                    Slip
                   </Link>
-                </td>
-                <td className="px-4 py-3 text-right">
                   <Link
                     href={`/admin/orders/${o.id}/label`}
-                    className="rounded-lg px-2 py-1 text-xs font-medium text-sage-deep hover:bg-sand"
+                    className="rounded px-1.5 py-1 text-[#005bd3] hover:bg-black/5"
                   >
-                    {o.hasLabel ? "View" : "Buy"}
+                    {o.hasLabel ? "Label" : "Buy label"}
                   </Link>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-ink-soft">
+                <td colSpan={10} className="px-4 py-10 text-center text-ink-soft">
                   No orders match your filters.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+
+        {/* Pagination, along the bottom like Shopify's */}
+        <div className="flex items-center justify-between border-t border-border px-3 py-2 text-[12px] text-ink-soft">
+          <span>
+            {filtered.length === 0
+              ? "0"
+              : `${start + 1}–${Math.min(start + PER_PAGE, filtered.length)}`}{" "}
+            of {filtered.length}
+          </span>
+          <span className="flex gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              aria-label="Previous page"
+              className="rounded border border-border px-2 py-1 disabled:opacity-40"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+              disabled={page >= pages - 1}
+              aria-label="Next page"
+              className="rounded border border-border px-2 py-1 disabled:opacity-40"
+            >
+              ›
+            </button>
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -17,12 +17,20 @@ const cell = (v: unknown) => {
 const dollars = (cents: number | null | undefined) =>
   cents == null ? "" : (cents / 100).toFixed(2);
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!isDbConfigured() || !prisma) {
     return new Response("Database not configured.", { status: 503 });
   }
 
+  // `?ids=` exports just the ticked rows (the bulk action bar); no ids = all.
+  const ids = new URL(request.url).searchParams
+    .get("ids")
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const orders = await prisma.order.findMany({
+    where: ids && ids.length > 0 ? { id: { in: ids } } : undefined,
     orderBy: { createdAt: "desc" },
     take: 5000,
   });

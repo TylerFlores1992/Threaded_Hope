@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
+import { placeholderImage } from "@/lib/placeholder";
+import { SORT_MODES } from "@/lib/collection-sort";
 import { CollectionRowActions } from "@/components/admin/CollectionRowActions";
 
 export const dynamic = "force-dynamic";
@@ -8,39 +10,44 @@ export const dynamic = "force-dynamic";
 export default async function AdminCollectionsPage() {
   if (!isDbConfigured() || !prisma) {
     return (
-      <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
+      <p className="rounded-lg bg-sand p-4 text-[13px] text-ink-soft">
         Connect a database to manage collections.
       </p>
     );
   }
 
   const collections = await getAllCollections();
-  const rows = await prisma.collection.findMany({ select: { id: true, slug: true } });
-  const idBySlug = new Map(rows.map((r) => [r.slug, r.id]));
+  const rows = await prisma.collection.findMany({
+    select: { id: true, slug: true, sortMode: true },
+  });
+  const bySlug = new Map(rows.map((r) => [r.slug, r]));
 
-  // Product counts per collection (primary slug + membership).
+  // Product counts and a cover image per collection (primary slug + membership).
   const products = await prisma.product.findMany({
-    select: { collectionSlug: true, collections: true },
+    select: { collectionSlug: true, collections: true, image: true },
   });
   const counts = new Map<string, number>();
+  const cover = new Map<string, string>();
   for (const p of products) {
     const stored = Array.isArray(p.collections) ? (p.collections as string[]) : [];
-    const slugs = new Set([p.collectionSlug, ...stored]);
-    for (const s of slugs) counts.set(s, (counts.get(s) ?? 0) + 1);
+    for (const s of new Set([p.collectionSlug, ...stored])) {
+      counts.set(s, (counts.get(s) ?? 0) + 1);
+      if (p.image && !cover.has(s)) cover.set(s, p.image);
+    }
   }
+
+  const sortLabel = (id: string) =>
+    SORT_MODES.find((m) => m.id === id)?.label ?? id;
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-ink">
-          Collections{" "}
-          <span className="text-lg text-ink-soft">({collections.length})</span>
-        </h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold text-ink">Collections</h1>
         <Link
           href="/admin/collections/new"
-          className="rounded-lg bg-sage-deep px-5 py-2.5 text-sm font-semibold text-white hover:bg-sage"
+          className="rounded-lg bg-[#303030] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#1a1a1a]"
         >
-          + New collection
+          Create collection
         </Link>
       </div>
 
@@ -48,50 +55,73 @@ export default async function AdminCollectionsPage() {
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Slug</th>
-              <th className="px-4 py-3 font-medium">Products</th>
-              <th className="px-4 py-3 font-medium">Flags</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <th className="w-14 px-3 py-2.5 font-medium">Image</th>
+              <th className="px-3 py-2.5 font-medium">Title</th>
+              <th className="px-3 py-2.5 font-medium">Products</th>
+              <th className="px-3 py-2.5 font-medium">Product ordering</th>
+              <th className="px-3 py-2.5 font-medium">Status</th>
+              <th className="px-3 py-2.5 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {collections.map((c) => (
-              <tr key={c.slug} className={c.hidden ? "opacity-60" : ""}>
-                <td className="px-4 py-3">
-                  <span className="flex items-center gap-2 text-ink">
-                    <span
-                      className="inline-block h-4 w-4 rounded-full ring-1 ring-border"
-                      style={{ backgroundColor: `hsl(${c.hue} 40% 75%)` }}
+            {collections.map((c) => {
+              const row = bySlug.get(c.slug);
+              return (
+                <tr key={c.slug} className={c.hidden ? "opacity-60" : ""}>
+                  <td className="px-3 py-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={cover.get(c.slug) || placeholderImage(c.name, c.hue)}
+                      alt=""
+                      className="h-9 w-9 rounded object-cover ring-1 ring-border"
+                      loading="lazy"
                     />
-                    {c.name}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-ink-soft">{c.slug}</td>
-                <td className="px-4 py-3 text-ink-soft">{counts.get(c.slug) ?? 0}</td>
-                <td className="px-4 py-3">
-                  <span className="flex flex-wrap gap-1">
-                    {c.featured && (
-                      <span className="rounded-full bg-sand px-2 py-0.5 text-xs text-sage-deep">
-                        Featured
-                      </span>
-                    )}
-                    {c.hidden && (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                        Hidden
-                      </span>
-                    )}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <CollectionRowActions
-                    id={idBySlug.get(c.slug) ?? ""}
-                    name={c.name}
-                    hidden={!!c.hidden}
-                  />
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Link
+                      href={`/admin/collections/${row?.id ?? ""}/edit`}
+                      className="font-medium text-ink hover:underline"
+                    >
+                      {c.name}
+                    </Link>
+                    <span className="block text-[11px] text-ink-soft">
+                      /collections/{c.slug}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-ink-soft">
+                    {counts.get(c.slug) ?? 0}
+                  </td>
+                  <td className="px-3 py-2.5 text-ink-soft">
+                    {sortLabel(row?.sortMode ?? "manual")}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className="flex flex-wrap gap-1">
+                      {c.hidden ? (
+                        <span className="rounded-lg bg-[#e3e3e3] px-2 py-0.5 text-[12px] font-medium text-[#4a4a4a]">
+                          Hidden
+                        </span>
+                      ) : (
+                        <span className="rounded-lg bg-[#cdfee1] px-2 py-0.5 text-[12px] font-medium text-[#0c5132]">
+                          Active
+                        </span>
+                      )}
+                      {c.featured && (
+                        <span className="rounded-lg bg-[#e3e3e3] px-2 py-0.5 text-[12px] font-medium text-[#4a4a4a]">
+                          Featured
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <CollectionRowActions
+                      id={row?.id ?? ""}
+                      name={c.name}
+                      hidden={!!c.hidden}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
