@@ -13,7 +13,11 @@ export type Collection = {
   hidden?: boolean;
   /** Search-engine overrides set in admin; blank falls back to name/description. */
   seoTitle?: string;
-  seoDescription?: string; // hidden from the storefront (still valid for existing products)
+  seoDescription?: string;
+  /** Banner behind the collection page title (admin upload). */
+  heroImage?: string;
+  /** Tile photo on the home and collections pages; falls back to a product photo. */
+  tileImage?: string; // hidden from the storefront (still valid for existing products)
 };
 
 export const collections: Collection[] = [

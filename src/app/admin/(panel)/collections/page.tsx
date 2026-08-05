@@ -4,6 +4,7 @@ import { getAllCollections } from "@/lib/collections";
 import { placeholderImage } from "@/lib/placeholder";
 import { SORT_MODES } from "@/lib/collection-sort";
 import { CollectionRowActions } from "@/components/admin/CollectionRowActions";
+import { CollectionOrderEditor } from "@/components/admin/CollectionOrderEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,16 @@ export default async function AdminCollectionsPage() {
 
   const collections = await getAllCollections();
   const rows = await prisma.collection.findMany({
-    select: { id: true, slug: true, sortMode: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      slug: true,
+      sortMode: true,
+      tileImage: true,
+      featured: true,
+      hidden: true,
+      name: true,
+    },
   });
   const bySlug = new Map(rows.map((r) => [r.slug, r]));
 
@@ -51,7 +61,17 @@ export default async function AdminCollectionsPage() {
         </Link>
       </div>
 
-      <div className="overflow-x-auto admin-card">
+      <CollectionOrderEditor
+        collections={rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          image: r.tileImage ?? cover.get(r.slug),
+          featured: r.featured,
+          hidden: r.hidden,
+        }))}
+      />
+
+      <div className="mt-4 overflow-x-auto admin-card">
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-border text-ink-soft">
             <tr>
@@ -71,7 +91,11 @@ export default async function AdminCollectionsPage() {
                   <td className="px-3 py-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={cover.get(c.slug) || placeholderImage(c.name, c.hue)}
+                      src={
+                        c.tileImage ||
+                        cover.get(c.slug) ||
+                        placeholderImage(c.name, c.hue)
+                      }
                       alt=""
                       className="h-9 w-9 rounded object-cover ring-1 ring-border"
                       loading="lazy"

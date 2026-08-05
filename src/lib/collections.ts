@@ -23,6 +23,8 @@ type Row = {
   hidden: boolean;
   seoTitle?: string | null;
   seoDescription?: string | null;
+  heroImage?: string | null;
+  tileImage?: string | null;
 };
 
 function mapRow(r: Row): Collection {
@@ -35,6 +37,8 @@ function mapRow(r: Row): Collection {
     hidden: r.hidden,
     seoTitle: r.seoTitle ?? undefined,
     seoDescription: r.seoDescription ?? undefined,
+    heroImage: r.heroImage ?? undefined,
+    tileImage: r.tileImage ?? undefined,
   };
 }
 

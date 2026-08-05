@@ -30,6 +30,8 @@ type Parsed = {
   sortMode: string;
   seoTitle: string | null;
   seoDescription: string | null;
+  heroImage: string | null;
+  tileImage: string | null;
 };
 
 
@@ -51,6 +53,8 @@ function parseForm(formData: FormData): Parsed {
     })(),
     seoTitle: String(formData.get("seoTitle") ?? "").trim() || null,
     seoDescription: String(formData.get("seoDescription") ?? "").trim() || null,
+    heroImage: String(formData.get("heroImage") ?? "").trim() || null,
+    tileImage: String(formData.get("tileImage") ?? "").trim() || null,
   };
 }
 
@@ -159,4 +163,19 @@ export async function deleteCollection(
   await prisma.collection.delete({ where: { id } });
   revalidateAll();
   return { ok: true };
+}
+
+/**
+ * Save the order collections appear in — the home page grid and the
+ * collections index both read `sortOrder`, so this is what "reorganize the
+ * home page collections" means in practice.
+ */
+export async function saveCollectionOrdering(ids: string[]): Promise<void> {
+  const prisma = getPrisma();
+  await prisma.$transaction(
+    ids.map((id, index) =>
+      prisma.collection.update({ where: { id }, data: { sortOrder: index } }),
+    ),
+  );
+  revalidateAll();
 }

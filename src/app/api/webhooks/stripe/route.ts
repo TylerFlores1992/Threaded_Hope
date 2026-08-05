@@ -23,18 +23,42 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     limit: 100,
   });
 
-  // Detect local pickup from the chosen shipping option's display name.
+  /**
+   * One expanded fetch covers both things the plain webhook payload omits: the
+   * chosen shipping method (to spot local pickup) and the discount behind any
+   * reduction. A typed promotion code carries the customer-facing string; an
+   * automatic rule carries the coupon name we created it with.
+   */
   let pickup = false;
+  let discountCode: string | null = null;
   try {
     const full = await stripe.checkout.sessions.retrieve(session.id, {
-      expand: ["shipping_cost.shipping_rate"],
+      expand: [
+        "shipping_cost.shipping_rate",
+        "discounts.promotion_code",
+        "discounts.coupon",
+      ],
     });
+
     const rate = full.shipping_cost?.shipping_rate;
     const shipName =
       rate && typeof rate === "object" ? (rate.display_name ?? "") : "";
     pickup = /pickup/i.test(shipName);
+
+    for (const d of full.discounts ?? []) {
+      const promo = d.promotion_code;
+      if (promo && typeof promo === "object" && promo.code) {
+        discountCode = promo.code;
+        break;
+      }
+      const coupon = d.coupon;
+      if (coupon && typeof coupon === "object" && coupon.name) {
+        discountCode = coupon.name;
+        break;
+      }
+    }
   } catch {
-    /* if we can't resolve the shipping method, treat as a normal shipment */
+    /* treat as a normal shipment with no named discount */
   }
 
   const items = lineItems.data.map((li) => {
@@ -91,6 +115,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         amountTotalCents: session.amount_total ?? 0,
         subtotalCents: session.amount_subtotal ?? null,
         discountCents: session.total_details?.amount_discount ?? null,
+        discountCode,
         shippingCents: session.total_details?.amount_shipping ?? null,
         taxCents: session.total_details?.amount_tax ?? null,
         isGift,
