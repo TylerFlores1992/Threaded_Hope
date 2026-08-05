@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { SectionImageField } from "./SectionImageField";
 import type { Collection } from "@/data/collections";
 
 function SubmitButton({ label }: { label: string }) {
@@ -27,6 +29,8 @@ export function CollectionForm({
   sortModes = [],
   seoTitle,
   seoDescription,
+  heroImage,
+  tileImage,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   collection?: Collection;
@@ -36,7 +40,12 @@ export function CollectionForm({
   sortModes?: readonly { id: string; label: string }[];
   seoTitle?: string | null;
   seoDescription?: string | null;
+  heroImage?: string | null;
+  tileImage?: string | null;
 }) {
+  // Uploaded straight to Blob storage; the form only ever submits the URLs.
+  const [hero, setHero] = useState(heroImage ?? "");
+  const [tile, setTile] = useState(tileImage ?? "");
   return (
     <form action={action} className="max-w-3xl space-y-4">
       {/* Details */}
@@ -77,6 +86,23 @@ export function CollectionForm({
       </div>
 
       {/* Product ordering */}
+      {/* Photos */}
+      <div className="admin-card space-y-4 p-4">
+        <p className="text-[13px] font-medium text-ink">Photos</p>
+        <input type="hidden" name="tileImage" value={tile} />
+        <SectionImageField
+          label="Collection tile — the square photo on the home and collections pages (blank borrows a product photo)"
+          value={tile}
+          onChange={setTile}
+        />
+        <input type="hidden" name="heroImage" value={hero} />
+        <SectionImageField
+          label="Header banner — the wide photo behind this collection's title"
+          value={hero}
+          onChange={setHero}
+        />
+      </div>
+
       {sortModes.length > 0 && (
         <div className="admin-card p-4">
           <label className="block text-[13px] font-medium text-ink">

@@ -214,7 +214,13 @@ export default async function PackingSlipPage({
             )}
             {order.discountCents != null && order.discountCents > 0 && (
               <div className="flex justify-between text-ink-soft">
-                <span>Discount</span>
+                {/* Name the code so a reduced total is explainable. */}
+                <span>
+                  Discount
+                  {order.discountCode && (
+                    <span className="font-medium"> · {order.discountCode}</span>
+                  )}
+                </span>
                 <span>−{cents(order.discountCents)}</span>
               </div>
             )}

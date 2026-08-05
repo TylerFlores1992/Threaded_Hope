@@ -158,19 +158,19 @@ export default async function HomePage() {
             <CollectionTile
               key={c.slug}
               collection={c}
-              image={tileImages[c.slug]}
+              image={c.tileImage ?? tileImages[c.slug]}
             />
           ))}
           {bool(S, "showViewAll", true) && (
           <Link
-            href="/shop"
+            href="/collections"
             className="group flex aspect-4/3 flex-col items-center justify-center rounded-2xl bg-sand text-center ring-1 ring-border transition hover:bg-sage-deep"
           >
             <span className="font-serif text-lg font-semibold text-ink transition group-hover:text-white">
               View all
             </span>
             <span className="mt-1 text-sm text-ink-soft transition group-hover:text-cream/90">
-              Shop everything →
+              Every collection →
             </span>
           </Link>
           )}

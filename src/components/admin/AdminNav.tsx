@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { href: "/admin/customers", label: "Customers", icon: "☺" },
   { href: "/admin/discounts", label: "Discounts", icon: "％" },
+  { href: "/admin/stripe", label: "Stripe", icon: "◈" },
   { href: "/admin/traffic", label: "Analytics", icon: "◪" },
 ];
 

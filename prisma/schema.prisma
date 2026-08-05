@@ -60,6 +60,11 @@ model Collection {
   sortMode       String  @default("manual")
   seoTitle       String?
   seoDescription String?
+  /// Wide banner behind the collection page title.
+  heroImage      String?
+  /// Square-ish photo for the collection tiles on the home and index pages.
+  /// Falls back to a photo from one of the collection's products.
+  tileImage      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -123,6 +128,9 @@ model Order {
   discountCents    Int? // total discount applied (promo/auto)
   shippingCents    Int? // shipping charged
   taxCents         Int? // sales tax (Stripe Tax)
+  /// Promo code the customer typed, or the automatic rule's name. Printed on
+  /// the packing slip so a discounted total is explainable.
+  discountCode     String?
   isGift           Boolean  @default(false)
   giftMessage      String?
   pickup           Boolean  @default(false) // local pickup chosen at checkout

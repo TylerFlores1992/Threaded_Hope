@@ -77,6 +77,8 @@ export default async function EditCollectionPage({
         sortModes={SORT_MODES}
         seoTitle={row.seoTitle}
         seoDescription={row.seoDescription}
+        heroImage={row.heroImage}
+        tileImage={row.tileImage}
       />
 
       <section className="admin-card mt-4 max-w-3xl p-4">

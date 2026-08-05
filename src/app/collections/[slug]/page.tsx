@@ -52,7 +52,10 @@ export default async function CollectionPage({
 
   const items = withInStockFirst(await getProductsByCollection(slug));
   // Admin-uploaded banner (Photos tab) falls back to the generated pattern.
+  // The collection's own banner wins; the Photos tab upload is the fallback for
+  // banners set before collections carried their own image.
   const hero =
+    collection.heroImage ||
     (await getSetting(collectionHeroKey(slug))) ||
     placeholderImage(collection.name, collection.hue);
 
