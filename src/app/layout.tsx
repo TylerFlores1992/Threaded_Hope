@@ -5,7 +5,7 @@ import { store } from "@/data/store";
 import { SITE_URL, SITE_KEYWORDS } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import { getHomeImages } from "@/lib/home-images";
-import { getTheme } from "@/lib/theme";
+import { getTheme, defaultTheme } from "@/lib/theme";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { ThemePreviewBridge } from "@/components/ThemePreviewBridge";
 import { getVisibleCollections } from "@/lib/collections";
@@ -60,10 +60,16 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const homeImages = await getHomeImages();
+  // The root layout wraps every page, so a database hiccup here would white-screen
+  // the whole site — error.tsx can't catch a failing layout. Each read falls back
+  // to something serviceable instead: the bundled logo, no nav dropdown, the
+  // default theme. A degraded shop still sells; a blank one doesn't.
+  const [homeImages, navCollections, theme] = await Promise.all([
+    getHomeImages().catch(() => ({}) as Awaited<ReturnType<typeof getHomeImages>>),
+    getVisibleCollections().catch(() => []),
+    getTheme().catch(() => defaultTheme()),
+  ]);
   const logoSrc = homeImages.home_logo ?? "/logo.png";
-  const navCollections = await getVisibleCollections();
-  const theme = await getTheme();
 
   const orgSchema = {
     "@context": "https://schema.org",

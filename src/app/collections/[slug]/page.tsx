@@ -36,6 +36,11 @@ export async function generateMetadata({
       title: `${collection.seoTitle || collection.name} · Threaded Hope`,
       description,
       type: "website",
+      // Declaring `openGraph` replaces the parent's images, including the ones
+      // the root opengraph-image file supplies — so a collection link shared to
+      // Instagram or a text message would preview with no picture at all.
+      // Its own photo when it has one, the site card when it doesn't.
+      images: [{ url: collection.heroImage || collection.tileImage || "/opengraph-image" }],
     },
   };
 }
