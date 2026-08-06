@@ -5,12 +5,16 @@ import { useEffect } from "react";
 import { useCart } from "@/lib/cart-context";
 
 export default function CheckoutSuccessPage() {
-  const { clear } = useCart();
+  const { clear, hydrated } = useCart();
 
-  // The order is paid at this point — empty the cart.
+  /**
+   * The order is paid, so empty the cart — but only once the saved cart has
+   * been read back. This effect runs before the provider's own mount effect,
+   * so clearing any earlier is simply undone by hydration.
+   */
   useEffect(() => {
-    clear();
-  }, [clear]);
+    if (hydrated) clear();
+  }, [hydrated, clear]);
 
   return (
     <div className="mx-auto max-w-lg px-4 py-20 text-center">
