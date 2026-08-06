@@ -25,6 +25,8 @@ async function send(opts: {
   to: string;
   subject: string;
   html: string;
+  /** Defaults to the shop address; contact messages reply to the sender. */
+  replyTo?: string;
 }): Promise<boolean> {
   if (!isEmailConfigured() || !opts.to) return false;
   try {
@@ -39,7 +41,7 @@ async function send(opts: {
         to: [opts.to],
         subject: opts.subject,
         html: opts.html,
-        reply_to: store.contact.email,
+        reply_to: opts.replyTo ?? store.contact.email,
       }),
       cache: "no-store",
     });
@@ -178,6 +180,28 @@ export async function sendOwnerNewOrder(order: EmailOrder): Promise<boolean> {
     to: store.contact.email,
     subject: `New order ${orderRef(order.id)} — ${money(order.amountTotalCents)}`,
     html: shell(inner),
+  });
+}
+
+/**
+ * Contact-form message to the shop owner. Every field is customer-controlled,
+ * so all of it is escaped; the message keeps its line breaks.
+ */
+export async function sendContactMessage(msg: {
+  name: string;
+  email: string;
+  message: string;
+}): Promise<boolean> {
+  const inner = `
+    <h1 style="font-size:20px;margin:0 0 8px">New message from the website ✉️</h1>
+    <p style="margin:0;color:#6a6456">${esc(msg.name)} · <a href="mailto:${esc(msg.email)}" style="color:#5b6b52">${esc(msg.email)}</a></p>
+    <div style="margin-top:14px;padding:14px;background:#f6f1e7;border-radius:12px;font-size:14px;white-space:pre-wrap">${esc(msg.message)}</div>
+    <p style="margin:18px 0 0;font-size:13px;color:#8a8272">Reply to this email to answer them directly.</p>`;
+  return send({
+    to: store.contact.email,
+    subject: `Contact form — ${msg.name}`,
+    html: shell(inner),
+    replyTo: msg.email,
   });
 }
 

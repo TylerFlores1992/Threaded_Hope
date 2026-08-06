@@ -5,9 +5,10 @@ import { useState } from "react";
 export function ContactForm() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.message.trim()) {
       setError("Please fill in your name and message.");
@@ -17,9 +18,25 @@ export function ContactForm() {
       setError("Please enter a valid email address.");
       return;
     }
-    // Stub: wire this to your email service or form backend.
     setError("");
-    setSent(true);
+    setSending(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError("Couldn't reach us just now. Please check your connection.");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (sent) {
@@ -80,9 +97,10 @@ export function ContactForm() {
       )}
       <button
         type="submit"
-        className="rounded-full bg-sage-deep px-6 py-2.5 text-sm font-semibold text-white hover:bg-sage"
+        disabled={sending}
+        className="rounded-full bg-sage-deep px-6 py-2.5 text-sm font-semibold text-white hover:bg-sage disabled:opacity-60"
       >
-        Send message
+        {sending ? "Sending…" : "Send message"}
       </button>
     </form>
   );
