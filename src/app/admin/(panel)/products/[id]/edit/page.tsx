@@ -9,6 +9,7 @@ import { StockField } from "@/components/admin/StockField";
 import { SizeStockField } from "@/components/admin/SizeStockField";
 import { OptionStockField } from "@/components/admin/OptionStockField";
 import { updateProduct } from "../../actions";
+import { ProductPager } from "@/components/admin/ProductPager";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,23 @@ export default async function EditProductPage({
   if (!row) notFound();
 
   const collections = await getAllCollections();
+
+  // Neighbours for the previous/next arrows, in the order the product list
+  // opens in. Ids and names only — the catalogue is small enough that this
+  // stays cheap on every edit page.
+  const ordered = await prisma.product.findMany({
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true },
+  });
+  const at = ordered.findIndex((p) => p.id === id);
+  const pager = (
+    <ProductPager
+      prev={at > 0 ? ordered[at - 1] : null}
+      next={at >= 0 && at < ordered.length - 1 ? ordered[at + 1] : null}
+      index={at + 1}
+      total={ordered.length}
+    />
+  );
   const storedCollections = Array.isArray(row.collections)
     ? (row.collections as string[])
     : [];
@@ -98,9 +116,10 @@ export default async function EditProductPage({
       <Link href="/admin/products" className="text-sm text-ink-soft">
         ← Products
       </Link>
-      <h1 className="mt-2 mb-6 text-xl font-semibold text-ink">
-        Edit “{row.name}”
-      </h1>
+      <div className="mt-2 mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-ink">Edit “{row.name}”</h1>
+        {pager}
+      </div>
       <ProductForm
         action={action}
         collections={collections}

@@ -228,9 +228,11 @@ export function MetricsCard({
                   height={H}
                   fill="transparent"
                 >
-                  <title>
-                    {labels[i]}: {fmt(v, metric.unit)}
-                  </title>
+                  {/* One interpolated string, not three children: React
+                      separates adjacent text nodes with marker comments, and
+                      inside an SVG <title> the browser reunites them, so the
+                      server and client trees disagree at hydration. */}
+                  <title>{`${labels[i]}: ${fmt(v, metric.unit)}`}</title>
                 </rect>
               ))}
             </>
