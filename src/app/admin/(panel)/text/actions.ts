@@ -27,5 +27,6 @@ export async function saveSiteText(formData: FormData): Promise<void> {
   revalidatePath("/", "layout");
   revalidatePath("/our-story");
   revalidatePath("/shop");
+  revalidatePath("/gifting");
   revalidatePath("/admin/text");
 }

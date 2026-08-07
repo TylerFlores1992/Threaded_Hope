@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { store } from "@/data/store";
-import type { Collection } from "@/data/collections";
 import { useCart } from "@/lib/cart-context";
 
 const primaryNav = [
@@ -15,13 +14,7 @@ const primaryNav = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function Header({
-  logoSrc = "/logo.png",
-  collections = [],
-}: {
-  logoSrc?: string;
-  collections?: Collection[];
-}) {
+export function Header({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
   const { count, openCart } = useCart();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -131,21 +124,16 @@ export function Header({
                 {item.label}
               </Link>
             ))}
-            <p className="mt-3 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+            {/* One link, not the whole list: fourteen collection names buried
+                everything else and made the menu scroll on a phone. The
+                collections page shows them all, with photos. */}
+            <Link
+              href="/collections"
+              onClick={() => setMenuOpen(false)}
+              className="border-b border-border py-3 text-ink"
+            >
               Collections
-            </p>
-            <div className="grid grid-cols-2 gap-1 py-2">
-              {collections.map((c) => (
-                <Link
-                  key={c.slug}
-                  href={`/collections/${c.slug}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="rounded-lg px-2 py-2 text-sm text-ink hover:bg-sand"
-                >
-                  {c.name}
-                </Link>
-              ))}
-            </div>
+            </Link>
           </nav>
         </div>
       )}
