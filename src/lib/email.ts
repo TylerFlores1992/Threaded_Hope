@@ -205,6 +205,39 @@ export async function sendContactMessage(msg: {
   });
 }
 
+/**
+ * Refund confirmation to the customer.
+ *
+ * Stripe sends a refund receipt of its own, but only in live mode and only when
+ * that email is switched on in the dashboard — so it can't be relied on to tell
+ * the customer anything happened. This one always goes out (when Resend is
+ * configured), including for manual and imported orders that have no Stripe
+ * payment behind them at all.
+ */
+export async function sendRefundConfirmation(
+  order: EmailOrder,
+  refund: { amountCents: number; full: boolean; viaStripe: boolean },
+): Promise<boolean> {
+  if (!order.email) return false;
+  const name = esc(order.customerName?.split(" ")[0] ?? "there");
+  const timing = refund.viaStripe
+    ? "It should land back on your original payment method within 5–10 business days, depending on your bank."
+    : "We'll return it the same way you paid — reply to this email if anything looks off.";
+  const inner = `
+    <h1 style="font-size:22px;margin:0 0 4px">Your refund is on its way</h1>
+    <p style="margin:0 0 4px;color:#6a6456">Hi ${name}, we've refunded ${refund.full ? "your full order" : "part of your order"} ${orderRef(order.id)}.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:12px">
+      <tr><td style="padding:6px 0;font-weight:bold">Refunded</td><td style="padding:6px 0;text-align:right;font-weight:bold">${money(refund.amountCents)}</td></tr>
+    </table>
+    <p style="margin:16px 0 0;font-size:14px;color:#6a6456">${timing}</p>
+    <p style="margin:16px 0 0;font-size:14px;color:#6a6456">Thank you for giving us a try — we're sorry this one didn't work out.</p>`;
+  return send({
+    to: order.email,
+    subject: `Refund confirmation — ${store.name} order ${orderRef(order.id)}`,
+    html: shell(inner),
+  });
+}
+
 /** Shipping notification with tracking (if available). */
 export async function sendShippingNotification(order: EmailOrder): Promise<boolean> {
   if (!order.email) return false;

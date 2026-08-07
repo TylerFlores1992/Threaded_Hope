@@ -157,14 +157,19 @@ export default async function OrderDetailPage({
       </div>
 
       {/* Gift message */}
-      {order.isGift && order.giftMessage && (
+      {order.isGift && (order.giftMessage || order.giftFrom) && (
         <div className="mt-4 rounded-2xl bg-sand p-5">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-soft">
             Gift message
           </h2>
-          <p className="mt-2 whitespace-pre-wrap font-serif italic text-ink">
-            “{order.giftMessage}”
-          </p>
+          {order.giftMessage && (
+            <p className="mt-2 whitespace-pre-wrap font-serif italic text-ink">
+              “{order.giftMessage}”
+            </p>
+          )}
+          {order.giftFrom && (
+            <p className="mt-2 font-serif text-ink">— from {order.giftFrom}</p>
+          )}
         </div>
       )}
 

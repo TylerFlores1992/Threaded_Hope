@@ -20,6 +20,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [isGift, setIsGift] = useState(false);
   const [giftMessage, setGiftMessage] = useState("");
+  const [giftFrom, setGiftFrom] = useState("");
 
   const shippingCost =
     subtotal >= store.shipping.freeThreshold ? 0 : store.shipping.flatRate;
@@ -45,6 +46,7 @@ export default function CheckoutPage() {
           })),
           isGift,
           giftMessage: isGift ? giftMessage : "",
+          giftFrom: isGift ? giftFrom : "",
         }),
       });
       const data = await res.json();
@@ -169,6 +171,19 @@ export default function CheckoutPage() {
                   />
                   <span className="mt-1 block text-right text-[11px] text-ink-soft">
                     {giftMessage.length}/450
+                  </span>
+                </label>
+                <label className="mt-2 block text-xs text-ink-soft">
+                  From (optional)
+                  <input
+                    type="text"
+                    value={giftFrom}
+                    onChange={(e) => setGiftFrom(e.target.value.slice(0, 80))}
+                    placeholder="Who is it from?"
+                    className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-sage-deep"
+                  />
+                  <span className="mt-1 block text-[11px] text-ink-soft">
+                    Signed under the note on the gift card.
                   </span>
                 </label>
               </div>

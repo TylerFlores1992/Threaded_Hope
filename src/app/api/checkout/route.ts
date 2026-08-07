@@ -24,6 +24,7 @@ type CheckoutBody = {
   items: IncomingItem[];
   isGift?: boolean;
   giftMessage?: string;
+  giftFrom?: string;
 };
 
 export async function POST(req: Request) {
@@ -40,12 +41,14 @@ export async function POST(req: Request) {
   let items: IncomingItem[];
   let isGift = false;
   let giftMessage = "";
+  let giftFrom = "";
   try {
     const body = (await req.json()) as CheckoutBody;
     items = body.items;
     isGift = Boolean(body.isGift);
     // Stripe metadata values cap at 500 chars; keep headroom.
     giftMessage = isGift ? String(body.giftMessage ?? "").slice(0, 450) : "";
+    giftFrom = isGift ? String(body.giftFrom ?? "").trim().slice(0, 80) : "";
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
@@ -238,6 +241,7 @@ export async function POST(req: Request) {
       metadata: {
         isGift: isGift ? "1" : "0",
         ...(giftMessage ? { giftMessage } : {}),
+        ...(giftFrom ? { giftFrom } : {}),
       },
       success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/cart`,

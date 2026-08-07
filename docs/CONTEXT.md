@@ -159,7 +159,7 @@ seed + fallback — see below.
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
   `shippingCents` / `taxCents`, captured from Stripe in the webhook) plus the
   `discountCode` used, gift fields
-  (`isGift` / `giftMessage`), a `pickup` flag (local pickup chosen at
+  (`isGift` / `giftMessage` / `giftFrom`), a `pickup` flag (local pickup chosen at
   checkout), `source` ("web" | "manual" | "shopify") + `notes` for sales recorded
   by hand or imported, refund state (`refundedCents` / `refundedAt` /
   `refundReason` / `restockedAt` — see "Refunds"), an `externalId` for imported
@@ -278,7 +278,9 @@ seed + fallback — see below.
   applies; overall `inStock` is derived in the catalog layer.
 - **Fulfillment: packing slips + shipping labels.** Each recorded order has two
   admin tools. **Packing slip** (`/admin/orders/[id]/slip`) is a print-friendly
-  page (logo, `store.contact` email + IG handle, ship-to, item/qty table, total,
+  page — it sets `@page { margin: 0 }` and supplies its own 0.5in print padding,
+  because the browser's URL/date/page-number header-footer lives in the margin
+  box and no property hides it (logo, `store.contact` email + IG handle, ship-to, item/qty table, total,
   thank-you + Scripture) — it lives *outside* the `(panel)` group so `ChromeGate`
   strips the admin sidebar for a clean print; a `print:hidden` toolbar/button
   triggers `window.print()`. **Buy label** (`/admin/orders/[id]/label`) uses
@@ -309,7 +311,8 @@ seed + fallback — see below.
   (`Order.isGift`, set from a checkout "This is a gift" option carried through
   Stripe session `metadata`) hide every price, and when a `giftMessage` was left
   it prints on its own page-break sheet as a decorative card to tuck in the
-  parcel. **Local-pickup orders** (`Order.pickup`, detected in the webhook from
+  parcel, signed `— from <giftFrom>` when the buyer filled the checkout "From"
+  box (either field alone is enough to print the card). **Local-pickup orders** (`Order.pickup`, detected in the webhook from
   the chosen Stripe shipping option's display name) likewise hide all prices and
   render as a "Pickup Slip" with a pickup note instead of a ship-to address, so
   the slip handed to the customer at pickup carries no pricing.
@@ -401,14 +404,17 @@ seed + fallback — see below.
   re-validated server-side against `amountTotalCents - refundedCents`, so partials
   accumulate and can never exceed what was paid. `isStripeBackedOrder` decides
   what actually happens: a web order pays back through
-  `stripe.refunds.create` on the session's payment intent (**Stripe emails its own
-  refund receipt — we deliberately don't send a second one**), while manual sales
+  `stripe.refunds.create` on the session's payment intent, while manual sales
   and imported Shopify history have no Stripe payment behind them and are only
   *recorded* as refunded, with the UI saying so plainly. Stripe's own error text
   is passed through rather than reworded. Refunding optionally restocks the items
   (mirroring the webhook's decrement) — guarded by `restockedAt`, because
   otherwise two partial refunds each put the whole order back and the count climbs
-  past what was ever sold.
+  past what was ever sold. Either way the customer gets **our own refund
+  confirmation email** (best-effort, after the books commit). Stripe sends a
+  refund receipt too, but only in live mode and only if that email is enabled in
+  the dashboard — which is why relying on it left refunded customers hearing
+  nothing. Expect both mails when Stripe's is switched on.
 - **Contact form** (`components/ContactForm.tsx` → `api/contact` →
   `sendContactMessage`). Emails the shop owner with the customer's address as
   reply-to. The thank-you only renders when the send actually succeeded; a failure
@@ -475,7 +481,7 @@ seed + fallback — see below.
   (Stripe would retry and double-process). The webhook sends an **order
   confirmation** (customer) + **new-order alert** (owner) after recording; a
   **shipping notification** with tracking goes out when an order first becomes
-  shipped. When unset, everything runs as before with emails skipped.
+  shipped; refunding an order emails a **refund confirmation**. When unset, everything runs as before with emails skipped.
 - **Fulfillment status.** `Order.fulfillmentStatus` (unfulfilled → shipped →
   delivered). Buying a label auto-marks the order shipped (once) + emails
   tracking; the Orders table's `FulfillmentControl` (client) sets status inline

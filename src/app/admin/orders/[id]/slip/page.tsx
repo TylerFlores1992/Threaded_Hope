@@ -273,7 +273,7 @@ export default async function PackingSlipPage({
       </div>
 
       {/* Gift message — its own page (prints on a fresh sheet to tuck in). */}
-      {isGift && order.giftMessage && (
+      {isGift && (order.giftMessage || order.giftFrom) && (
         <div
           style={{ breakBefore: "page" }}
           className="mt-10 print:mt-0"
@@ -285,9 +285,16 @@ export default async function PackingSlipPage({
             <p className="relative mt-3 font-serif text-2xl text-sage-deep">
               A little gift for you
             </p>
-            <p className="relative mx-auto mt-6 max-w-sm whitespace-pre-wrap font-serif text-lg italic leading-relaxed text-ink">
-              “{order.giftMessage}”
-            </p>
+            {order.giftMessage && (
+              <p className="relative mx-auto mt-6 max-w-sm whitespace-pre-wrap font-serif text-lg italic leading-relaxed text-ink">
+                “{order.giftMessage}”
+              </p>
+            )}
+            {order.giftFrom && (
+              <p className="relative mx-auto mt-4 max-w-sm font-serif text-base text-ink">
+                — from {order.giftFrom}
+              </p>
+            )}
             <div className="relative mt-8 flex items-center justify-center gap-2 text-sm text-ink-soft">
               <span className="h-px w-8 bg-border" />
               <span>with love, {store.name}</span>

@@ -120,6 +120,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         taxCents: session.total_details?.amount_tax ?? null,
         isGift,
         giftMessage: meta.giftMessage ? String(meta.giftMessage) : null,
+        giftFrom: meta.giftFrom ? String(meta.giftFrom) : null,
         pickup,
         currency: session.currency ?? "usd",
         status: "paid",

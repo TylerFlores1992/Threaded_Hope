@@ -327,7 +327,8 @@ items over a few days before they can appear.
 ### Order emails (Resend, optional)
 
 The store sends **order confirmation** (to the customer), a **new-order alert**
-(to you), and a **shipping notification with tracking** (when an order ships).
+(to you), a **shipping notification with tracking** (when an order ships), and a
+**refund confirmation** (when you refund an order).
 All are optional — without `RESEND_API_KEY` they're simply skipped and orders
 still record normally.
 

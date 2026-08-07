@@ -6,7 +6,11 @@ import type { Order, Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/db";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { buyLabel, isShippoTestMode } from "@/lib/shipping";
-import { sendShippingNotification, type EmailItem } from "@/lib/email";
+import {
+  sendRefundConfirmation,
+  sendShippingNotification,
+  type EmailItem,
+} from "@/lib/email";
 import { computeInStock } from "@/lib/stock";
 import { isStripeBackedOrder } from "@/lib/order-refunds";
 import type { Variant } from "@/data/products";
@@ -328,6 +332,14 @@ export async function refundOrder(
     }
   });
 
+  // Best-effort, after the money and the books are settled: a mail failure must
+  // never look like a failed refund.
+  const emailed = await sendRefundConfirmation(toEmailOrder(order), {
+    amountCents: amount,
+    full,
+    viaStripe,
+  });
+
   revalidatePath("/admin");
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${order.id}`);
@@ -335,6 +347,7 @@ export async function refundOrder(
   revalidatePath("/admin/products");
 
   const money = `$${(amount / 100).toFixed(2)}`;
+  const emailNote = emailed ? " We've emailed the customer a confirmation." : "";
   const restockNote = restocking
     ? " Items are back in stock."
     : opts.restock
@@ -343,8 +356,8 @@ export async function refundOrder(
   return {
     ok: true,
     message: viaStripe
-      ? `Refunded ${money}. Stripe emails the customer a receipt and the money lands back on their card in 5–10 days.${restockNote}`
-      : `Recorded a ${money} refund. This order wasn't paid through Stripe, so no money moved — return it however it was paid.${restockNote}`,
+      ? `Refunded ${money}. The money lands back on their card in 5–10 days.${emailNote}${restockNote}`
+      : `Recorded a ${money} refund. This order wasn't paid through Stripe, so no money moved — return it however it was paid.${emailNote}${restockNote}`,
   };
 }
 
