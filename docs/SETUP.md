@@ -52,10 +52,19 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SALES_TAX_RATE` | Sales tax (optional) | Percent (e.g. `7.25`) shown as a matching tax line in the on-site order summary. Build-time inlined — set it, then redeploy with a fresh build. Leave unset with automatic tax. |
 | `INSTAGRAM_ACCESS_TOKEN` | Home IG strip | Long-lived Instagram Graph API user token. When set, the home page shows your latest 6 posts (auto-refreshing hourly); without it the strip falls back to recent product photos. |
 | `CRON_SECRET` | IG token refresh | Random secret that authenticates the weekly token-refresh cron (`/api/cron/refresh-instagram`). Vercel Cron sends it as a Bearer token. Any strong random string. |
+| `SHOPIFY_STORE_DOMAIN` | Shopify import (optional) | Your myshopify domain, e.g. `threaded-hope.myshopify.com`. Needed only for the product-detail sync and customer import. |
+| `SHOPIFY_CLIENT_ID` | Shopify import (optional) | Client ID of a custom app created in the Shopify **Dev Dashboard** (Apps → Create app → API credentials). |
+| `SHOPIFY_CLIENT_SECRET` | Shopify import (optional) | Client secret for that app. Paste it straight into Vercel — never into a chat, an issue, or the repo. |
+| `SHOPIFY_API_VERSION` | Shopify import (optional) | Admin API version, e.g. `2025-01`. Defaults to a recent version when unset. |
 
 > The Neon integration adds several other `DATABASE_*` vars; only the two above
 > are read by the app. Without any database vars the site still runs on the
 > static catalog and `/admin` shows a "connect a database" notice.
+
+> **Importing Shopify *orders* needs none of the `SHOPIFY_*` vars** — that path
+> is a CSV upload (see below). The Admin API only reaches back **60 days** for
+> orders unless Shopify grants your app the `read_all_orders` scope, which is why
+> the CSV route exists at all.
 
 Restart `npm run dev` after editing `.env.local`.
 
@@ -214,6 +223,23 @@ matching by product name. Safe to re-run.
 > ⚠️ Shopify's public data exposes only **whether** a variant is in stock, never
 > the quantity — set real counts on the Inventory page. Weights improve the
 > shipping-label parcel prefill.
+
+### Import Shopify order history (CSV)
+
+Brings your past Shopify orders in so revenue, best-sellers, and the customer
+list reflect real history. **Admin → Orders → Import from Shopify**, then upload
+the CSV from Shopify **Admin → Orders → Export** (all orders, plain CSV).
+
+- The export is **one row per line item** — continuation rows carry only the
+  order name and `Lineitem *` columns — so the importer groups rows by order name
+  before saving.
+- Imports are **matched on the Shopify order id**, so re-uploading the same
+  export updates rather than duplicates, and it can't collide with anything the
+  Admin API pulled in.
+- Imported orders are flagged `source = "shopify"`. They carry no Stripe payment,
+  so the admin can *record* a refund against them but can't move money — do that
+  wherever the sale was originally paid.
+- The export has no ship dates, so imported orders show as shipped without one.
 
 ### Backfill collection memberships
 
@@ -489,6 +515,11 @@ to verify each step below. Redeploy after any env change.
       double-check the endpoint was created in live mode.)
 - [ ] **Place one real order** (you can refund it) and confirm: order appears in
       admin, confirmation + owner emails arrive, best-sellers/revenue update.
+      Then **refund it from the order page** — that exercises the Stripe refund
+      path end to end, and the money comes back to your own card.
+- [ ] **Send yourself a message through `/contact`** and confirm it arrives with
+      the sender's address as reply-to. It needs `RESEND_API_KEY`; without it the
+      form tells the visitor it couldn't send rather than pretending it did.
 - [ ] **Shippo = Live** — swap `SHIPPO_API_KEY` to `shippo_live_…`. **Shippo
       gates live label purchases behind account verification:** add a payment
       method (Billing → Add Payment Method) and complete their Trust & Safety
@@ -507,6 +538,12 @@ to verify each step below. Redeploy after any env change.
       Google feed) have real photos.
 - [ ] **SEO** — sitemap submitted in Google Search Console; optionally submit the
       `/feed.xml` product feed in Google Merchant Center (after photos look good).
+- [ ] **Check a shared link previews** — paste the home page and a collection URL
+      into a DM or a text to yourself and confirm a picture appears. Product links
+      preview with the product photo; everything else uses the generated card.
+- [ ] **Watch Analytics → Where visitors came from** after launching a channel.
+      Expect a chunk under "Direct / app link": in-app browsers often send no
+      referrer, so some of that bucket is really social traffic.
 
 ## Product images
 

@@ -34,6 +34,7 @@ src/
   app/
     page.tsx                     home
     shop/                        all products (client filter/sort/search)
+    collections/                 collection index (photo tiles; home "View all")
     collections/[slug]/          one page per collection (ISR)
     products/[slug]/             product detail (ISR, Product/Breadcrumb JSON-LD)
     blog/                        file-based "Journal" (list + [slug], Article JSON-LD)
@@ -41,10 +42,15 @@ src/
     checkout/                    order review → Stripe redirect (+ gift option)
     checkout/success/            post-payment, clears cart
     sitemap.ts / robots.ts       dynamic sitemap + robots
+    opengraph-image.tsx          generated 1200×630 social card (site-wide default)
+    error.tsx / not-found.tsx    runtime-error boundary + themed 404
     feed.xml/route.ts            Google Merchant Center product feed
     api/checkout/route.ts        creates Stripe Checkout Session (server)
     api/webhooks/stripe/route.ts records paid orders + decrements inventory
     api/track/route.ts           records storefront page views
+    api/contact/route.ts         emails the shop owner from the contact form
+    api/subscribe/route.ts       newsletter signup → Subscriber
+    api/blob/upload/route.ts     admin-gated token issuer for direct Blob uploads
     admin/
       login/                     password login (bare, no admin chrome)
       actions.ts                 login / logout server actions
@@ -58,6 +64,10 @@ src/
         orders/export/route.ts   CSV export of all orders
         orders/[id]/label/       buy + print a Shippo shipping label
         orders/packaging/        manage packaging presets (name + weight)
+        orders/import/           import Shopify order history from a CSV export
+        customers/               derived customer list + [email] detail
+        collections/             list · new · [slug]/edit (photos, order, SEO)
+        stripe/                  balance, payout schedule, recent payouts
         home/                    "Photos" tab — all editable non-product images
         text/                    "Site text" — editable storefront copy
         customize/               theme editor (sections, colors, fonts, history)
@@ -69,17 +79,23 @@ src/
     not-found.tsx                themed 404
   middleware.ts                  gates /admin/* on the session cookie
   components/                    Header, Footer, CartDrawer, ProductCard,
-                                 ProductGallery, JsonLd, ChromeGate, ThemeStyle,
-                                 ThemePreviewBridge, TrafficTracker, admin/*
+                                 ProductGallery, CollectionTile, JsonLd, ChromeGate,
+                                 ThemeStyle, ThemePreviewBridge, TrafficTracker,
+                                 ContactForm, admin/* (AdminTopBar, AdminNav,
+                                 MetricsCard, RefundPanel, ProductPager, PayoutForm)
   data/                          store.ts, collections.ts, products.ts, faqs.ts,
                                  blog.ts (static seed + fallback catalog + blog)
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
                                  shipping (Shippo REST), packaging, stock, discounts,
                                  settings, email (Resend), seo (SITE_URL + keywords),
-                                 site-text (+ -fields), theme (+ theme-config)
+                                 site-text (+ -fields), theme (+ theme-config),
+                                 customers (derived from orders + subscribers),
+                                 date-range (dashboard ranges/bucketing),
+                                 order-refunds, collection-sort,
+                                 shopify (Admin API), shopify-csv (order export parser)
 prisma/
-  schema.prisma                  Product, Collection, Order, Pageview,
+  schema.prisma                  Product, Collection, Order, Pageview, Subscriber,
                                  DiscountRule, Setting models
   seed.ts                        one-time seed from the static catalog
   deploy.mjs                     build step: db push + seed when a DB exists
@@ -129,18 +145,34 @@ seed + fallback — see below.
 
 - Models: **Product** (catalog), **Collection** (categories, admin-managed),
   **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic),
-  **DiscountRule** (automatic cart discounts), and **Setting** (key/value).
+  **Subscriber** (newsletter signups), **DiscountRule** (automatic cart
+  discounts), and **Setting** (key/value).
   `Product` has a primary `collectionSlug` plus a
   `collections` JSON list of every collection it appears in (see gotchas), a
-  `weightOz` (per-unit shipping weight, used to prefill label parcels), and an
-  `images` JSON array (gallery; `image` mirrors the primary `images[0]`). `Order`
+  `weightOz` (per-unit shipping weight, used to prefill label parcels), an
+  `images` JSON array (gallery; `image` mirrors the primary `images[0]`),
+  per-option stock (`optionStock`, alongside `sizeStock`), and Shopify-shaped
+  merchandising fields (`status` active|draft|archived, `productType`, `vendor`,
+  `collectionOrder`). `Collection` carries its own `heroImage` / `tileImage`,
+  `sortMode`, and SEO overrides. `Order`
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
-  `shippingCents` / `taxCents`, captured from Stripe in the webhook), gift fields
+  `shippingCents` / `taxCents`, captured from Stripe in the webhook) plus the
+  `discountCode` used, gift fields
   (`isGift` / `giftMessage`), a `pickup` flag (local pickup chosen at
-  checkout), `source` ("web" | "manual") + `notes` for sales recorded by hand,
-  and fulfillment state (`fulfillmentStatus`
+  checkout), `source` ("web" | "manual" | "shopify") + `notes` for sales recorded
+  by hand or imported, refund state (`refundedCents` / `refundedAt` /
+  `refundReason` / `restockedAt` — see "Refunds"), an `externalId` for imported
+  orders, and fulfillment state (`fulfillmentStatus`
   unfulfilled|shipped|delivered, `shippedAt`, `deliveredAt`).
+- **Schema changes must survive `prisma db push` on a populated table.** The
+  build runs it *without* `--accept-data-loss` on purpose, so a change Postgres
+  can't make in place fails the deploy rather than dropping data. Adding a
+  `@unique` to a column that already has rows is the one that bites: `externalId`
+  is indexed, not unique, for exactly this reason. Additive nullable/defaulted
+  columns (all the refund fields) apply cleanly. Verify a migration against a
+  table that *has rows* — an already-applied column makes push report "in sync"
+  and proves nothing.
 - `db.ts` creates the Prisma client **lazily** and only when a DB is configured
   (`isDbConfigured()` / `getPrisma()`), so no-DB builds and runs still work.
 - Tables + seed are **auto-provisioned at build time** by `prisma/deploy.mjs`
@@ -164,6 +196,16 @@ seed + fallback — see below.
 - Client-side React Context + `useReducer`, wrapped in `layout.tsx`.
 - **Persisted to `localStorage`** (`threaded-hope-cart`), rehydrated on mount.
 - Line identity = slug + a sorted signature of selected variant options.
+- **Reducer actions must return the same state object when nothing changed**, and
+  every action is wrapped in a `useCallback` with empty deps. Returning a fresh
+  object for an already-empty `clear` changed the state identity, which rebuilt
+  the context value, which handed consumers a new `clear`, which an effect
+  depending on `clear` then called again — an infinite loop that froze the
+  checkout success page.
+- **`hydrated` is set by the same dispatch that restores the items.** The success
+  page waits for it before clearing, because a `clear()` that runs before
+  rehydration is overwritten a moment later by the restored cart — every paying
+  customer kept their full cart.
 
 ### Payments & orders (Stripe Checkout, hosted)
 
@@ -191,8 +233,14 @@ seed + fallback — see below.
   and a typed code are mutually exclusive — the route sends `discounts` (auto) or
   `allow_promotion_codes` (manual), never both.
 - **Traffic**: `TrafficTracker` (client) beacons each storefront navigation to
-  `/api/track`, which stores a `Pageview` (admin routes excluded). The admin
-  Traffic page aggregates 24h / 7d / all-time counts and top pages.
+  `/api/track`, which stores a `Pageview` with its referrer (admin routes
+  excluded). The admin Traffic page shows 24h / 7d / all-time counts, top pages,
+  and **where visitors came from** — referrer hostnames rolled up into sources,
+  with Instagram's several hostnames (`l.instagram.com` for the bio link,
+  `instagram.com` from the in-app browser) counted as one and internal navigation
+  dropped. That rollup groups by a **nullable** column, so it counts with
+  `_count: { _all: true }`; counting the column itself skips the nulls, and the
+  null group is direct traffic — the biggest bucket for taps from an app.
 
 ## Gotchas / decisions
 
@@ -276,7 +324,11 @@ seed + fallback — see below.
   (disallow `/admin` `/checkout` `/cart` `/api`). JSON-LD via `components/JsonLd`:
   Store + WebSite site-wide (root layout), Product + BreadcrumbList on product
   pages, Article on blog posts. Metadata is keyword-rich + canonicalized with OG /
-  Twitter cards. `scripts/seo-descriptions.ts` appends a keyword-aware, per-type,
+  Twitter cards, and `app/opengraph-image.tsx` draws a branded 1200×630 social
+  card as the site-wide default. **A page that declares its own `openGraph` block
+  replaces the parent's images, including that file-convention one** — collection
+  and blog pages therefore name an image explicitly, or a shared link previews
+  with no picture at all. `scripts/seo-descriptions.ts` appends a keyword-aware, per-type,
   per-slug-varied sentence to product descriptions (non-destructive, idempotent).
 - **Editable site copy** (`lib/site-text.ts` + `-fields.ts`). Every editable
   string is declared in `SITE_TEXT_FIELDS` with **its current copy as the
@@ -332,9 +384,83 @@ seed + fallback — see below.
   back to the generated pattern. The Photos save action is **key-driven** (it
   derives slots from the submitted fields) so these dynamic per-collection slots
   work alongside the static ones.
-- **Admin navigation** (`components/admin/AdminNav.tsx`). Grouped into Overview /
-  Catalog / Sales / Storefront with an active-page highlight; the dashboard also
-  carries quick-action shortcuts. The sidebar logo links to the storefront.
+- **Admin chrome: top bar + sidebar.** `AdminTopBar` (client, `usePathname`)
+  carries three things and nothing else — the shop logo (out to the *storefront*,
+  not the dashboard), where you are, and that page's one primary action (Add
+  product, Create order, Create collection). Sub-pages swap the location for a
+  link back to their section, so the bar is also how you leave a product or an
+  order. Routes map to labels/actions in one `ROUTES` table plus a few regexes for
+  id-keyed detail pages; a page needs to know nothing about the bar, and list
+  pages therefore **don't render their own `<h1>` or primary button**. The old
+  Shopify-style global search and account chip are gone. `AdminNav` (sidebar) is a
+  flat section list with sub-items revealed under the active section; Sign out
+  sits at its foot.
+- **Refunds and returns** (`(panel)/orders/actions.ts` → `refundOrder`,
+  `components/admin/RefundPanel.tsx`, `lib/order-refunds.ts`). Full or partial,
+  from the order page. The amount defaults to the full remaining total and is
+  re-validated server-side against `amountTotalCents - refundedCents`, so partials
+  accumulate and can never exceed what was paid. `isStripeBackedOrder` decides
+  what actually happens: a web order pays back through
+  `stripe.refunds.create` on the session's payment intent (**Stripe emails its own
+  refund receipt — we deliberately don't send a second one**), while manual sales
+  and imported Shopify history have no Stripe payment behind them and are only
+  *recorded* as refunded, with the UI saying so plainly. Stripe's own error text
+  is passed through rather than reworded. Refunding optionally restocks the items
+  (mirroring the webhook's decrement) — guarded by `restockedAt`, because
+  otherwise two partial refunds each put the whole order back and the count climbs
+  past what was ever sold.
+- **Contact form** (`components/ContactForm.tsx` → `api/contact` →
+  `sendContactMessage`). Emails the shop owner with the customer's address as
+  reply-to. The thank-you only renders when the send actually succeeded; a failure
+  says so and points at the shop's address. It shipped as a stub for a while —
+  showing "we'll get back to you" while discarding the message — which is worth
+  remembering as the failure mode to design against.
+- **Customers** (`lib/customers.ts`, `/admin/customers`). Derived, not stored:
+  orders are grouped by email and merged with `Subscriber` rows, so anyone who
+  ordered *or* signed up appears, with order count, total spent (**net of
+  refunds**), and first/last order dates.
+- **Stripe tab** (`/admin/stripe`). Balance (available / pending / instant),
+  payout schedule, and recent payouts, plus a payout button **only when the
+  account is on a manual schedule** — on the default automatic schedule Stripe
+  moves the money itself and rejects manual payouts. Refunds, disputes and card
+  details stay in the Stripe Dashboard, where Stripe can verify who you are.
+- **Importing Shopify history.** Two paths, converging on one `Order.externalId`
+  (`gid://shopify/Order/<id>`) so they can't duplicate each other.
+  - **Admin API** (`lib/shopify.ts`): client-credentials grant against a custom
+    app, token cached in memory and refreshed 5 minutes early. Used for product
+    detail sync and customers.
+  - **CSV export** (`lib/shopify-csv.ts` + `/admin/orders/import`): the only way
+    to get orders older than **60 days** — the Admin API caps there without the
+    `read_all_orders` scope, which Shopify grants by request. The export is **one
+    row per line item**; continuation rows carry only `Name` + `Lineitem *`, so
+    the parser groups by `Name` before building an order.
+- **Images go through Next's optimizer.** Product photos are camera originals
+  (~3000×4000, ~3 MB). Handing one to a 280px card left the browser to downscale
+  ~10×, which Chrome does with a fast filter that visibly softens it — the same
+  photo looked fine on the product page only because it's drawn large there.
+  `ProductImage`, `ProductGallery`, `CollectionTile`, collection banners and the
+  admin list thumbnails now render `next/image` with a `sizes` hint: measured,
+  3,113,925 bytes → 33,669 for a card. `next.config.ts` `images.remotePatterns`
+  allows the Blob host and `cdn.shopify.com` — **a new image host must be added
+  there or its images 400**. Two traps: the files are named `.heic` but are JPEG
+  inside (both hosts serve `image/jpeg`, which is what the optimizer checks), and
+  the generated SVG placeholder is a data URI with nothing to optimize, so it
+  stays a plain `<img>` — hence the remaining intentional
+  `@next/next/no-img-element` lint **warnings**.
+- **Product editor pager** (`components/admin/ProductPager.tsx`). Previous/next
+  arrows with a position count, so a run of edits doesn't mean a trip back to the
+  list. Deliberately server-rendered from a fixed order (newest first) rather than
+  following the list's current sort: reading that from the browser rendered the
+  arrows one way on the server and another on the client, which React reports as a
+  hydration mismatch. Passing the sort through the URL would be the safe way to
+  personalise it.
+- **Large uploads bypass server actions.** Vercel caps a serverless request body
+  at ~4.5 MB regardless of `serverActions.bodySizeLimit`, which is why photo
+  uploads failed with "page couldn't load". Photos now upload **client-side
+  straight to Blob** (`@vercel/blob/client` `upload()`), with
+  `api/blob/upload/route.ts` issuing the token. That route authenticates **only**
+  the `blob.generate-client-token` call — Vercel's completion callback arrives
+  without a cookie, so gating it too would reject every finished upload.
 - **Home page composition.** The home page builds a `renderers` map keyed by
   section type (each taking that instance's settings) and renders
   `theme.layout`. Collection tiles fill from featured collections first, then
@@ -366,6 +492,11 @@ seed + fallback — see below.
   env vars are present.
 - **Catalog falls back to static when the DB is empty**, so the storefront is
   never blank if the DB exists but isn't seeded.
+- **The root layout must not be able to throw.** `error.tsx` catches a failing
+  *page*, but nothing catches a failing *layout* — and the root layout reads the
+  database three times (home images, nav collections, theme). Each read falls back
+  instead (bundled logo, no nav dropdown, default theme), so a database hiccup
+  degrades the shop rather than white-screening every page at once.
 - **Lazy Stripe client** (`lib/stripe.ts`): reads `STRIPE_SECRET_KEY` at call
   time; only checkout/webhook/discounts require it.
 - **Webhook needs the raw body** (`await req.text()`), returns 500 on DB failure
@@ -387,8 +518,10 @@ seed + fallback — see below.
   the ordered list and set `image`. Photos are **portrait**, so **grid tiles use a
   4:5 `object-cover` frame** and the **detail image renders at natural height**
   (`h-auto`) — square/`object-cover` framing cropped them and square/`contain`
-  left side bars. The storefront renders plain `<img>`, so there are intentional
-  `@next/next/no-img-element` lint **warnings** (not errors).
+  left side bars. Real photos render through `next/image` (see "Images go through
+  Next's optimizer"); only the generated SVG placeholder stays a plain `<img>`,
+  which is where the intentional `@next/next/no-img-element` lint **warnings**
+  (not errors) come from.
 - **Re-import from Shopify.** Two things are pulled from the live store's public
   `/products.json`, both matching products by title:
   - **Photos** — `scripts/scrape-shopify-images.mjs` writes full-res multi-image
@@ -424,10 +557,21 @@ seed + fallback — see below.
   across navigation via `sessionStorage` (returning from an edit keeps them). The
   low-stock *filter option* was removed; the dashboard's old "Low stock" stat is
   now **"To ship"** (count of `fulfillmentStatus = "unfulfilled"` orders).
-- **Dashboard analytics.** Beyond the four stat tiles, the dashboard shows a
-  **30-day daily revenue** bar chart (pure CSS, no chart lib) and a **best-sellers**
-  list (units sold, last 90 days) aggregated from order item snapshots — both from
-  a single 90-day order query.
+- **Dashboard analytics.** `MetricsCard` (client) draws a hand-rolled
+  cardinal-spline SVG chart with a selectable metric (sales, orders, sessions,
+  conversion rate) and a same-length previous-period comparison, over a range
+  picked in `RangePicker` — 7d / 30d / 90d / 6m / 12m / YTD / last year
+  (`lib/date-range.ts` resolves the range and buckets by day or month, UTC-safe).
+  Alongside it: four stat tiles and a **best-sellers** list (units sold, 90 days)
+  from order item snapshots. **Revenue is net of refunds** everywhere — the
+  all-time tile and every chart bucket subtract `refundedCents`, booked against
+  the order's own date so the chart keeps matching the order list.
+  Two things learned the hard way here: the SVG needs an explicit `viewBox` with
+  room for its axis labels (it letterboxed into half the card without one), and
+  an SVG `<title>` must take **one** interpolated string — React separates
+  adjacent text nodes with marker comments, the browser reunites them inside
+  `<title>`, and the mismatch made React throw the whole chart away and re-render
+  it on every load.
 - **CSV order export.** `GET /admin/orders/export` (route handler under `/admin`,
   so middleware-gated) streams a downloadable CSV of all orders with proper
   quoting. Linked from the Orders page.
@@ -462,8 +606,10 @@ seed + fallback — see below.
   `SearchAction`); `ShopClient` also writes the query back to the URL as you type
   (debounced, `history.replaceState` — no server round-trip) so searches are
   shareable.
-- **Discreet admin link.** The footer copyright bar has a low-contrast `Admin`
-  link (`rel="nofollow"`) for quick owner access; `/admin` is password-gated,
+- **Discreet admin link.** The footer copyright bar has a small `Admin`
+  link (`rel="nofollow"`) for quick owner access — underlined and at full
+  `ink-soft`, since a faded link inside a line of text failed contrast twice over;
+  `/admin` is password-gated,
   sitemap-excluded, and robots-disallowed, so exposing it is low-risk.
 - **Input-hardening (money paths).** Emails HTML-escape all customer-controlled
   fields before interpolation (no injection into confirmation/owner mail).
@@ -529,11 +675,40 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
   (build-time inlined — needs a rebuild to change).
 - **Instagram** — `INSTAGRAM_ACCESS_TOKEN` (bootstraps the home feed; then the
   self-refreshing DB copy is preferred), `CRON_SECRET` (guards the refresh cron)
+- **Shopify import (optional)** — `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_CLIENT_ID`,
+  `SHOPIFY_CLIENT_SECRET`, `SHOPIFY_API_VERSION`. Read by `lib/shopify.ts` for the
+  product-detail sync and customer import. Absent → those admin pages show a setup
+  note; the CSV order import needs none of them.
 
 Secrets live only in Vercel / `.env.local` (gitignored); `.env.example` is the
 committed template. **Never commit real keys.**
 
 ## Accessibility
 
-Semantic HTML, alt text, keyboard-navigable nav/cart/forms, skip link, visible
-focus rings, WCAG-AA-minded contrast.
+Audited with **axe** against WCAG 2.1 A + AA across twelve storefront pages plus
+the 404; all report **zero violations**, alongside a manual keyboard pass. What
+that rests on, and what to preserve when changing things:
+
+- Semantic HTML, alt text on every product photo, `alt="" aria-hidden` on
+  decorative imagery, a skip link as the first tab stop, visible focus rings, and
+  a label on every form field.
+- **The cart drawer is `inert` while closed.** `aria-hidden` alone hides it from
+  screen readers but leaves its buttons in the tab order — 47 tabs down the home
+  page used to land on an invisible "Close cart". Opening it moves focus to the
+  close button and closing hands focus back to whatever opened it.
+- **Contrast is checked against `--sand`**, the darker of the two page grounds.
+  The primary green is `#4f6a4d` (4.97:1 as text, 6.0:1 for white on top); the
+  previous `#5f7a5d` measured 3.93:1 and failed. The **hover** green darkens
+  rather than lightens — lightening put white button labels at 3.05:1, a failure
+  axe won't catch because it only tests the default state.
+- **A saved theme keeps whatever it stored**, so raising the defaults alone would
+  leave any shop that opened the theme editor once still serving the old colours.
+  `mergeTheme` swaps the two superseded values on read (`SUPERSEDED_COLORS`) and
+  leaves every colour actually chosen alone. The theme editor still accepts any
+  colour, so **it can reintroduce a contrast failure** — that's the one live hole.
+- **Links inside a line of text carry an underline**, so they don't depend on
+  colour alone.
+
+Caveat worth keeping in mind: automated tools catch roughly a third to a half of
+real accessibility problems. They can confirm alt text exists, not that it says
+anything useful.
