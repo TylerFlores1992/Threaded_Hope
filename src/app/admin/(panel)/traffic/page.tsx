@@ -85,7 +85,6 @@ export default async function TrafficPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-ink">Traffic</h1>
       <p className="mt-1 text-sm text-ink-soft">
         Storefront page views (visits to admin pages aren&apos;t counted).
       </p>

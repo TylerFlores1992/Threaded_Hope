@@ -50,7 +50,6 @@ export default async function DiscountsPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-ink">Discounts</h1>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div className="admin-card p-4">
           <p className="text-sm text-ink-soft">Active automatic discounts</p>

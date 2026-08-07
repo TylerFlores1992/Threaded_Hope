@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getVisibleCollections, getCollectionBySlug } from "@/lib/collections";
 import { getProductsByCollection } from "@/lib/catalog";
@@ -59,21 +60,37 @@ export default async function CollectionPage({
   // Admin-uploaded banner (Photos tab) falls back to the generated pattern.
   // The collection's own banner wins; the Photos tab upload is the fallback for
   // banners set before collections carried their own image.
+  // The banner is either an uploaded photo (worth optimizing) or a generated
+  // SVG data URI (nothing to optimize), so which one it is decides how it renders.
+  const heroSetting = await getSetting(collectionHeroKey(slug));
   const hero =
     collection.heroImage ||
-    (await getSetting(collectionHeroKey(slug))) ||
+    heroSetting ||
     placeholderImage(collection.name, collection.hue);
 
   return (
     <div>
       {/* Banner */}
       <section className="relative overflow-hidden border-b border-border">
-        <img
-          src={hero}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover opacity-30"
-        />
+        {collection.heroImage || heroSetting ? (
+          <Image
+            src={hero}
+            alt=""
+            aria-hidden="true"
+            fill
+            sizes="100vw"
+            priority
+            className="object-cover opacity-30"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={hero}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover opacity-30"
+          />
+        )}
         <div className="relative mx-auto max-w-6xl px-4 py-16 text-center">
           <h1 className="font-serif text-4xl text-ink">{collection.name}</h1>
           <p className="mx-auto mt-3 max-w-xl text-ink-soft">

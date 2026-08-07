@@ -74,9 +74,8 @@ export default async function InventoryPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-ink">Inventory</h1>
         {/* Route handler returning a file download — a plain <a> is correct. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        { }
         <a
           href="/admin/inventory/export"
           className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"

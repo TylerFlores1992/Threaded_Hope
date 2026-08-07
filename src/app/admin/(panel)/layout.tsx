@@ -1,9 +1,8 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { store } from "@/data/store";
 import { getHomeImages } from "@/lib/home-images";
 import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminSearch } from "@/components/admin/AdminSearch";
+import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { logout } from "../actions";
 
 export const metadata: Metadata = {
@@ -12,8 +11,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Admin shell, laid out like Shopify's: a dark global bar with search across
- * the top, a light grey sidebar, and content on grey with white cards.
+ * Admin shell: a light top bar that says where you are and carries the page's
+ * primary action, a sidebar of sections, and content on grey with white cards.
  * `.admin-ui` re-points the design tokens (see globals.css), so the console
  * stays neutral no matter what the storefront palette is set to.
  */
@@ -23,51 +22,9 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const logoSrc = (await getHomeImages()).home_logo ?? "/logo.png";
-  const initials = store.name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <div className="admin-ui min-h-screen">
-      {/* Global bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-[#1a1a1a] px-3">
-        <Link
-          href="/admin"
-          aria-label={`${store.name} admin`}
-          className="shrink-0 rounded bg-white/95 px-2 py-1"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logoSrc}
-            alt=""
-            className="h-7 w-auto max-w-[9rem] object-contain"
-          />
-        </Link>
-
-        <div className="flex flex-1 justify-center">
-          <AdminSearch />
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/"
-            className="hidden rounded-lg px-2.5 py-1.5 text-[13px] text-white/70 hover:bg-white/10 hover:text-white sm:block"
-          >
-            View store
-          </Link>
-          <span className="flex items-center gap-2 rounded-lg bg-white/10 py-1 pl-1 pr-2.5">
-            <span className="grid h-6 w-6 place-items-center rounded bg-[#36fba1] text-[10px] font-bold text-[#1a1a1a]">
-              {initials}
-            </span>
-            <span className="hidden text-[13px] font-medium text-white sm:block">
-              {store.name}
-            </span>
-          </span>
-        </div>
-      </header>
+      <AdminTopBar logoSrc={logoSrc} storeName={store.name} />
 
       <div className="flex">
         <aside className="hidden w-56 shrink-0 px-3 py-3 md:block">

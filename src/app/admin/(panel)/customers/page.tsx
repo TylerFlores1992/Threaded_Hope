@@ -46,10 +46,9 @@ export default async function CustomersPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-ink">
-          Customers{" "}
-          <span className="text-lg text-ink-soft">({customers.length})</span>
-        </h1>
+        <p className="text-[13px] text-ink-soft">
+          {customers.length} customer{customers.length === 1 ? "" : "s"}
+        </p>
         {/* Route handler returning a file download — a plain <a> is correct. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
