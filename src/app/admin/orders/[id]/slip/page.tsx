@@ -61,7 +61,15 @@ export default async function PackingSlipPage({
   });
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8 text-ink print:py-0">
+    <div className="mx-auto max-w-2xl px-6 py-8 text-ink print:px-[0.5in] print:py-[0.5in]">
+      {/*
+        Browsers print a header/footer (page URL, date/time, "Page 1 of 2") in
+        the page margin box. There's no property to hide it — the only way is to
+        leave it no room, so the sheet margin is zero and the slip supplies its
+        own padding above.
+      */}
+      <style>{`@page { margin: 0; }`}</style>
+
       {/* Screen-only toolbar */}
       <div className="mb-6 flex items-center justify-between print:hidden">
         <Link href="/admin/orders" className="text-sm text-ink-soft">
