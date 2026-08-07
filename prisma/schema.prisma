@@ -121,7 +121,18 @@ model Order {
   customerName     String?
   amountTotalCents Int
   currency         String   @default("usd")
-  status           String   @default("paid")
+  status           String   @default("paid") // paid | partially_refunded | refunded
+  /// Money returned to the customer, in cents. Kept as a running total so a
+  /// partial refund can be followed by another without losing the history, and
+  /// so revenue reporting can subtract it. 0 for every untouched order.
+  refundedCents    Int      @default(0)
+  refundedAt       DateTime?
+  /// Set the first time a refund puts this order's items back on the shelf.
+  /// Two partial refunds would otherwise each restock the whole order, so the
+  /// count would climb past what was ever sold.
+  restockedAt      DateTime?
+  /// Free-form reason recorded with the most recent refund (admin-only).
+  refundReason     String?
   shipping         Json?
   items            Json     @default("[]")
   subtotalCents    Int? // pre-discount, pre-shipping line total (for receipts)

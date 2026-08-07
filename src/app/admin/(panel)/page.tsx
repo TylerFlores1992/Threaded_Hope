@@ -149,11 +149,20 @@ export default async function AdminDashboard({
     await Promise.all([
       prisma.product.count(),
       prisma.order.count(),
-      prisma.order.aggregate({ _sum: { amountTotalCents: true } }),
+      // Refunds come off revenue — money that went back to a customer was
+      // never really earned, and a headline that ignores them overstates sales.
+      prisma.order.aggregate({
+        _sum: { amountTotalCents: true, refundedCents: true },
+      }),
       prisma.order.count({ where: { fulfillmentStatus: "unfulfilled" } }),
       prisma.order.findMany({
         where: { createdAt: { gte: range.start } },
-        select: { createdAt: true, amountTotalCents: true, items: true },
+        select: {
+          createdAt: true,
+          amountTotalCents: true,
+          refundedCents: true,
+          items: true,
+        },
       }),
       prisma.pageview.findMany({
         where: { createdAt: { gte: range.start } },
@@ -173,11 +182,14 @@ export default async function AdminDashboard({
 
   for (const o of ordersWindow) {
     const k = bucketKey(o.createdAt, range.bucketing);
+    // A refund is booked against the order's own date, not the day it was
+    // issued, so the chart keeps matching the order list.
+    const net = o.amountTotalCents - o.refundedCents;
     if (salesCur.has(k)) {
-      salesCur.set(k, (salesCur.get(k) ?? 0) + o.amountTotalCents);
+      salesCur.set(k, (salesCur.get(k) ?? 0) + net);
       ordersCur.set(k, (ordersCur.get(k) ?? 0) + 1);
     } else if (salesPrev.has(k)) {
-      salesPrev.set(k, (salesPrev.get(k) ?? 0) + o.amountTotalCents);
+      salesPrev.set(k, (salesPrev.get(k) ?? 0) + net);
       ordersPrev.set(k, (ordersPrev.get(k) ?? 0) + 1);
     }
   }
@@ -374,7 +386,11 @@ export default async function AdminDashboard({
           { label: "Orders, all time", value: String(orderCount) },
           {
             label: "Revenue, all time",
-            value: formatPrice((revenue._sum.amountTotalCents ?? 0) / 100),
+            value: formatPrice(
+              ((revenue._sum.amountTotalCents ?? 0) -
+                (revenue._sum.refundedCents ?? 0)) /
+                100,
+            ),
           },
           { label: "To ship", value: String(toShip) },
         ].map((s) => (

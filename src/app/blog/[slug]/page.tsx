@@ -28,6 +28,9 @@ export async function generateMetadata({
       description: post.excerpt,
       type: "article",
       url: `${SITE_URL}/blog/${post.slug}`,
+      // See the note in the collection page: declaring `openGraph` drops the
+      // root opengraph-image, so it has to be named again here.
+      images: [{ url: "/opengraph-image" }],
     },
   };
 }

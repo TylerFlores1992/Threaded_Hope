@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getPrisma, isDbConfigured } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 import { FulfillmentControl } from "@/components/admin/FulfillmentControl";
+import { RefundPanel } from "@/components/admin/RefundPanel";
+import { isStripeBackedOrder } from "@/lib/order-refunds";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +71,16 @@ export default async function OrderDetailPage({
       </div>
 
       {/* Flags */}
-      {(order.isGift || order.pickup) && (
-        <div className="mt-3 flex gap-2 text-xs">
+      {(order.isGift || order.pickup || order.refundedCents > 0) && (
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          {order.refundedCents > 0 && (
+            <span className="rounded-full bg-[#e3e3e3] px-2 py-0.5 text-[#4a4a4a]">
+              {order.refundedCents >= order.amountTotalCents
+                ? "Refunded"
+                : "Partially refunded"}{" "}
+              · {cents(order.refundedCents)}
+            </span>
+          )}
           {order.isGift && (
             <span className="rounded-full bg-sand px-2 py-0.5 text-ink-soft">
               🎁 Gift
@@ -206,7 +216,30 @@ export default async function OrderDetailPage({
           {order.taxCents != null && order.taxCents > 0 &&
             totalLine("Tax", cents(order.taxCents))}
           {totalLine("Total", cents(order.amountTotalCents), true)}
+          {order.refundedCents > 0 && (
+            <>
+              {totalLine("Refunded", `−${cents(order.refundedCents)}`)}
+              {totalLine(
+                "Net",
+                cents(order.amountTotalCents - order.refundedCents),
+                true,
+              )}
+            </>
+          )}
         </div>
+
+        <RefundPanel
+          orderId={order.id}
+          totalCents={order.amountTotalCents}
+          refundedCents={order.refundedCents}
+          stripeBacked={isStripeBackedOrder(order)}
+          alreadyRestocked={Boolean(order.restockedAt)}
+        />
+        {order.refundReason && (
+          <p className="mt-2 text-xs text-ink-soft">
+            Refund reason: {order.refundReason}
+          </p>
+        )}
       </div>
     </div>
   );
