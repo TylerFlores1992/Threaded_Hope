@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { placeholderImage } from "@/lib/placeholder";
 
@@ -18,6 +19,7 @@ export function ProductGallery({
   images: string[];
 }) {
   const pics = images.length > 0 ? images : [placeholderImage(name, hue)];
+  const isPlaceholder = images.length === 0;
   const [active, setActive] = useState(0);
   const current = pics[Math.min(active, pics.length - 1)];
 
@@ -25,15 +27,24 @@ export function ProductGallery({
     <div>
       <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-border">
         {/* Natural height (h-auto) shows the full photo with no crop and no
-            letterbox bars — the frame adapts to the image. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={current}
-          alt={name}
-          className="h-auto w-full"
-          loading="eager"
-          decoding="async"
-        />
+            letterbox bars — the frame adapts to the image. The width/height
+            pair only reserves space while it loads; once the photo arrives its
+            own proportions take over, so a landscape shot isn't squeezed. */}
+        {isPlaceholder ? (
+          /* Inline SVG data URI — nothing for the optimizer to do. */
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={current} alt={name} className="h-auto w-full" decoding="async" />
+        ) : (
+          <Image
+            src={current}
+            alt={name}
+            width={1200}
+            height={1500}
+            sizes="(min-width: 768px) 55vw, 100vw"
+            className="h-auto w-full"
+            priority
+          />
+        )}
       </div>
 
       {pics.length > 1 && (
@@ -51,14 +62,26 @@ export function ProductGallery({
                   : "ring-border hover:ring-sage-deep/50"
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={`${name} thumbnail ${i + 1}`}
-                className="aspect-[4/5] w-full bg-white object-cover"
-                loading="lazy"
-                decoding="async"
-              />
+              <span className="relative block aspect-[4/5] w-full bg-white">
+                {isPlaceholder ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={src}
+                    alt={`${name} thumbnail ${i + 1}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <Image
+                    src={src}
+                    alt={`${name} thumbnail ${i + 1}`}
+                    fill
+                    sizes="(min-width: 768px) 11vw, 20vw"
+                    className="object-cover"
+                  />
+                )}
+              </span>
             </button>
           ))}
         </div>

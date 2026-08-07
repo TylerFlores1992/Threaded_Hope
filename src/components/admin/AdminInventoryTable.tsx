@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { placeholderImage } from "@/lib/placeholder";
 import { StockField } from "./StockField";
@@ -170,13 +171,22 @@ export function AdminInventoryTable({
               return (
                 <tr key={p.id}>
                   <td className="px-4 py-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={p.image || placeholderImage(p.name, 145)}
-                      alt=""
-                      className="h-10 w-10 rounded-md object-cover ring-1 ring-border"
-                      loading="lazy"
-                    />
+                    { }
+                    <span className="relative block h-10 w-10 overflow-hidden rounded-md ring-1 ring-border">
+                      {p.image ? (
+                        /* A 40px thumbnail from a 3 MB camera original, 100+ times over,
+                           is why this list used to crawl. `sizes` gets a 40px copy. */
+                        <Image src={p.image} alt="" fill sizes="40px" className="object-cover" />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={placeholderImage(p.name, 145)}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-ink">{p.name}</td>
                   <td className="max-w-[16rem] truncate whitespace-nowrap px-4 py-3 text-ink-soft">

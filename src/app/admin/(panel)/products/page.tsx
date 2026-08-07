@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { getAllCollections } from "@/lib/collections";
 import {
@@ -96,19 +95,6 @@ export default async function AdminProductsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-ink">
-          Products{" "}
-          <span className="text-lg text-ink-soft">({products.length})</span>
-        </h1>
-        <Link
-          href="/admin/products/new"
-          className="rounded-lg bg-[#303030] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#1a1a1a]"
-        >
-          Add product
-        </Link>
-      </div>
-
       <AdminProductsTable
         products={products}
         collections={collections.map((c) => ({ slug: c.slug, name: c.name }))}

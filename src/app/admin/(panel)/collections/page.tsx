@@ -51,14 +51,7 @@ export default async function AdminCollectionsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold text-ink">Collections</h1>
-        <Link
-          href="/admin/collections/new"
-          className="rounded-lg bg-[#303030] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#1a1a1a]"
-        >
-          Create collection
-        </Link>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
       </div>
 
       <CollectionOrderEditor

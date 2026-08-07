@@ -255,7 +255,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
         <div className="mb-2 flex flex-wrap items-center gap-3 rounded-lg bg-[#1a1a1a] px-3 py-2 text-[13px] text-white">
           <span className="font-medium">{selected.length} selected</span>
           {/* Route handler returning a file download — a plain <a> is correct. */}
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          { }
           <a
             href={`/admin/orders/export?ids=${selected.join(",")}`}
             className="rounded px-2 py-1 hover:bg-white/10"
