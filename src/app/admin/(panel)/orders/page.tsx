@@ -38,6 +38,7 @@ export default async function OrdersPage() {
       itemCount: items.reduce((n, it) => n + (it.quantity ?? 1), 0),
       itemNames: items.map((it) => it.name).join(", "),
       amountTotalCents: o.amountTotalCents,
+      refundedCents: o.refundedCents,
       status: o.status,
       fulfillmentStatus: o.fulfillmentStatus,
       source: o.source,

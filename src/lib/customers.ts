@@ -91,7 +91,8 @@ export async function getCustomers(): Promise<Customer[]> {
     c.location ??= formatLocation(o.shipping);
 
     c.orderCount++;
-    c.totalSpentCents += o.amountTotalCents;
+    // Net of refunds: "total spent" should reflect what they actually kept.
+    c.totalSpentCents += o.amountTotalCents - o.refundedCents;
     c.lastOrderAt ??= o.createdAt;
     c.firstOrderAt = o.createdAt; // overwritten until the oldest order wins
     c.orders.push({

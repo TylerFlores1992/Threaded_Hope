@@ -14,6 +14,7 @@ export type AdminOrder = {
   itemCount: number;
   itemNames: string;
   amountTotalCents: number;
+  refundedCents: number;
   status: string;
   fulfillmentStatus: string;
   source: string;
@@ -25,7 +26,14 @@ export type AdminOrder = {
 };
 
 /** Saved views, mirroring Shopify's tabs above the order list. */
-type View = "all" | "unfulfilled" | "shipped" | "delivered" | "pickup" | "gift";
+type View =
+  | "all"
+  | "unfulfilled"
+  | "shipped"
+  | "delivered"
+  | "pickup"
+  | "gift"
+  | "refunded";
 type Sort = "newest" | "oldest" | "total-desc" | "total-asc";
 
 const VIEWS: { id: View; label: string }[] = [
@@ -35,6 +43,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "delivered", label: "Delivered" },
   { id: "pickup", label: "Local pickup" },
   { id: "gift", label: "Gifts" },
+  { id: "refunded", label: "Refunded" },
 ];
 
 const PER_PAGE = 50;
@@ -78,6 +87,8 @@ const matchesView = (o: AdminOrder, view: View) => {
       return o.pickup;
     case "gift":
       return o.isGift;
+    case "refunded":
+      return o.refundedCents > 0;
     default:
       return true;
   }
@@ -343,7 +354,13 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
                   {formatPrice(o.amountTotalCents / 100)}
                 </td>
                 <td className="px-3 py-2.5">
-                  {o.status === "paid" ? (
+                  {o.refundedCents > 0 ? (
+                    <Badge tone="attention">
+                      {o.refundedCents >= o.amountTotalCents
+                        ? "Refunded"
+                        : "Partly refunded"}
+                    </Badge>
+                  ) : o.status === "paid" ? (
                     <Badge tone="info">Paid</Badge>
                   ) : (
                     <Badge tone="attention">{o.status}</Badge>
