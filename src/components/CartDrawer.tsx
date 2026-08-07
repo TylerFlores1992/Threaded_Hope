@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useCart } from "@/lib/cart-context";
 import { formatPrice } from "@/lib/format";
 import { store } from "@/data/store";
@@ -9,25 +9,45 @@ import { ProductImage } from "./ProductImage";
 
 export function CartDrawer() {
   const { isOpen, closeCart, items, subtotal, setQty, remove, count } = useCart();
+  const closeButton = useRef<HTMLButtonElement>(null);
+  /** Where focus was before the drawer opened, so it can go back there. */
+  const opener = useRef<HTMLElement | null>(null);
 
-  // Lock body scroll & allow Esc to close while open.
+  // Lock body scroll, allow Esc to close, and move focus into the drawer.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeCart();
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+
+    // Without this the drawer opens behind the reader — focus stays on the
+    // "Add to cart" button and nothing announces that a panel appeared.
+    opener.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    closeButton.current?.focus();
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      // Send focus back where it came from, so closing doesn't drop a keyboard
+      // user at the top of the page.
+      opener.current?.focus();
+      opener.current = null;
     };
   }, [isOpen, closeCart]);
 
   const remaining = store.shipping.freeThreshold - subtotal;
 
   return (
+    // `inert` while closed does what aria-hidden alone can't: it also takes the
+    // drawer's buttons out of the tab order. Without it, tabbing far enough down
+    // any page lands on an invisible "Close cart".
     <div
       className={`fixed inset-0 z-50 ${isOpen ? "" : "pointer-events-none"}`}
       aria-hidden={!isOpen}
+      inert={!isOpen}
     >
       <div
         className={`absolute inset-0 bg-ink/40 transition-opacity ${
@@ -47,6 +67,7 @@ export function CartDrawer() {
           <h2 className="font-serif text-xl">Your Cart ({count})</h2>
           <button
             type="button"
+            ref={closeButton}
             onClick={closeCart}
             aria-label="Close cart"
             className="rounded-lg p-2 hover:bg-sand"

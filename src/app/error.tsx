@@ -22,7 +22,7 @@ export default function Error({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-24 text-center">
-      <p className="font-serif text-6xl text-taupe">Oh dear</p>
+      <p className="font-serif text-6xl text-ink-soft">Oh dear</p>
       <h1 className="mt-4 font-serif text-3xl text-ink">
         Something came unstitched
       </h1>

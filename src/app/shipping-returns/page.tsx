@@ -40,7 +40,7 @@ export default function ShippingReturnsPage() {
               To start a return, email{" "}
               <a
                 href={`mailto:${store.contact.email}`}
-                className="text-sage-deep hover:underline"
+                className="text-sage-deep underline"
               >
                 {store.contact.email}
               </a>{" "}

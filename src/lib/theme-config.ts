@@ -18,8 +18,8 @@ export const COLOR_FIELDS: ColorField[] = [
   { key: "sandDeep", label: "Section background (deep)", cssVar: "--sand-deep", default: "#e6dac6" },
   { key: "ink", label: "Heading / body text", cssVar: "--ink", default: "#3d352c" },
   { key: "inkSoft", label: "Muted text", cssVar: "--ink-soft", default: "#6b6155" },
-  { key: "sageDeep", label: "Primary (buttons, links)", cssVar: "--sage-deep", default: "#5f7a5d" },
-  { key: "sage", label: "Primary hover", cssVar: "--sage", default: "#7f9b7c" },
+  { key: "sageDeep", label: "Primary (buttons, links)", cssVar: "--sage-deep", default: "#4f6a4d" },
+  { key: "sage", label: "Primary hover", cssVar: "--sage", default: "#3f5640" },
   { key: "gold", label: "Accent", cssVar: "--gold", default: "#c39a45" },
   { key: "taupe", label: "Disabled / subtle", cssVar: "--taupe", default: "#c9bba8" },
   { key: "border", label: "Borders", cssVar: "--border", default: "#e4d9c7" },
@@ -384,13 +384,37 @@ export function newSectionInstance(type: string, seed: number): SectionInstance 
   };
 }
 
+/**
+ * The greens the site shipped with before the accessibility pass. Both failed
+ * WCAG AA — #5f7a5d measured 3.93:1 as text on the sand ground, and white
+ * button labels on #7f9b7c measured 3.05:1.
+ *
+ * A saved theme keeps whatever it stored, so raising the defaults alone would
+ * leave any shop that opened the theme editor once still serving the failing
+ * colours. These two values are swapped for their accessible replacements on
+ * read; anything else the shop actually chose is left exactly as it is.
+ */
+const SUPERSEDED_COLORS: Record<string, Record<string, string>> = {
+  sageDeep: { "#5f7a5d": "#4f6a4d" },
+  sage: { "#7f9b7c": "#3f5640" },
+};
+
+function upgradeColors(colors: Record<string, string>): Record<string, string> {
+  const out = { ...colors };
+  for (const [key, replacements] of Object.entries(SUPERSEDED_COLORS)) {
+    const current = out[key]?.toLowerCase();
+    if (current && replacements[current]) out[key] = replacements[current];
+  }
+  return out;
+}
+
 /** Merge a stored partial theme over the defaults (forward-compatible). */
 export function mergeTheme(raw: unknown): Theme {
   const base = defaultTheme();
   if (!raw || typeof raw !== "object") return base;
   const t = raw as Partial<Theme>;
   return {
-    colors: { ...base.colors, ...(t.colors ?? {}) },
+    colors: upgradeColors({ ...base.colors, ...(t.colors ?? {}) }),
     headingFont: t.headingFont ?? base.headingFont,
     bodyFont: t.bodyFont ?? base.bodyFont,
     headingScale: Number(t.headingScale) || base.headingScale,

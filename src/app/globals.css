@@ -12,8 +12,13 @@
   --taupe: #c9bba8;
   --ink: #3d352c;
   --ink-soft: #6b6155;
-  --sage: #7f9b7c;
-  --sage-deep: #5f7a5d;
+  /* Contrast-checked against --sand, the lighter of the two page grounds:
+     #4f6a4d is 4.97:1 for text and 6.0:1 for white on top, both clear of the
+     4.5:1 WCAG AA floor. The old #5f7a5d measured 3.93:1 and failed.
+     --sage is the primary hover, and it darkens rather than lightens — a
+     lighter hover pushed white button labels down to 3.05:1. */
+  --sage: #3f5640;
+  --sage-deep: #4f6a4d;
   --blue: #8ba3b8;
   --gold: #c39a45;
   --gold-deep: #a87f2d;

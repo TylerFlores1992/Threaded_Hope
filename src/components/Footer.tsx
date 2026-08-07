@@ -87,7 +87,10 @@ export async function Footer({ logoSrc = "/logo.png" }: { logoSrc?: string }) {
             <Link
               href="/admin"
               rel="nofollow"
-              className="text-ink-soft/70 hover:text-sage-deep"
+              /* Underlined and at full ink-soft: a link sitting inside a line
+                 of text has to be tellable from that text without relying on
+                 colour, and the faded /70 measured 2.82:1 against the ground. */
+              className="text-ink-soft underline hover:text-sage-deep"
             >
               Admin
             </Link>

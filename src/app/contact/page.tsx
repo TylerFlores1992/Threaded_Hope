@@ -27,7 +27,7 @@ export default function ContactPage() {
               <dd>
                 <a
                   href={`mailto:${store.contact.email}`}
-                  className="text-sage-deep hover:underline"
+                  className="text-sage-deep underline"
                 >
                   {store.contact.email}
                 </a>
