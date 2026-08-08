@@ -8,8 +8,24 @@ export const dynamic = "force-dynamic";
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="admin-card p-4">
-      <p className="text-sm text-ink-soft">{label}</p>
-      <p className="mt-1 text-[15px] font-semibold text-ink">{value}</p>
+      <p className="text-[12px] text-ink-soft">{label}</p>
+      <p className="mt-0.5 text-[19px] font-semibold text-ink">{value}</p>
+    </div>
+  );
+}
+
+/** One labelled fact. Everything here used to run together in a single line. */
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3 py-1.5">
+      <dt className="w-24 shrink-0 text-[12px] text-ink-soft">{label}</dt>
+      <dd className="min-w-0 flex-1 text-[13px] text-ink">{children}</dd>
     </div>
   );
 }
@@ -32,62 +48,29 @@ export default async function CustomerDetailPage({
 
   const avgCents =
     customer.orderCount > 0 ? customer.totalSpentCents / customer.orderCount : 0;
+  const addr = customer.address;
+  const cityLine = addr
+    ? [addr.city, addr.state, addr.postal_code].filter(Boolean).join(", ")
+    : "";
 
   return (
-    <div>
+    <div className="max-w-4xl">
       <Link href="/admin/customers" className="text-sm text-ink-soft">
         ← Customers
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-ink">
-        {customer.name ?? customer.email}
-      </h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        <a href={`mailto:${customer.email}`} className="text-sage-deep hover:underline">
-          {customer.email}
-        </a>
-        {customer.phone && (
-          <>
-            {" · "}
-            <a href={`tel:${customer.phone}`} className="hover:underline">
-              {customer.phone}
-            </a>
-          </>
-        )}
-        {customer.location && <> · {customer.location}</>}
-        {customer.subscribed && <> · Subscribed to email</>}
-        {customer.firstOrderAt && (
-          <> · Customer since {shortDate(customer.firstOrderAt)}</>
-        )}
-      </p>
 
-      {customer.address && (
-        <div className="admin-card mt-4 max-w-sm p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-            Shipping address
-          </h2>
-          <div className="mt-2 text-[13px] text-ink-soft">
-            {customer.name && <p className="text-ink">{customer.name}</p>}
-            {customer.address.line1 && <p>{customer.address.line1}</p>}
-            {customer.address.line2 && <p>{customer.address.line2}</p>}
-            <p>
-              {[
-                customer.address.city,
-                customer.address.state,
-                customer.address.postal_code,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-            {customer.address.country && <p>{customer.address.country}</p>}
-          </div>
-          <p className="mt-2 text-[11px] text-ink-soft">
-            From their most recent order — it isn&apos;t kept in sync if they
-            move.
-          </p>
-        </div>
-      )}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <h1 className="text-xl font-semibold text-ink">
+          {customer.name ?? customer.email}
+        </h1>
+        {customer.subscribed && (
+          <span className="rounded-lg bg-[#cdfee1] px-2 py-0.5 text-[12px] font-medium text-[#0c5132]">
+            Subscribed
+          </span>
+        )}
+      </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Orders" value={String(customer.orderCount)} />
         <Stat
           label="Total spent"
@@ -100,10 +83,79 @@ export default async function CustomerDetailPage({
         />
       </div>
 
-      <section className="mt-10">
-        <h2 className="mb-3 text-[13px] font-semibold text-ink">Order history</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <section className="admin-card p-4">
+          <h2 className="mb-1 text-[13px] font-semibold text-ink">Contact</h2>
+          <dl className="divide-y divide-border">
+            <Row label="Email">
+              <a
+                href={`mailto:${customer.email}`}
+                className="break-all text-sage-deep hover:underline"
+              >
+                {customer.email}
+              </a>
+            </Row>
+            <Row label="Phone">
+              {customer.phone ? (
+                <a
+                  href={`tel:${customer.phone}`}
+                  className="text-sage-deep hover:underline"
+                >
+                  {customer.phone}
+                </a>
+              ) : (
+                <span className="text-ink-soft">Not given</span>
+              )}
+            </Row>
+            <Row label="Location">
+              {customer.location ?? <span className="text-ink-soft">—</span>}
+            </Row>
+            <Row label="First order">
+              {customer.firstOrderAt ? (
+                shortDate(customer.firstOrderAt)
+              ) : (
+                <span className="text-ink-soft">No orders yet</span>
+              )}
+            </Row>
+          </dl>
+        </section>
+
+        <section className="admin-card p-4">
+          <h2 className="mb-1 text-[13px] font-semibold text-ink">
+            Shipping address
+          </h2>
+          {addr ? (
+            <>
+              <address className="mt-2 text-[13px] not-italic text-ink">
+                {customer.name && <div>{customer.name}</div>}
+                {addr.line1 && <div>{addr.line1}</div>}
+                {addr.line2 && <div>{addr.line2}</div>}
+                {cityLine && <div>{cityLine}</div>}
+                {addr.country && <div>{addr.country}</div>}
+              </address>
+              <p className="mt-3 text-[11px] text-ink-soft">
+                From their most recent order — it isn&apos;t kept in sync if they
+                move.
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 text-[13px] text-ink-soft">
+              No address on file. Local-pickup orders and newsletter signups
+              don&apos;t have one.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <section className="mt-6">
+        <h2 className="mb-2 text-[13px] font-semibold text-ink">
+          Order history{" "}
+          <span className="font-normal text-ink-soft">
+            ({customer.orders.length})
+          </span>
+        </h2>
         {customer.orders.length === 0 ? (
-          <p className="rounded-lg bg-sand p-4 text-sm text-ink-soft">
+          <p className="rounded-lg bg-sand p-4 text-[13px] text-ink-soft">
             Subscribed to the newsletter but hasn&apos;t ordered yet.
           </p>
         ) : (
@@ -121,21 +173,21 @@ export default async function CustomerDetailPage({
               <tbody className="divide-y divide-border">
                 {customer.orders.map((o) => (
                   <tr key={o.id}>
-                    <td className="px-4 py-3 text-ink-soft">
+                    <td className="whitespace-nowrap px-4 py-3 text-ink-soft">
                       {shortDate(o.createdAt)}
-                      {o.source === "manual" && (
-                        <span className="ml-2 rounded-full bg-sand px-2 py-0.5 text-[10px] font-medium">
-                          Manual
+                      {o.source !== "web" && (
+                        <span className="ml-2 rounded-full bg-sand px-2 py-0.5 text-[10px] font-medium capitalize">
+                          {o.source}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">
+                    <td className="whitespace-nowrap px-4 py-3 text-ink-soft">
                       {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
                     </td>
                     <td className="px-4 py-3 capitalize text-ink-soft">
                       {o.fulfillmentStatus}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-sage-deep">
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-ink">
                       {formatPrice(o.amountTotalCents / 100)}
                     </td>
                     <td className="px-4 py-3 text-right">
