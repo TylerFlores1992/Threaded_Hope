@@ -123,7 +123,9 @@ care where the data came from. `store.ts` and `faqs.ts` remain static config
 seed + fallback — see below.
 
 - `store.ts` — brand name, tagline, **Scripture line**, contact, socials,
-  shipping thresholds (`freeThreshold`, `flatRate`), and the `shipFrom` return
+  shipping thresholds (`freeThreshold`, `flatRate` — the single source for the
+  rate, read by the cart, the checkout summary, the Stripe session, the
+  shipping-returns copy and manually recorded orders), and the `shipFrom` return
   address used as the label sender (name/street/city/state/zip/phone/email — edit
   before buying live labels; USPS requires both phone + email). Packaging weights
   are now presets in the DB (`lib/packaging.ts`), not in `store.ts`.
@@ -134,8 +136,10 @@ seed + fallback — see below.
   / `getCollectionBySlug` / `getCollectionMap`), which prefers the DB (managed at
   `/admin/collections` — add/edit/delete/hide) and falls back to this list.
   `catalog.ts` maps product `collectionSlug`→name/hue via `getCollectionMap`. The
-  root layout passes visible collections to the Header; the shop passes them to
-  `ShopClient`. Deleting a collection is blocked while products still reference it.
+  shop passes visible collections to `ShopClient`. The header no longer takes
+  them: the mobile menu listed all fourteen, which buried everything else and
+  made the menu scroll on a phone, so it's one **Collections** link to the index
+  page — and the root layout stopped reading them at all. Deleting a collection is blocked while products still reference it.
 - `products.ts` — the 116-product `seed[]` (imported from the live Threaded Hope
   Shopify shop), used to seed the DB on first deploy and as the runtime fallback.
   Slugs derive from the product name; each entry carries a real `image` URL
@@ -161,7 +165,8 @@ seed + fallback — see below.
   `discountCode` used, gift fields
   (`isGift` / `giftMessage` / `giftFrom`), a `pickup` flag (local pickup chosen at
   checkout), `source` ("web" | "manual" | "shopify") + `notes` for sales recorded
-  by hand or imported, refund state (`refundedCents` / `refundedAt` /
+  by hand or imported, the `phone` collected at checkout, refund state
+  (`refundedCents` / `refundedAt` /
   `refundReason` / `restockedAt` — see "Refunds"), an `externalId` for imported
   orders, and fulfillment state (`fulfillmentStatus`
   unfulfilled|shipped|delivered, `shippedAt`, `deliveredAt`).
@@ -218,6 +223,18 @@ seed + fallback — see below.
   the slug metadata, marking items sold out at 0 — the create + all decrements
   run in one `prisma.$transaction`, so a partial failure rolls back and Stripe's
   retry re-runs cleanly. Emails send after commit.
+- **The customer's name and address come from `collected_information.
+  shipping_details`, not `customer_details`.** Checkout only collects a *shipping*
+  address, so `customer_details.name` is usually null — the admin was showing a
+  bare email where the name belongs — and `customer_details.address` is the
+  *billing* address, which is the wrong one to put on a label. Both now prefer
+  the collected shipping details, falling back to `customer_details` for older
+  sessions. Orders saved before this fall back to the name stored on their
+  address rather than showing an email.
+- **The phone is kept.** `phone_number_collection` was on and the answer was
+  discarded; `Order.phone` now stores it, shown on the order and customer pages
+  as a `tel:` link and passed to Shippo as the recipient phone (some services
+  require one). Only orders placed since carry it — Stripe doesn't backfill.
 
 ## Commerce model
 
@@ -318,9 +335,21 @@ seed + fallback — see below.
   the slip handed to the customer at pickup carries no pricing.
 - **Editable photos are consolidated** in the admin **"Photos"** tab
   (`/admin/home`, still that route). `HOME_IMAGE_SLOTS` drives both the uploader
-  and the cached reader (`getHomeImages`); slots cover the logo, hero collage,
-  home story image, and the **Our Story page image** (`our_story_image`). The
+  and the cached reader (`getHomeImages`), and each slot declares a `group` so
+  the page is arranged by *where the photo appears*: Brand (logo), Home page
+  ("Stitched with hope"), Our Story page, then one banner per collection. The
   save action busts the `home-images` tag and revalidates `/` and `/our-story`.
+  **A slot must always be rendered somewhere.** Four "hero collage" slots
+  outlived the collage they filled (removed in #75) and sat on this page for
+  months accepting uploads that went nowhere — when a photo stops being shown,
+  delete its slot in the same change. Their stored values were left in `Setting`,
+  unused: a UI tidy-up shouldn't delete rows.
+- **A collection's photos can be picked from its own products.** `SectionImageField`
+  takes an optional `choices` list, rendered as a strip of thumbnails beside the
+  file upload. The collection editor passes that collection's product photos,
+  since that's where the right picture almost always is; the theme customizer
+  uses the same component with no choices and is unchanged. Thumbnails go through
+  the image optimizer — they're 48px squares over multi-MB originals.
 - **SEO.** `lib/seo.ts` centralizes `SITE_URL` (from `NEXT_PUBLIC_BASE_URL`) and a
   shared keyword list. Dynamic `app/sitemap.ts` (static pages + collections +
   products + blog, degrades to static-only if the DB is down) and `app/robots.ts`
@@ -397,7 +426,30 @@ seed + fallback — see below.
   pages therefore **don't render their own `<h1>` or primary button**. The old
   Shopify-style global search and account chip are gone. `AdminNav` (sidebar) is a
   flat section list with sub-items revealed under the active section; Sign out
-  sits at its foot.
+  sits at its foot. Under **Online Store** sit the storefront pages you edit —
+  **Home page** (the theme customizer, `/admin/customize`), **Gifts**, **Site
+  text**, **Photos**. "Customize" was renamed because the home page is all it
+  edits.
+- **Gift guides** (`lib/gifting.ts`, `/admin/gifts`, `GiftGuidesEditor`). The
+  rows of products down `/gifting` are **placed instances**, the same shape the
+  home page's sections use: a list you add to, remove from and reorder, stored as
+  one JSON blob in `Setting` (`gifting_config`). Each guide carries its own
+  heading, blurb and `limit` — with a variable number of guides there's nowhere
+  fixed for Site text to keep them — and sources its products one of three ways:
+  `collection` (stays current as products are added), `price` (a dollar ceiling,
+  which follows your pricing), or `products` (hand-picked slugs, shown in the
+  order chosen). The editor reports how many products each guide matches, so an
+  empty guide is visible there rather than as a gap on the page; the page skips a
+  guide that resolves to nothing.
+  - **Site text keeps only the page-level copy** — title, subtitle, and the
+    closing block. The old `text_gifting_guide*` fields are gone, but
+    `defaultGuides()` reads those setting rows **directly** (not via
+    `getSiteText`, which no longer declares them) so a shop that had renamed a
+    guide keeps that wording on first load; after one save the stored guides are
+    the whole truth. A config in an older shape parses to `null`, which selects
+    the defaults rather than erroring.
+  - The page once opened with a **"Shop gifts by recipient"** row of collection
+    tiles. It was removed, along with everything that only fed it.
 - **Refunds and returns** (`(panel)/orders/actions.ts` → `refundOrder`,
   `components/admin/RefundPanel.tsx`, `lib/order-refunds.ts`). Full or partial,
   from the order page. The amount defaults to the full remaining total and is
@@ -424,7 +476,9 @@ seed + fallback — see below.
 - **Customers** (`lib/customers.ts`, `/admin/customers`). Derived, not stored:
   orders are grouped by email and merged with `Subscriber` rows, so anyone who
   ordered *or* signed up appears, with order count, total spent (**net of
-  refunds**), and first/last order dates.
+  refunds**), and first/last order dates. The detail page also shows their full
+  shipping address and phone, taken from their most recent order that carried
+  one — a snapshot, not something kept in sync if they move.
 - **Stripe tab** (`/admin/stripe`). Balance (available / pending / instant),
   payout schedule, and recent payouts, plus a payout button **only when the
   account is on a manual schedule** — on the default automatic schedule Stripe
@@ -486,6 +540,16 @@ seed + fallback — see below.
   delivered). Buying a label auto-marks the order shipped (once) + emails
   tracking; the Orders table's `FulfillmentControl` (client) sets status inline
   via the `setFulfillment` action, which emails the customer on the first ship.
+  **A fully refunded order is not a parcel waiting to go out** — `needsFulfilment`
+  (`lib/order-refunds.ts`) is shared by the dashboard's "To ship" count, the
+  Orders "To fulfill" stat and the Unfulfilled tab so they can't drift, and the
+  control reads "Refunded" with no actions. Two cases deliberately excluded: a
+  *partial* refund still needs sending (refunding shipping, or one item of three,
+  leaves a parcel), and an order refunded *after* shipping keeps showing
+  "Shipped" — once it's gone out, what happened to the money is a separate story.
+  The dashboard count compares `refundedCents` to `amountTotalCents` as a Prisma
+  **field reference**, so the database does it rather than loading every
+  unfulfilled order into memory.
 - **Product images can be migrated off Shopify.** Freshly-seeded products hotlink
   the Threaded Hope Shopify CDN. `scripts/migrate-images.mjs` downloads each photo
   into Vercel Blob and rewrites `product.image` — idempotent, and requires a
