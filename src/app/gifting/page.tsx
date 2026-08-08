@@ -53,9 +53,29 @@ export default async function GiftingPage() {
       />
 
       {config.guides.map((guide) => {
-        const items = itemsFor(guide).slice(0, guide.limit);
+        const matches = itemsFor(guide);
+        // A "see more" tile takes a grid cell, so it replaces the last product
+        // rather than wrapping onto a row of its own with three empty cells
+        // beside it. The limit stays the number of cells the row occupies.
+        const hasMore = matches.length > guide.limit;
+        const items = matches.slice(0, hasMore ? guide.limit - 1 : guide.limit);
         // An empty guide is worse than no guide — it reads as a broken page.
-        if (items.length === 0) return null;
+        if (matches.length === 0) return null;
+
+        /**
+         * Where "see more" goes, and whether it's earned. A hand-picked guide
+         * has no page listing exactly that selection, so it never shows one —
+         * raise its limit instead.
+         */
+        const moreHref = !hasMore
+          ? null
+          : guide.source === "collection" && guide.collection
+            ? `/collections/${guide.collection}`
+            : guide.source === "price" && guide.maxPrice
+              ? `/shop?maxPrice=${guide.maxPrice}`
+              : null;
+        // A hand-picked guide has no destination, so it keeps its full row.
+        const shown = moreHref ? items : matches.slice(0, guide.limit);
         return (
           <section key={guide.key} className="mx-auto max-w-6xl px-4 py-8">
             <div className="mb-5">
@@ -63,9 +83,25 @@ export default async function GiftingPage() {
               {guide.blurb && <p className="text-ink-soft">{guide.blurb}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {items.map((p) => (
+              {shown.map((p) => (
                 <ProductCard key={p.slug} product={p} />
               ))}
+              {moreHref && (
+                <Link
+                  href={moreHref}
+                  /* Card-shaped so it reads as a tile even when it wraps onto
+                     a row of its own, which it does whenever the guide's limit
+                     fills the grid exactly. */
+                  className="group flex aspect-4/5 flex-col items-center justify-center rounded-2xl bg-sand text-center ring-1 ring-border transition hover:bg-sage-deep"
+                >
+                  <span className="font-serif text-lg font-semibold text-ink transition group-hover:text-white">
+                    See more
+                  </span>
+                  <span className="mt-1 px-3 text-sm text-ink-soft transition group-hover:text-cream/90">
+                    All {matches.length} →
+                  </span>
+                </Link>
+              )}
             </div>
           </section>
         );
