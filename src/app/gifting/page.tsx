@@ -4,7 +4,7 @@ import type { Product } from "@/data/products";
 import { getProducts } from "@/lib/catalog";
 import { withInStockFirst } from "@/lib/sort";
 import { getSiteText } from "@/lib/site-text";
-import { getGiftingConfig } from "@/lib/gifting";
+import { getGiftingConfig, rowLimit } from "@/lib/gifting";
 import { PageIntro } from "@/components/PageIntro";
 import { ProductCard } from "@/components/ProductCard";
 
@@ -57,8 +57,11 @@ export default async function GiftingPage() {
         // A "see more" tile takes a grid cell, so it replaces the last product
         // rather than wrapping onto a row of its own with three empty cells
         // beside it. The limit stays the number of cells the row occupies.
-        const hasMore = matches.length > guide.limit;
-        const items = matches.slice(0, hasMore ? guide.limit - 1 : guide.limit);
+        // Rounded up to a whole row, so a guide saved when rows were four wide
+        // fills the six-wide row without anyone re-saving it.
+        const limit = rowLimit(guide.limit);
+        const hasMore = matches.length > limit;
+        const items = matches.slice(0, hasMore ? limit - 1 : limit);
         // An empty guide is worse than no guide — it reads as a broken page.
         if (matches.length === 0) return null;
 
@@ -75,7 +78,7 @@ export default async function GiftingPage() {
               ? `/shop?maxPrice=${guide.maxPrice}`
               : null;
         // A hand-picked guide has no destination, so it keeps its full row.
-        const shown = moreHref ? items : matches.slice(0, guide.limit);
+        const shown = moreHref ? items : matches.slice(0, limit);
         return (
           <section key={guide.key} className="mx-auto max-w-6xl px-4 py-8">
             <div className="mb-5">
