@@ -45,6 +45,14 @@ export default async function CustomerDetailPage({
         <a href={`mailto:${customer.email}`} className="text-sage-deep hover:underline">
           {customer.email}
         </a>
+        {customer.phone && (
+          <>
+            {" · "}
+            <a href={`tel:${customer.phone}`} className="hover:underline">
+              {customer.phone}
+            </a>
+          </>
+        )}
         {customer.location && <> · {customer.location}</>}
         {customer.subscribed && <> · Subscribed to email</>}
         {customer.firstOrderAt && (

@@ -119,6 +119,9 @@ model Order {
   externalId       String?
   email            String?
   customerName     String?
+  /// Collected at checkout (phone_number_collection). Carriers ask for a
+  /// recipient phone on some services, so it's passed to Shippo when present.
+  phone            String?
   amountTotalCents Int
   currency         String   @default("usd")
   status           String   @default("paid") // paid | partially_refunded | refunded

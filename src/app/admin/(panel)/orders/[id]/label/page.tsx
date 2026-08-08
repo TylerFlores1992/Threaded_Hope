@@ -132,6 +132,7 @@ export default async function BuyLabelPage({
     state: addr?.state,
     zip: addr?.postal_code,
     country: addr?.country ?? "US",
+    phone: order.phone,
     email: order.email,
   };
 
@@ -211,6 +212,9 @@ export default async function BuyLabelPage({
       </h1>
       <p className="mb-5 text-sm text-ink-soft">
         Ship to {to.name} — {addr.city}, {addr.state} {addr.postal_code}
+        {/* Shown because some carriers require a recipient phone; this is what
+            gets sent with the label. */}
+        {to.phone && <> · {to.phone}</>}
       </p>
 
       {/* Parcel form (GET → puts dims in the query, page fetches rates) */}

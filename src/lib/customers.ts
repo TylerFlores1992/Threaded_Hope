@@ -33,6 +33,8 @@ export type Customer = {
   location: string | null;
   /** Full address from their most recent order that carried one. */
   address: CustomerAddress | null;
+  /** Phone from their most recent order that carried one. */
+  phone: string | null;
   orderCount: number;
   totalSpentCents: number;
   firstOrderAt: Date | null;
@@ -87,6 +89,7 @@ export async function getCustomers(): Promise<Customer[]> {
         name: null,
         location: null,
         address: null,
+        phone: null,
         orderCount: 0,
         totalSpentCents: 0,
         firstOrderAt: null,
@@ -103,6 +106,7 @@ export async function getCustomers(): Promise<Customer[]> {
     c.name ??= o.customerName ?? (o.shipping as ShippingJson)?.name ?? null;
     c.location ??= formatLocation(o.shipping);
     c.address ??= (o.shipping as ShippingJson)?.address ?? null;
+    c.phone ??= o.phone ?? null;
 
     c.orderCount++;
     // Net of refunds: "total spent" should reflect what they actually kept.
@@ -128,6 +132,7 @@ export async function getCustomers(): Promise<Customer[]> {
       name: null,
       location: null,
       address: null,
+      phone: null,
       orderCount: 0,
       totalSpentCents: 0,
       firstOrderAt: null,

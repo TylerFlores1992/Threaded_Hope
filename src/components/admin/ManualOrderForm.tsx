@@ -172,6 +172,10 @@ export function ManualOrderForm({ products }: { products: PickerProduct[] }) {
           <input name="email" type="email" className={field} />
         </label>
         <label className="text-xs text-ink-soft">
+          Phone (optional)
+          <input name="phone" type="tel" className={field} />
+        </label>
+        <label className="text-xs text-ink-soft">
           Shipping charged ($)
           <input
             name="shipping"
