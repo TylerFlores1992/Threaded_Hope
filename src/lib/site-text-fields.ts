@@ -165,6 +165,95 @@ export const SITE_TEXT_FIELDS: TextField[] = [
     default: "Handmade fabric accessories, made in small batches with care.",
     multiline: true,
   },
+
+  // ── Gifting page ──
+  {
+    key: "gifting_heading",
+    label: "Heading",
+    group: "Gifting page",
+    default: "Gift Guide",
+  },
+  {
+    key: "gifting_subtitle",
+    label: "Subtitle",
+    group: "Gifting page",
+    default:
+      "Handmade with heart — thoughtful gifts for everyone on your list.",
+    multiline: true,
+  },
+  {
+    key: "gifting_recipients_heading",
+    label: "Heading above the collection tiles",
+    group: "Gifting page",
+    default: "Shop gifts by recipient",
+  },
+  {
+    key: "gifting_guide1_heading",
+    label: "First guide — heading",
+    group: "Gifting page",
+    default: "Under $15",
+    help: "If you change the price here, change the limit below to match.",
+  },
+  {
+    key: "gifting_guide1_max",
+    label: "First guide — price limit",
+    group: "Gifting page",
+    default: "15",
+    help: "Products at or under this many dollars. Numbers only.",
+  },
+  {
+    key: "gifting_guide1_blurb",
+    label: "First guide — blurb",
+    group: "Gifting page",
+    default: "Little treasures that make wonderful stocking stuffers.",
+    multiline: true,
+  },
+  {
+    key: "gifting_guide2_heading",
+    label: "Second guide — heading",
+    group: "Gifting page",
+    default: "For the New Parent",
+  },
+  {
+    key: "gifting_guide2_blurb",
+    label: "Second guide — blurb",
+    group: "Gifting page",
+    default: "Thoughtful comfort for the moms and dads who do it all.",
+    multiline: true,
+  },
+  {
+    key: "gifting_guide3_heading",
+    label: "Third guide — heading",
+    group: "Gifting page",
+    default: "For the Pet Lover",
+  },
+  {
+    key: "gifting_guide3_blurb",
+    label: "Third guide — blurb",
+    group: "Gifting page",
+    default: "Because the fur babies deserve gifts too.",
+    multiline: true,
+  },
+  {
+    key: "gifting_cta_heading",
+    label: "Closing heading",
+    group: "Gifting page",
+    default: "Need a hand choosing?",
+  },
+  {
+    key: "gifting_cta_body",
+    label: "Closing paragraph",
+    group: "Gifting page",
+    default:
+      "We love helping you find the perfect gift. Reach out and we'll point you in the right direction.",
+    multiline: true,
+  },
+  {
+    key: "gifting_cta_button",
+    label: "Closing button",
+    group: "Gifting page",
+    default: "Contact us",
+  },
 ];
 
 /** Ordered list of the distinct groups, for rendering the admin form. */

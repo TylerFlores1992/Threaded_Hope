@@ -8,7 +8,6 @@ import { getHomeImages } from "@/lib/home-images";
 import { getTheme, defaultTheme } from "@/lib/theme";
 import { ThemeStyle } from "@/components/ThemeStyle";
 import { ThemePreviewBridge } from "@/components/ThemePreviewBridge";
-import { getVisibleCollections } from "@/lib/collections";
 import { CartProvider } from "@/lib/cart-context";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -64,9 +63,8 @@ export default async function RootLayout({
   // the whole site — error.tsx can't catch a failing layout. Each read falls back
   // to something serviceable instead: the bundled logo, no nav dropdown, the
   // default theme. A degraded shop still sells; a blank one doesn't.
-  const [homeImages, navCollections, theme] = await Promise.all([
+  const [homeImages, theme] = await Promise.all([
     getHomeImages().catch(() => ({}) as Awaited<ReturnType<typeof getHomeImages>>),
-    getVisibleCollections().catch(() => []),
     getTheme().catch(() => defaultTheme()),
   ]);
   const logoSrc = homeImages.home_logo ?? "/logo.png";
@@ -112,7 +110,7 @@ export default async function RootLayout({
             Skip to content
           </a>
           <ChromeGate>
-            <Header logoSrc={logoSrc} collections={navCollections} />
+            <Header logoSrc={logoSrc} />
           </ChromeGate>
           <main id="main" className="flex-1">
             {children}
