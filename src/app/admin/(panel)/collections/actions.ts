@@ -188,14 +188,12 @@ export async function saveCollectionOrdering(ids: string[]): Promise<void> {
  * the page already skips a guide that ends up with no products.
  */
 export async function saveGiftingConfig(config: {
-  tiles: string[];
   guide2: string;
   guide3: string;
 }): Promise<void> {
   await setSetting(
     GIFTING_KEY,
     JSON.stringify({
-      tiles: config.tiles.filter((s) => typeof s === "string"),
       guide2: String(config.guide2 ?? ""),
       guide3: String(config.guide3 ?? ""),
     }),

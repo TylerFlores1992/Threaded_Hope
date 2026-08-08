@@ -122,28 +122,40 @@ export function HomeImagesForm({
       busy ? [...new Set([...prev, key])] : prev.filter((k) => k !== key),
     );
 
+  // Grouped by where the photo actually appears, so it's obvious what a slot
+  // affects — and obvious when one belongs to nothing.
+  const groups = [...new Set(HOME_IMAGE_SLOTS.map((s) => s.group))];
+
   return (
-    <form action={saveHomeImages} className="max-w-2xl space-y-4">
-      {HOME_IMAGE_SLOTS.map((s) => (
-        <Slot
-          key={s.key}
-          slotKey={s.key}
-          label={s.label}
-          help={s.help}
-          current={current[s.key]}
-          onBusyChange={onBusyChange}
-        />
+    <form action={saveHomeImages} className="max-w-2xl space-y-6">
+      {groups.map((group) => (
+        <section key={group} className="space-y-4">
+          <h2 className="text-[13px] font-semibold text-ink">{group}</h2>
+          {HOME_IMAGE_SLOTS.filter((s) => s.group === group).map((s) => (
+            <Slot
+              key={s.key}
+              slotKey={s.key}
+              label={s.label}
+              help={s.help}
+              current={current[s.key]}
+              onBusyChange={onBusyChange}
+            />
+          ))}
+        </section>
       ))}
 
       {collectionSlots.length > 0 && (
-        <>
-          <h2 className="pt-4 text-[13px] font-semibold text-ink">
-            Collection banners
-          </h2>
-          <p className="-mt-2 text-sm text-ink-soft">
-            The wide image behind each collection page’s title. Empty slots use a
-            generated pattern in the collection’s color.
-          </p>
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-[13px] font-semibold text-ink">
+              Collection banners
+            </h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              The wide photo behind each collection page’s title. Empty slots use
+              a generated pattern in the collection’s colour. The square tile
+              photo for a collection is set on the collection itself.
+            </p>
+          </div>
           {collectionSlots.map((s) => (
             <Slot
               key={s.key}
@@ -154,7 +166,7 @@ export function HomeImagesForm({
               onBusyChange={onBusyChange}
             />
           ))}
-        </>
+        </section>
       )}
 
       <div className="pt-2">

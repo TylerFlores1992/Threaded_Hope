@@ -182,12 +182,6 @@ export const SITE_TEXT_FIELDS: TextField[] = [
     multiline: true,
   },
   {
-    key: "gifting_recipients_heading",
-    label: "Heading above the collection tiles",
-    group: "Gifting page",
-    default: "Shop gifts by recipient",
-  },
-  {
     key: "gifting_guide1_heading",
     label: "First guide — heading",
     group: "Gifting page",

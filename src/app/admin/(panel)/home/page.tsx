@@ -34,11 +34,9 @@ export default async function AdminHomePage() {
   return (
     <div>
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">
-        Upload the editable non-product photos across the site. Each slot falls
-        back to a sensible default when empty — the logo appears in the header,
-        footer, and story section; the hero images fill the home collage; the
-        story images sit beside the home blurb and atop the Our Story page.
-        Changes appear on the site within a moment of saving.
+        Every photo on the site that isn&apos;t a product photo, grouped by where
+        it appears. Each falls back to a sensible default when empty, and changes
+        show on the site within a moment of saving.
       </p>
 
       <div className="mt-6">

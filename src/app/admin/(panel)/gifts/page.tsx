@@ -43,7 +43,6 @@ export default async function AdminGiftsPage() {
 
       <GiftingSettingsEditor
         collections={collections.map((c) => ({ slug: c.slug, name: c.name }))}
-        tiles={gifting.tiles}
         guide2={gifting.guide2}
         guide3={gifting.guide3}
         guide2Heading={text.gifting_guide2_heading}
