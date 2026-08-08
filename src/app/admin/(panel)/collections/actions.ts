@@ -1,8 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPrisma } from "@/lib/db";
+import { setSetting } from "@/lib/settings";
+import { GIFTING_KEY, GIFTING_TAG } from "@/lib/gifting";
 import { SORT_IDS } from "@/lib/collection-sort";
 
 const slugify = (s: string) =>
@@ -178,4 +180,27 @@ export async function saveCollectionOrdering(ids: string[]): Promise<void> {
     ),
   );
   revalidateAll();
+}
+
+/**
+ * Save which collections the Gifting page uses. Slugs aren't validated against
+ * the collection list here — a collection can be renamed or removed later, and
+ * the page already skips a guide that ends up with no products.
+ */
+export async function saveGiftingConfig(config: {
+  tiles: string[];
+  guide2: string;
+  guide3: string;
+}): Promise<void> {
+  await setSetting(
+    GIFTING_KEY,
+    JSON.stringify({
+      tiles: config.tiles.filter((s) => typeof s === "string"),
+      guide2: String(config.guide2 ?? ""),
+      guide3: String(config.guide3 ?? ""),
+    }),
+  );
+  revalidateTag(GIFTING_TAG, "max");
+  revalidatePath("/gifting");
+  revalidatePath("/admin/collections");
 }

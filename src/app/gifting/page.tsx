@@ -5,6 +5,7 @@ import type { Product } from "@/data/products";
 import { getProducts, getCollectionImageOptions } from "@/lib/catalog";
 import { withInStockFirst } from "@/lib/sort";
 import { getSiteText } from "@/lib/site-text";
+import { getGiftingConfig } from "@/lib/gifting";
 import { PageIntro } from "@/components/PageIntro";
 import { ProductCard } from "@/components/ProductCard";
 import { CollectionTile } from "@/components/CollectionTile";
@@ -13,14 +14,6 @@ export const metadata: Metadata = {
   title: "Gifting",
   description: "Handmade gift ideas for every person on your list.",
 };
-
-/** Collections shown as tiles, and the ones the guides below draw from. */
-const RECIPIENT_COLLECTIONS = [
-  "for-the-parents",
-  "faith-based",
-  "fur-babies",
-  "kiddos",
-];
 
 /**
  * A product belongs to a collection if it's the primary one *or* it's listed in
@@ -34,10 +27,15 @@ export const revalidate = 300;
 
 export default async function GiftingPage() {
   const text = await getSiteText();
+  const config = await getGiftingConfig();
   const products = await getProducts();
-  const giftCollections = (await getVisibleCollections()).filter((c) =>
-    RECIPIENT_COLLECTIONS.includes(c.slug),
+  // Tiles follow the order chosen in admin, not the collections' own order.
+  const bySlug = new Map(
+    (await getVisibleCollections()).map((c) => [c.slug, c]),
   );
+  const giftCollections = config.tiles
+    .map((slug) => bySlug.get(slug))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
 
   // These tiles were showing the generated placeholder pattern, because this
   // page was the only one not handing CollectionTile a photo. Same rule as the
@@ -68,12 +66,12 @@ export default async function GiftingPage() {
     {
       title: text.gifting_guide2_heading,
       blurb: text.gifting_guide2_blurb,
-      items: products.filter((p) => inCollection(p, "for-the-parents")),
+      items: products.filter((p) => inCollection(p, config.guide2)),
     },
     {
       title: text.gifting_guide3_heading,
       blurb: text.gifting_guide3_blurb,
-      items: products.filter((p) => inCollection(p, "fur-babies")),
+      items: products.filter((p) => inCollection(p, config.guide3)),
     },
   ];
 
