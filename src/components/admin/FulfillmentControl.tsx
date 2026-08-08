@@ -24,15 +24,22 @@ const label: Record<Status, string> = {
  * A fully refunded order reads as "Refunded" with no actions: there's nothing
  * left to send, and leaving it on "Unfulfilled" made settled orders look like
  * outstanding work.
+ *
+ * A **local-pickup** order never ships, so it doesn't travel through "shipped":
+ * it goes from awaiting collection straight to picked up. That reuses the
+ * stored "delivered" — both mean the customer has it, so the Delivered figures
+ * and filters stay true — and only the wording changes.
  */
 export function FulfillmentControl({
   orderId,
   status,
   refunded = false,
+  pickup = false,
 }: {
   orderId: string;
   status: string;
   refunded?: boolean;
+  pickup?: boolean;
 }) {
   const [pending, start] = useTransition();
   const s = (["unfulfilled", "shipped", "delivered"].includes(status)
@@ -54,6 +61,45 @@ export function FulfillmentControl({
     start(() => {
       void setFulfillment(orderId, next);
     });
+
+  // Pickup has two states, not three. Anything short of collected reads as
+  // awaiting — including a stray "shipped" from an import.
+  if (pickup && !refunded) {
+    const collected = s === "delivered";
+    return (
+      <div className="flex items-center gap-2">
+        <span
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-0.5 text-[12px] font-medium ${
+            collected ? badge.delivered : badge.unfulfilled
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+          {collected ? "Picked up" : "Awaiting pickup"}
+        </span>
+        {!pending && (
+          <span className="flex gap-1 opacity-0 transition group-hover/row:opacity-100 focus-within:opacity-100">
+            {collected ? (
+              <button
+                onClick={() => go("unfulfilled")}
+                aria-label="Reset status"
+                className="rounded px-1.5 py-0.5 text-[12px] text-ink-soft hover:bg-black/5"
+              >
+                ↺
+              </button>
+            ) : (
+              <button
+                onClick={() => go("delivered")}
+                className="whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] text-[#005bd3] hover:bg-black/5"
+              >
+                Mark picked up
+              </button>
+            )}
+          </span>
+        )}
+        {pending && <span className="text-xs text-ink-soft">…</span>}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2">

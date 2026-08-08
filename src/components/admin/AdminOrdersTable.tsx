@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import { FulfillmentControl } from "./FulfillmentControl";
 import { isFullyRefunded, needsFulfilment } from "@/lib/order-refunds";
-import { deleteOrders } from "@/app/admin/(panel)/orders/actions";
+import {
+  deleteOrders,
+  setFulfillmentMany,
+} from "@/app/admin/(panel)/orders/actions";
 
 export type AdminOrder = {
   id: string;
@@ -34,8 +42,74 @@ type View =
   | "delivered"
   | "pickup"
   | "gift"
-  | "refunded";
+  | "refunded"
+  | "imported";
 type Sort = "newest" | "oldest" | "total-desc" | "total-asc";
+const SORTS: Sort[] = ["newest", "oldest", "total-desc", "total-asc"];
+
+/**
+ * The filters live in sessionStorage so they survive clicking into an order
+ * and coming back. They're read through useSyncExternalStore rather than in a
+ * `useState` initialiser: reading storage while rendering makes the client's
+ * first render disagree with the server's HTML, which React reports as a
+ * hydration text mismatch and recovers from by discarding the whole tree.
+ * useSyncExternalStore hydrates against the server snapshot and then swaps in
+ * the saved one, which is the same result without the error.
+ */
+const STORE_KEY = "admin-orders-filters";
+
+type Filters = { query: string; view: View; sort: Sort };
+const DEFAULT_FILTERS: Filters = { query: "", view: "all", sort: "newest" };
+
+const filterSubs = new Set<() => void>();
+let filterCache: Filters = DEFAULT_FILTERS;
+/** The raw string `filterCache` was parsed from, so the snapshot stays stable. */
+let filterCacheRaw: string | null = null;
+
+function parseFilters(raw: string): Filters {
+  try {
+    const s = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      query: typeof s.query === "string" ? s.query : "",
+      view: VIEWS.some((v) => v.id === s.view) ? (s.view as View) : "all",
+      sort: SORTS.includes(s.sort as Sort) ? (s.sort as Sort) : "newest",
+    };
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+}
+
+function subscribeFilters(fn: () => void) {
+  filterSubs.add(fn);
+  return () => filterSubs.delete(fn);
+}
+
+function getFilters(): Filters {
+  let raw = "";
+  try {
+    raw = sessionStorage.getItem(STORE_KEY) ?? "";
+  } catch {
+    /* private mode, etc. — fall back to the defaults */
+  }
+  if (raw !== filterCacheRaw) {
+    filterCacheRaw = raw;
+    filterCache = raw ? parseFilters(raw) : DEFAULT_FILTERS;
+  }
+  return filterCache;
+}
+
+const getServerFilters = () => DEFAULT_FILTERS;
+
+function saveFilters(next: Filters) {
+  filterCacheRaw = JSON.stringify(next);
+  filterCache = next;
+  try {
+    sessionStorage.setItem(STORE_KEY, filterCacheRaw);
+  } catch {
+    /* ignore storage errors */
+  }
+  filterSubs.forEach((fn) => fn());
+}
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "all", label: "All" },
@@ -45,6 +119,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "pickup", label: "Local pickup" },
   { id: "gift", label: "Gifts" },
   { id: "refunded", label: "Refunded" },
+  { id: "imported", label: "Imported" },
 ];
 
 const PER_PAGE = 50;
@@ -91,29 +166,47 @@ const matchesView = (o: AdminOrder, view: View) => {
       return o.isGift;
     case "refunded":
       return o.refundedCents > 0;
+    case "imported":
+      // Anything that didn't start as a checkout here — the Shopify history.
+      return o.source !== "web";
     default:
       return true;
   }
 };
 
 export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
-  const STORE_KEY = "admin-orders-filters";
-  const saved =
-    typeof window !== "undefined"
-      ? (() => {
-          try {
-            return JSON.parse(sessionStorage.getItem(STORE_KEY) ?? "{}");
-          } catch {
-            return {};
-          }
-        })()
-      : {};
-  const [query, setQuery] = useState<string>(saved.query ?? "");
-  const [view, setView] = useState<View>(saved.view ?? "all");
-  const [sort, setSort] = useState<Sort>(saved.sort ?? "newest");
+  const filters = useSyncExternalStore(
+    subscribeFilters,
+    getFilters,
+    getServerFilters,
+  );
+  const { query, view, sort } = filters;
+  const setQuery = (next: string) => saveFilters({ ...filters, query: next });
+  const setView = (next: View) => saveFilters({ ...filters, view: next });
+  const setSort = (next: Sort) => saveFilters({ ...filters, sort: next });
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [deleting, startDelete] = useTransition();
+  const [marking, startMark] = useTransition();
+
+  /**
+   * Bulk fulfillment. Confirms first because it's a lot of rows at once, and
+   * says plainly that nobody gets emailed — the single-order control does send.
+   */
+  const markSelected = (status: "shipped" | "delivered") => {
+    const n = selected.length;
+    if (
+      !window.confirm(
+        `Mark ${n} order${n === 1 ? "" : "s"} as ${status}? The customers won't be emailed.`,
+      )
+    ) {
+      return;
+    }
+    startMark(async () => {
+      await setFulfillmentMany(selected, status);
+      setSelected([]);
+    });
+  };
 
   /** Deleting orders is irreversible, so it asks first. */
   const removeSelected = () => {
@@ -136,14 +229,6 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
     setPage(0);
     setSelected([]);
   };
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORE_KEY, JSON.stringify({ query, view, sort }));
-    } catch {
-      /* ignore storage errors (private mode, etc.) */
-    }
-  }, [query, view, sort]);
 
   const counts = useMemo(
     () =>
@@ -265,8 +350,22 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
             Export selected
           </a>
           <button
+            onClick={() => markSelected("shipped")}
+            disabled={marking || deleting}
+            className="rounded px-2 py-1 hover:bg-white/10 disabled:opacity-50"
+          >
+            Mark shipped
+          </button>
+          <button
+            onClick={() => markSelected("delivered")}
+            disabled={marking || deleting}
+            className="rounded px-2 py-1 hover:bg-white/10 disabled:opacity-50"
+          >
+            {marking ? "Saving…" : "Mark delivered"}
+          </button>
+          <button
             onClick={removeSelected}
-            disabled={deleting}
+            disabled={deleting || marking}
             className="rounded px-2 py-1 text-[#ff8a80] hover:bg-white/10 disabled:opacity-50"
           >
             {deleting ? "Deleting…" : "Delete"}
@@ -373,6 +472,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
                     orderId={o.id}
                     status={o.fulfillmentStatus}
                     refunded={isFullyRefunded(o)}
+                    pickup={o.pickup}
                   />
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-ink-soft">

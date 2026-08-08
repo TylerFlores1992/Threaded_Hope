@@ -71,6 +71,7 @@ export default async function OrderDetailPage({
           orderId={order.id}
           status={order.fulfillmentStatus}
           refunded={isFullyRefunded(order)}
+          pickup={order.pickup}
         />
       </div>
 
@@ -113,12 +114,14 @@ export default async function OrderDetailPage({
         >
           {order.isGift || order.pickup ? "Print slip (no prices)" : "Print packing slip"}
         </Link>
-        <Link
-          href={`/admin/orders/${order.id}/label`}
-          className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sand"
-        >
-          {order.labelUrl ? "View label" : "Buy shipping label"}
-        </Link>
+        {!order.pickup && (
+          <Link
+            href={`/admin/orders/${order.id}/label`}
+            className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sand"
+          >
+            {order.labelUrl ? "View label" : "Buy shipping label"}
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">

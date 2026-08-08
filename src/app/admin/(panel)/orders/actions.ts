@@ -155,7 +155,9 @@ export async function setFulfillment(
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return;
 
-  const firstShip = status === "shipped" && !order.shippedAt;
+  // A pickup order is never shipped, so it never gets a tracking email — even
+  // if something walks it through "shipped" on the way to picked up.
+  const firstShip = status === "shipped" && !order.shippedAt && !order.pickup;
   const updated = await prisma.order.update({
     where: { id: orderId },
     data: {
@@ -387,4 +389,37 @@ export async function deleteSampleOrders(): Promise<{ deleted: number }> {
   revalidatePath("/admin/orders");
   revalidatePath("/admin/customers");
   return { deleted: count };
+}
+
+/**
+ * Set the fulfillment status of many orders at once, from the orders list.
+ *
+ * Deliberately silent: `setFulfillment` emails the customer the first time an
+ * order becomes "shipped", which is right for one order and wrong for fifty —
+ * nobody wants to send a year of imported history a shipping notice. Use the
+ * single-order control when the customer should hear about it.
+ */
+export async function setFulfillmentMany(
+  ids: string[],
+  status: "unfulfilled" | "shipped" | "delivered",
+): Promise<{ updated: number }> {
+  if (ids.length === 0) return { updated: 0 };
+  const prisma = getPrisma();
+  const now = new Date();
+
+  const { count } = await prisma.order.updateMany({
+    where: { id: { in: ids } },
+    data: {
+      fulfillmentStatus: status,
+      // Timestamps are set for the whole batch; an order that already carried
+      // one keeps it, since updateMany can't be conditional per row.
+      ...(status === "delivered" ? { deliveredAt: now } : {}),
+      ...(status === "unfulfilled" ? { shippedAt: null, deliveredAt: null } : {}),
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/customers");
+  return { updated: count };
 }
