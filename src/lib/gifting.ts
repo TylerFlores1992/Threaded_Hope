@@ -34,7 +34,7 @@ export type GiftGuide = {
   maxPrice?: number;
   /** Product slugs in display order, when source is "products". */
   slugs?: string[];
-  /** How many products to show. */
+  /** How many products to show. Six fills a row on a wide screen. */
   limit: number;
 };
 
@@ -81,7 +81,7 @@ async function defaultGuides(): Promise<GiftGuide[]> {
       blurb: b1,
       source: "price",
       maxPrice: Number(max1) || 15,
-      limit: 4,
+      limit: 6,
     },
     {
       key: "parents",
@@ -89,7 +89,7 @@ async function defaultGuides(): Promise<GiftGuide[]> {
       blurb: b2,
       source: "collection",
       collection: "for-the-parents",
-      limit: 4,
+      limit: 6,
     },
     {
       key: "pets",
@@ -97,7 +97,7 @@ async function defaultGuides(): Promise<GiftGuide[]> {
       blurb: b3,
       source: "collection",
       collection: "fur-babies",
-      limit: 4,
+      limit: 6,
     },
   ];
 }
@@ -120,7 +120,7 @@ function parseGuide(raw: unknown, i: number): GiftGuide | null {
     slugs: Array.isArray(g.slugs)
       ? g.slugs.filter((s): s is string => typeof s === "string")
       : undefined,
-    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 24) : 4,
+    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 24) : 6,
   };
 }
 

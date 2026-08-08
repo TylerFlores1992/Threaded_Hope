@@ -196,7 +196,7 @@ export async function saveGiftingConfig(guides: GiftGuide[]): Promise<void> {
     collection: g.collection || undefined,
     maxPrice: Number.isFinite(Number(g.maxPrice)) ? Number(g.maxPrice) : undefined,
     slugs: Array.isArray(g.slugs) ? g.slugs.slice(0, 24) : undefined,
-    limit: Math.min(Math.max(1, Number(g.limit) || 4), 24),
+    limit: Math.min(Math.max(1, Number(g.limit) || 6), 24),
   }));
 
   await setSetting(GIFTING_KEY, JSON.stringify({ guides: clean }));
