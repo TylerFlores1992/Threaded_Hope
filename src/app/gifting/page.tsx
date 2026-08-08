@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getVisibleCollections } from "@/lib/collections";
 import type { Product } from "@/data/products";
-import { getProducts, getCollectionImageOptions } from "@/lib/catalog";
+import { getProducts } from "@/lib/catalog";
 import { withInStockFirst } from "@/lib/sort";
 import { getSiteText } from "@/lib/site-text";
 import { getGiftingConfig } from "@/lib/gifting";
 import { PageIntro } from "@/components/PageIntro";
 import { ProductCard } from "@/components/ProductCard";
-import { CollectionTile } from "@/components/CollectionTile";
 
 export const metadata: Metadata = {
   title: "Gifting",
@@ -29,30 +27,6 @@ export default async function GiftingPage() {
   const text = await getSiteText();
   const config = await getGiftingConfig();
   const products = await getProducts();
-  // Tiles follow the order chosen in admin, not the collections' own order.
-  const bySlug = new Map(
-    (await getVisibleCollections()).map((c) => [c.slug, c]),
-  );
-  const giftCollections = config.tiles
-    .map((slug) => bySlug.get(slug))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c));
-
-  // These tiles were showing the generated placeholder pattern, because this
-  // page was the only one not handing CollectionTile a photo. Same rule as the
-  // home and collections pages: the admin-set tile photo wins, otherwise borrow
-  // a product photo, and no two tiles repeat one.
-  const collImages = await getCollectionImageOptions();
-  const used = new Set<string>();
-  const pickImage = (slug: string): string | undefined => {
-    for (const img of collImages[slug] ?? []) {
-      if (!used.has(img)) {
-        used.add(img);
-        return img;
-      }
-    }
-    return collImages[slug]?.[0];
-  };
-
   // The price limit is admin-editable copy, so it arrives as a string; a typo
   // falls back to the default rather than emptying the section.
   const budgetMax = Number(text.gifting_guide1_max) || 15;
@@ -81,21 +55,6 @@ export default async function GiftingPage() {
         title={text.gifting_heading}
         subtitle={text.gifting_subtitle}
       />
-
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="mb-6 font-serif text-2xl text-ink">
-          {text.gifting_recipients_heading}
-        </h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {giftCollections.map((c) => (
-            <CollectionTile
-              key={c.slug}
-              collection={c}
-              image={c.tileImage ?? pickImage(c.slug)}
-            />
-          ))}
-        </div>
-      </section>
 
       {guides.map((guide) => {
         const items = withInStockFirst(guide.items).slice(0, 4);
