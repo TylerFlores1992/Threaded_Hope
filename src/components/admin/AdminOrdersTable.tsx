@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import { FulfillmentControl } from "./FulfillmentControl";
+import { isFullyRefunded, needsFulfilment } from "@/lib/order-refunds";
 import { deleteOrders } from "@/app/admin/(panel)/orders/actions";
 
 export type AdminOrder = {
@@ -78,7 +79,8 @@ function Badge({
 const matchesView = (o: AdminOrder, view: View) => {
   switch (view) {
     case "unfulfilled":
-      return o.fulfillmentStatus === "unfulfilled";
+      // A refunded order has nothing to send, so it leaves the to-do queue.
+      return needsFulfilment(o);
     case "shipped":
       return o.fulfillmentStatus === "shipped";
     case "delivered":
@@ -370,6 +372,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
                   <FulfillmentControl
                     orderId={o.id}
                     status={o.fulfillmentStatus}
+                    refunded={isFullyRefunded(o)}
                   />
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-ink-soft">

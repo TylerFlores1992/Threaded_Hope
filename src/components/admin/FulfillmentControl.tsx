@@ -20,18 +20,35 @@ const label: Record<Status, string> = {
 /**
  * Order fulfillment badge + inline actions. Marking "shipped" emails the
  * customer their tracking (server-side). Advancing/reverting is one click.
+ *
+ * A fully refunded order reads as "Refunded" with no actions: there's nothing
+ * left to send, and leaving it on "Unfulfilled" made settled orders look like
+ * outstanding work.
  */
 export function FulfillmentControl({
   orderId,
   status,
+  refunded = false,
 }: {
   orderId: string;
   status: string;
+  refunded?: boolean;
 }) {
   const [pending, start] = useTransition();
   const s = (["unfulfilled", "shipped", "delivered"].includes(status)
     ? status
     : "unfulfilled") as Status;
+
+  // Once it's shipped, what happened to the money is a separate story — keep
+  // showing the real fulfillment state and only take over while it's pending.
+  if (refunded && s === "unfulfilled") {
+    return (
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#e3e3e3] px-2 py-0.5 text-[12px] font-medium text-[#4a4a4a]">
+        <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+        Refunded
+      </span>
+    );
+  }
 
   const go = (next: Status) =>
     start(() => {

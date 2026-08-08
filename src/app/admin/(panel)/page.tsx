@@ -154,7 +154,15 @@ export default async function AdminDashboard({
       prisma.order.aggregate({
         _sum: { amountTotalCents: true, refundedCents: true },
       }),
-      prisma.order.count({ where: { fulfillmentStatus: "unfulfilled" } }),
+      // A fully refunded order isn't a parcel waiting to go out. Compared as a
+      // field reference so the database does it, rather than loading every
+      // unfulfilled order to filter in memory.
+      prisma.order.count({
+        where: {
+          fulfillmentStatus: "unfulfilled",
+          refundedCents: { lt: prisma.order.fields.amountTotalCents },
+        },
+      }),
       prisma.order.findMany({
         where: { createdAt: { gte: range.start } },
         select: {
