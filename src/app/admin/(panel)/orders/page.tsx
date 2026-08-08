@@ -4,7 +4,6 @@ import { createTestOrder } from "./actions";
 import { isShippoTestMode } from "@/lib/shipping";
 import { StatStrip } from "@/components/admin/StatStrip";
 import { needsFulfilment } from "@/lib/order-refunds";
-import { BackfillFromStripe } from "@/components/admin/BackfillFromStripe";
 import { RemoveSampleOrders } from "@/components/admin/RemoveSampleOrders";
 import {
   AdminOrdersTable,
@@ -97,7 +96,6 @@ export default async function OrdersPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <BackfillFromStripe />
           <Link
             href="/admin/orders/import"
             className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-medium text-ink shadow-[0_1px_0_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.12)] hover:bg-black/[0.03]"
