@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getSetting } from "@/lib/settings";
+import { GUIDE_ROW } from "@/lib/gifting-rows";
 
 /**
  * The gift guides — the rows of products down the Gifting page.
@@ -39,6 +40,8 @@ export type GiftGuide = {
 };
 
 export type GiftingConfig = { guides: GiftGuide[] };
+
+export { GUIDE_ROW, rowLimit } from "@/lib/gifting-rows";
 
 const SOURCES: GuideSource[] = ["collection", "price", "products"];
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -81,7 +84,7 @@ async function defaultGuides(): Promise<GiftGuide[]> {
       blurb: b1,
       source: "price",
       maxPrice: Number(max1) || 15,
-      limit: 6,
+      limit: GUIDE_ROW,
     },
     {
       key: "parents",
@@ -89,7 +92,7 @@ async function defaultGuides(): Promise<GiftGuide[]> {
       blurb: b2,
       source: "collection",
       collection: "for-the-parents",
-      limit: 6,
+      limit: GUIDE_ROW,
     },
     {
       key: "pets",
@@ -97,7 +100,7 @@ async function defaultGuides(): Promise<GiftGuide[]> {
       blurb: b3,
       source: "collection",
       collection: "fur-babies",
-      limit: 6,
+      limit: GUIDE_ROW,
     },
   ];
 }
@@ -120,7 +123,7 @@ function parseGuide(raw: unknown, i: number): GiftGuide | null {
     slugs: Array.isArray(g.slugs)
       ? g.slugs.filter((s): s is string => typeof s === "string")
       : undefined,
-    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 24) : 6,
+    limit: Number.isFinite(limit) && limit > 0 ? Math.min(limit, 24) : GUIDE_ROW,
   };
 }
 

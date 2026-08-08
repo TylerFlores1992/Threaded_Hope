@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { saveGiftingConfig } from "@/app/admin/(panel)/collections/actions";
 import type { GiftGuide, GuideSource } from "@/lib/gifting";
+import { GUIDE_ROW, rowLimit } from "@/lib/gifting-rows";
 import { formatPrice } from "@/lib/format";
 
 export type GuideCollection = { slug: string; name: string };
@@ -212,7 +213,7 @@ export function GiftGuidesEditor({
         blurb: "",
         source: "collection",
         collection: collections[0]?.slug,
-        limit: 6,
+        limit: GUIDE_ROW,
       },
     ]);
     setDirty(true);
@@ -246,7 +247,7 @@ export function GiftGuidesEditor({
       <div className="space-y-4">
         {guides.map((g, i) => {
           const count = countFor(g);
-          const shown = Math.min(count, g.limit);
+          const shown = Math.min(count, rowLimit(g.limit));
           return (
             <section key={g.key} className="admin-card p-4">
               <div className="flex items-start gap-2">
@@ -317,20 +318,20 @@ export function GiftGuidesEditor({
                   </select>
                 </label>
                 <label className="block text-[12px] text-ink-soft">
-                  Show up to
-                  <span className="block text-[11px] text-ink-soft/80">
-                    6 fills a row
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={g.limit}
-                    onChange={(e) =>
-                      edit(i, { limit: Math.max(1, Number(e.target.value) || 1) })
-                    }
-                    className={`${field} w-24`}
-                  />
+                  How many
+                  {/* Whole rows only — a number in between would leave gaps at
+                      the end of the row, which is what this replaced. */}
+                  <select
+                    value={rowLimit(g.limit)}
+                    onChange={(e) => edit(i, { limit: Number(e.target.value) })}
+                    className={`${field} w-40`}
+                  >
+                    {[1, 2, 3, 4].map((rows) => (
+                      <option key={rows} value={rows * GUIDE_ROW}>
+                        {rows} row{rows === 1 ? "" : "s"} ({rows * GUIDE_ROW})
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <p className="mt-1 text-[11px] text-ink-soft">
