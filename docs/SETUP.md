@@ -117,9 +117,10 @@ grouped:
   Collections, Inventory.
 - **Sales** — Orders (packing slips, Shippo labels, CSV export, and **Record a
   sale** for orders made outside the website), Discounts, Traffic.
-- **Storefront** — **Customize** (theme editor: sections, colors, fonts, layout,
-  version history), **Site text** (all editable wording), **Photos** (logo, home
-  imagery, Our Story image, and a banner per collection).
+- **Online Store** — **Home page** (theme editor: sections, colors, fonts,
+  layout, version history), **Gifts** (the rows of products on the gift guide),
+  **Site text** (editable wording), **Photos** (logo, home imagery, the Our Story
+  photo, and a banner per collection).
 
 Storefront pages revalidate automatically when you save, so changes appear within
 moments. A discreet **Admin** link in the site footer gives quick access; keep
@@ -290,7 +291,7 @@ and is added to the sitemap automatically.
 Two admin tabs cover appearance and wording; both are safe to experiment with
 since defaults reproduce the original design and nothing is public until saved.
 
-- **Customize** (`/admin/customize`) — a theme editor with a live preview:
+- **Home page** (`/admin/customize`) — a theme editor with a live preview:
   - **Sections:** drag to reorder, show/hide, **add / duplicate / remove**
     (a type like "Shop by collection" can appear more than once), and open a
     section for its own settings *and* its wording.
@@ -298,6 +299,19 @@ since defaults reproduce the original design and nothing is public until saved.
     size, corner style, page width.
   - **History:** restore any of the last 10 saved versions.
   - On a phone the editor toggles between **Edit** and **Preview**.
+> **Shipping rate.** The flat rate and the free-shipping threshold live in
+> `src/data/store.ts` → `shipping` (`flatRate`, `freeThreshold`). One edit covers
+> the cart, the checkout summary, what Stripe charges, the Shipping & Returns
+> page and manually recorded orders — there's no second place to change.
+
+- **Gifts** (`/admin/gifts`) — the rows of products down the gift guide. Add as
+  many as you like, remove any, reorder with the arrows. Each row has its own
+  heading, blurb and "show up to" count, and draws its products one of three
+  ways: **everything in a collection** (stays current as you add to it),
+  **everything under a price** (follows your pricing), or **products you choose**
+  (search by name, then reorder or remove). Each row tells you how many products
+  it matches, and a row matching nothing simply doesn't appear on the page. The
+  gift guide's own title and closing block stay under Site text.
   - Colors/fonts/visibility preview instantly; section settings apply on **Save**
     (the preview reloads automatically).
 - **Site text** (`/admin/text`) — every editable string across the home page, Our
