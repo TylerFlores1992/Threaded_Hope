@@ -12,6 +12,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** The name stored alongside an order's shipping address, if there is one. */
+function shippingName(shipping: unknown): string | null {
+  if (!shipping || typeof shipping !== "object") return null;
+  const name = (shipping as { name?: unknown }).name;
+  return typeof name === "string" && name.trim() ? name : null;
+}
+
 type OrderItem = { name: string; quantity: number };
 
 export default async function OrdersPage() {
@@ -34,7 +41,9 @@ export default async function OrdersPage() {
     return {
       id: o.id,
       createdAt: o.createdAt.toISOString(),
-      customerName: o.customerName,
+      // Older orders were saved before the shipping name was captured, so fall
+      // back to the name on the address rather than showing a bare email.
+      customerName: o.customerName ?? shippingName(o.shipping),
       email: o.email,
       itemCount: items.reduce((n, it) => n + (it.quantity ?? 1), 0),
       itemNames: items.map((it) => it.name).join(", "),

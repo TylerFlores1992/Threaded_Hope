@@ -5,9 +5,6 @@ import { placeholderImage } from "@/lib/placeholder";
 import { SORT_MODES } from "@/lib/collection-sort";
 import { CollectionRowActions } from "@/components/admin/CollectionRowActions";
 import { CollectionOrderEditor } from "@/components/admin/CollectionOrderEditor";
-import { GiftingSettingsEditor } from "@/components/admin/GiftingSettingsEditor";
-import { getGiftingConfig } from "@/lib/gifting";
-import { getSiteText } from "@/lib/site-text";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +18,6 @@ export default async function AdminCollectionsPage() {
   }
 
   const collections = await getAllCollections();
-  const gifting = await getGiftingConfig();
-  const text = await getSiteText();
   const rows = await prisma.collection.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
@@ -67,15 +62,6 @@ export default async function AdminCollectionsPage() {
           featured: r.featured,
           hidden: r.hidden,
         }))}
-      />
-
-      <GiftingSettingsEditor
-        collections={collections.map((c) => ({ slug: c.slug, name: c.name }))}
-        tiles={gifting.tiles}
-        guide2={gifting.guide2}
-        guide3={gifting.guide3}
-        guide2Heading={text.gifting_guide2_heading}
-        guide3Heading={text.gifting_guide3_heading}
       />
 
       <div className="mt-4 overflow-x-auto admin-card">
