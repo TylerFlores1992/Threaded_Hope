@@ -79,6 +79,10 @@ export default async function EditCollectionPage({
         seoDescription={row.seoDescription}
         heroImage={row.heroImage}
         tileImage={row.tileImage}
+        photoChoices={items
+          .map((i) => i.image)
+          .filter((src): src is string => Boolean(src))
+          .slice(0, 24)}
       />
 
       <section className="admin-card mt-4 max-w-3xl p-4">

@@ -31,6 +31,7 @@ export function CollectionForm({
   seoDescription,
   heroImage,
   tileImage,
+  photoChoices = [],
 }: {
   action: (formData: FormData) => void | Promise<void>;
   collection?: Collection;
@@ -42,6 +43,8 @@ export function CollectionForm({
   seoDescription?: string | null;
   heroImage?: string | null;
   tileImage?: string | null;
+  /** Photos of this collection's own products, offered instead of an upload. */
+  photoChoices?: string[];
 }) {
   // Uploaded straight to Blob storage; the form only ever submits the URLs.
   const [hero, setHero] = useState(heroImage ?? "");
@@ -91,15 +94,19 @@ export function CollectionForm({
         <p className="text-[13px] font-medium text-ink">Photos</p>
         <input type="hidden" name="tileImage" value={tile} />
         <SectionImageField
-          label="Collection tile — the square photo on the home and collections pages (blank borrows a product photo)"
+          label="Collection tile — the square photo on the home, gifting and collections pages (blank borrows a product photo)"
           value={tile}
           onChange={setTile}
+          choices={photoChoices}
+          choicesLabel="Or pick one of this collection's product photos"
         />
         <input type="hidden" name="heroImage" value={hero} />
         <SectionImageField
           label="Header banner — the wide photo behind this collection's title"
           value={hero}
           onChange={setHero}
+          choices={photoChoices}
+          choicesLabel="Or pick one of this collection's product photos"
         />
       </div>
 
