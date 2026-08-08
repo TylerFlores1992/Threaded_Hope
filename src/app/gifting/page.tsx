@@ -27,27 +27,23 @@ export default async function GiftingPage() {
   const text = await getSiteText();
   const config = await getGiftingConfig();
   const products = await getProducts();
-  // The price limit is admin-editable copy, so it arrives as a string; a typo
-  // falls back to the default rather than emptying the section.
-  const budgetMax = Number(text.gifting_guide1_max) || 15;
-
-  const guides = [
-    {
-      title: text.gifting_guide1_heading,
-      blurb: text.gifting_guide1_blurb,
-      items: products.filter((p) => p.price <= budgetMax),
-    },
-    {
-      title: text.gifting_guide2_heading,
-      blurb: text.gifting_guide2_blurb,
-      items: products.filter((p) => inCollection(p, config.guide2)),
-    },
-    {
-      title: text.gifting_guide3_heading,
-      blurb: text.gifting_guide3_blurb,
-      items: products.filter((p) => inCollection(p, config.guide3)),
-    },
-  ];
+  /** Products for one guide, in the order that guide implies. */
+  const itemsFor = (g: (typeof config.guides)[number]) => {
+    if (g.source === "products") {
+      // Hand-picked keeps the chosen order, so it reads as a curated row.
+      const bySlug = new Map(products.map((p) => [p.slug, p]));
+      return (g.slugs ?? [])
+        .map((slug) => bySlug.get(slug))
+        .filter((p): p is Product => Boolean(p));
+    }
+    if (g.source === "price") {
+      const max = g.maxPrice ?? Infinity;
+      return withInStockFirst(products.filter((p) => p.price <= max));
+    }
+    return withInStockFirst(
+      products.filter((p) => inCollection(p, g.collection ?? "")),
+    );
+  };
 
   return (
     <div>
@@ -56,15 +52,15 @@ export default async function GiftingPage() {
         subtitle={text.gifting_subtitle}
       />
 
-      {guides.map((guide) => {
-        const items = withInStockFirst(guide.items).slice(0, 4);
+      {config.guides.map((guide) => {
+        const items = itemsFor(guide).slice(0, guide.limit);
         // An empty guide is worse than no guide — it reads as a broken page.
         if (items.length === 0) return null;
         return (
-          <section key={guide.title} className="mx-auto max-w-6xl px-4 py-8">
+          <section key={guide.key} className="mx-auto max-w-6xl px-4 py-8">
             <div className="mb-5">
-              <h2 className="font-serif text-2xl text-ink">{guide.title}</h2>
-              <p className="text-ink-soft">{guide.blurb}</p>
+              <h2 className="font-serif text-2xl text-ink">{guide.heading}</h2>
+              {guide.blurb && <p className="text-ink-soft">{guide.blurb}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {items.map((p) => (
