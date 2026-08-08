@@ -38,7 +38,8 @@ export const CHANNEL_ITEMS: NavItem[] = [
     label: "Online Store",
     icon: "▣",
     children: [
-      { href: "/admin/customize", label: "Customize" },
+      { href: "/admin/customize", label: "Home page" },
+      { href: "/admin/gifts", label: "Gifts" },
       { href: "/admin/text", label: "Site text" },
       { href: "/admin/home", label: "Photos" },
     ],

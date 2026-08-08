@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Order, Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/db";
+import { store } from "@/data/store";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { buyLabel, isShippoTestMode } from "@/lib/shipping";
 import {
@@ -61,7 +62,7 @@ export async function createTestOrder(
     },
   ];
   const subtotalCents = items[0].unitAmountCents;
-  const shippingCents = pickup ? 0 : 550;
+  const shippingCents = pickup ? 0 : Math.round(store.shipping.flatRate * 100);
   const amountTotalCents = subtotalCents + shippingCents;
 
   await prisma.order.create({

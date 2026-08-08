@@ -311,7 +311,7 @@ export default async function AdminDashboard({
           {[
             { href: "/admin/products/new", label: "Add product" },
             { href: "/admin/orders/new", label: "Record a sale" },
-            { href: "/admin/customize", label: "Customize" },
+            { href: "/admin/customize", label: "Home page" },
           ].map((a) => (
             <Link
               key={a.href}

@@ -47,7 +47,37 @@ export default async function CustomerDetailPage({
         </a>
         {customer.location && <> · {customer.location}</>}
         {customer.subscribed && <> · Subscribed to email</>}
+        {customer.firstOrderAt && (
+          <> · Customer since {shortDate(customer.firstOrderAt)}</>
+        )}
       </p>
+
+      {customer.address && (
+        <div className="admin-card mt-4 max-w-sm p-4">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-soft">
+            Shipping address
+          </h2>
+          <div className="mt-2 text-[13px] text-ink-soft">
+            {customer.name && <p className="text-ink">{customer.name}</p>}
+            {customer.address.line1 && <p>{customer.address.line1}</p>}
+            {customer.address.line2 && <p>{customer.address.line2}</p>}
+            <p>
+              {[
+                customer.address.city,
+                customer.address.state,
+                customer.address.postal_code,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+            {customer.address.country && <p>{customer.address.country}</p>}
+          </div>
+          <p className="mt-2 text-[11px] text-ink-soft">
+            From their most recent order — it isn&apos;t kept in sync if they
+            move.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Orders" value={String(customer.orderCount)} />
@@ -57,8 +87,8 @@ export default async function CustomerDetailPage({
         />
         <Stat label="Average order" value={formatPrice(avgCents / 100)} />
         <Stat
-          label="Customer since"
-          value={customer.firstOrderAt ? shortDate(customer.firstOrderAt) : "—"}
+          label="Last order"
+          value={customer.lastOrderAt ? shortDate(customer.lastOrderAt) : "—"}
         />
       </div>
 

@@ -100,6 +100,23 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   const meta = session.metadata ?? {};
   const isGift = meta.isGift === "1";
 
+  /**
+   * Where the shipping name and address actually live.
+   *
+   * Checkout only collects a *shipping* address here, so `customer_details.name`
+   * is often null and the admin fell back to showing the email address. The
+   * collected shipping details carry the name the customer typed, and the
+   * address a label needs — both are preferred, with customer_details as the
+   * fallback for older sessions.
+   */
+  const shippingDetails = session.collected_information?.shipping_details ?? null;
+  const customerName =
+    shippingDetails?.name ??
+    session.collected_information?.individual_name ??
+    details?.name ??
+    null;
+  const shippingAddress = shippingDetails?.address ?? details?.address ?? null;
+
   // Record the order AND decrement inventory atomically. If any decrement fails,
   // the order create rolls back too, so Stripe's retry re-runs the whole thing
   // cleanly (rather than the retry hitting the idempotency guard with stock
@@ -111,7 +128,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       data: {
         stripeSessionId: session.id,
         email: details?.email ?? null,
-        customerName: details?.name ?? null,
+        customerName,
         amountTotalCents: session.amount_total ?? 0,
         subtotalCents: session.amount_subtotal ?? null,
         discountCents: session.total_details?.amount_discount ?? null,
@@ -124,10 +141,10 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         pickup,
         currency: session.currency ?? "usd",
         status: "paid",
-        shipping: details?.address
+        shipping: shippingAddress
           ? ({
-              name: details.name,
-              address: details.address,
+              name: customerName,
+              address: shippingAddress,
             } as unknown as Prisma.InputJsonValue)
           : undefined,
         items: items as unknown as Prisma.InputJsonValue,
