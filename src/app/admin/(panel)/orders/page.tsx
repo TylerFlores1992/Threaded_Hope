@@ -3,6 +3,7 @@ import { prisma, isDbConfigured } from "@/lib/db";
 import { createTestOrder } from "./actions";
 import { isShippoTestMode } from "@/lib/shipping";
 import { StatStrip } from "@/components/admin/StatStrip";
+import { needsFulfilment } from "@/lib/order-refunds";
 import { RemoveSampleOrders } from "@/components/admin/RemoveSampleOrders";
 import {
   AdminOrdersTable,
@@ -56,13 +57,11 @@ export default async function OrdersPage() {
   ).length;
 
   const itemsOrdered = rows.reduce((n, o) => n + o.itemCount, 0);
-  const fulfilled = rows.filter(
-    (o) => o.fulfillmentStatus !== "unfulfilled",
-  ).length;
   const delivered = rows.filter(
     (o) => o.fulfillmentStatus === "delivered",
   ).length;
-  const unfulfilled = rows.length - fulfilled;
+  // Refunded orders are out of the queue — see needsFulfilment.
+  const unfulfilled = rows.filter(needsFulfilment).length;
 
   /**
    * Average time from order to shipment — Shopify's "order to fulfillment

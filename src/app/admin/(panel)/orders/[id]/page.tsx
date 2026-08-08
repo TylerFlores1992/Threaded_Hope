@@ -4,7 +4,7 @@ import { getPrisma, isDbConfigured } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 import { FulfillmentControl } from "@/components/admin/FulfillmentControl";
 import { RefundPanel } from "@/components/admin/RefundPanel";
-import { isStripeBackedOrder } from "@/lib/order-refunds";
+import { isFullyRefunded, isStripeBackedOrder } from "@/lib/order-refunds";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +67,11 @@ export default async function OrderDetailPage({
           </h1>
           <p className="mt-1 text-sm text-ink-soft">{date}</p>
         </div>
-        <FulfillmentControl orderId={order.id} status={order.fulfillmentStatus} />
+        <FulfillmentControl
+          orderId={order.id}
+          status={order.fulfillmentStatus}
+          refunded={isFullyRefunded(order)}
+        />
       </div>
 
       {/* Flags */}
