@@ -185,7 +185,11 @@ export default async function CustomerDetailPage({
                       {o.itemCount} item{o.itemCount === 1 ? "" : "s"}
                     </td>
                     <td className="px-4 py-3 capitalize text-ink-soft">
-                      {o.fulfillmentStatus}
+                      {o.pickup
+                        ? o.fulfillmentStatus === "delivered"
+                          ? "Picked up"
+                          : "Awaiting pickup"
+                        : o.fulfillmentStatus}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-ink">
                       {formatPrice(o.amountTotalCents / 100)}

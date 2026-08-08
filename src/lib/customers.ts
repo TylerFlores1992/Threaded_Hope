@@ -13,6 +13,8 @@ export type CustomerOrder = {
   createdAt: Date;
   amountTotalCents: number;
   fulfillmentStatus: string;
+  /** Pickup orders read "Picked up", never "Shipped". */
+  pickup: boolean;
   source: string;
   itemCount: number;
 };
@@ -118,6 +120,7 @@ export async function getCustomers(): Promise<Customer[]> {
       createdAt: o.createdAt,
       amountTotalCents: o.amountTotalCents,
       fulfillmentStatus: o.fulfillmentStatus,
+      pickup: o.pickup,
       source: o.source,
       itemCount,
     });
