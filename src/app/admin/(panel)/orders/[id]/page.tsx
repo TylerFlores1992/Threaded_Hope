@@ -129,6 +129,13 @@ export default async function OrderDetailPage({
           </h2>
           <p className="mt-2 text-ink">{order.customerName ?? "—"}</p>
           {order.email && <p className="text-sm text-ink-soft">{order.email}</p>}
+          {order.phone && (
+            <p className="text-sm text-ink-soft">
+              <a href={`tel:${order.phone}`} className="hover:underline">
+                {order.phone}
+              </a>
+            </p>
+          )}
         </div>
 
         {/* Shipping */}

@@ -20,6 +20,7 @@ export async function createManualOrder(formData: FormData): Promise<void> {
 
   const customerName = String(formData.get("customerName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
   const shippingDollars = Number(formData.get("shipping") ?? 0);
   const decrement = formData.get("decrement") === "on";
@@ -79,6 +80,7 @@ export async function createManualOrder(formData: FormData): Promise<void> {
         stripeSessionId: `manual_${Date.now()}_${Math.round(subtotalCents)}`,
         email: email || null,
         customerName: customerName || null,
+        phone: phone || null,
         amountTotalCents: subtotalCents + shippingCents,
         subtotalCents,
         shippingCents,

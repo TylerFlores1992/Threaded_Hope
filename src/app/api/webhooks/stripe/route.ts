@@ -129,6 +129,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         stripeSessionId: session.id,
         email: details?.email ?? null,
         customerName,
+        phone: details?.phone ?? null,
         amountTotalCents: session.amount_total ?? 0,
         subtotalCents: session.amount_subtotal ?? null,
         discountCents: session.total_details?.amount_discount ?? null,
