@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPrisma } from "@/lib/db";
 import { setSetting } from "@/lib/settings";
-import { GIFTING_KEY, GIFTING_TAG } from "@/lib/gifting";
+import { GIFTING_KEY, GIFTING_TAG, type GiftGuide } from "@/lib/gifting";
 import { SORT_IDS } from "@/lib/collection-sort";
 
 const slugify = (s: string) =>
@@ -183,22 +183,24 @@ export async function saveCollectionOrdering(ids: string[]): Promise<void> {
 }
 
 /**
- * Save which collections the Gifting page uses. Slugs aren't validated against
- * the collection list here — a collection can be renamed or removed later, and
- * the page already skips a guide that ends up with no products.
+ * Save the gift guides. Stored verbatim after a shape pass — a guide pointing
+ * at a collection or product that later disappears simply shows fewer items,
+ * which the page and the editor both surface rather than erroring.
  */
-export async function saveGiftingConfig(config: {
-  guide2: string;
-  guide3: string;
-}): Promise<void> {
-  await setSetting(
-    GIFTING_KEY,
-    JSON.stringify({
-      guide2: String(config.guide2 ?? ""),
-      guide3: String(config.guide3 ?? ""),
-    }),
-  );
+export async function saveGiftingConfig(guides: GiftGuide[]): Promise<void> {
+  const clean = guides.map((g, i) => ({
+    key: String(g.key || `guide-${i}`),
+    heading: String(g.heading ?? "").slice(0, 120),
+    blurb: String(g.blurb ?? "").slice(0, 400),
+    source: g.source,
+    collection: g.collection || undefined,
+    maxPrice: Number.isFinite(Number(g.maxPrice)) ? Number(g.maxPrice) : undefined,
+    slugs: Array.isArray(g.slugs) ? g.slugs.slice(0, 24) : undefined,
+    limit: Math.min(Math.max(1, Number(g.limit) || 4), 24),
+  }));
+
+  await setSetting(GIFTING_KEY, JSON.stringify({ guides: clean }));
   revalidateTag(GIFTING_TAG, "max");
   revalidatePath("/gifting");
-  revalidatePath("/admin/collections");
+  revalidatePath("/admin/gifts");
 }
