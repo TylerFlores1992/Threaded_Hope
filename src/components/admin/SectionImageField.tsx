@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
 
@@ -7,15 +8,23 @@ import { upload } from "@vercel/blob/client";
  * Picks the photo for one section, uploaded straight to Blob storage from the
  * browser so a phone photo never has to fit in a request body. The value is the
  * resulting URL, stored on the section instance.
+ *
+ * `choices` offers photos the shop already has — for a collection, its own
+ * products. Uploading a file is the long way round when the right picture is
+ * already in the catalogue.
  */
 export function SectionImageField({
   label,
   value,
   onChange,
+  choices = [],
+  choicesLabel = "Or use a photo you already have",
 }: {
   label: string;
   value: string;
   onChange: (url: string) => void;
+  choices?: string[];
+  choicesLabel?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +50,11 @@ export function SectionImageField({
     <div className="text-xs text-ink-soft">
       <p>{label}</p>
       <div className="mt-1 flex items-center gap-2">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sand ring-1 ring-border">
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-sand ring-1 ring-border">
           {value ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={value} alt="" className="h-full w-full object-cover" />
+            /* Through the optimizer: these are full-size camera originals, and
+               this is a 56px square. */
+            <Image src={value} alt="" fill sizes="56px" className="object-cover" />
           ) : (
             <span className="text-[10px] text-ink-soft">None</span>
           )}
@@ -73,6 +83,33 @@ export function SectionImageField({
           {error && <p className="mt-1 text-red-700">{error}</p>}
         </div>
       </div>
+
+      {choices.length > 0 && (
+        <div className="mt-2">
+          <p className="text-[11px]">{choicesLabel}</p>
+          <div className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
+            {choices.map((src) => {
+              const active = src === value;
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => onChange(src)}
+                  aria-label="Use this photo"
+                  aria-pressed={active}
+                  className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 transition ${
+                    active
+                      ? "ring-2 ring-sage-deep"
+                      : "ring-border hover:ring-sage-deep/60"
+                  }`}
+                >
+                  <Image src={src} alt="" fill sizes="48px" className="object-cover" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
