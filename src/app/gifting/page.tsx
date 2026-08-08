@@ -82,7 +82,7 @@ export default async function GiftingPage() {
               <h2 className="font-serif text-2xl text-ink">{guide.heading}</h2>
               {guide.blurb && <p className="text-ink-soft">{guide.blurb}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
               {shown.map((p) => (
                 <ProductCard key={p.slug} product={p} />
               ))}

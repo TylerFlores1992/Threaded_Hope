@@ -212,7 +212,7 @@ export function GiftGuidesEditor({
         blurb: "",
         source: "collection",
         collection: collections[0]?.slug,
-        limit: 4,
+        limit: 6,
       },
     ]);
     setDirty(true);
@@ -318,6 +318,9 @@ export function GiftGuidesEditor({
                 </label>
                 <label className="block text-[12px] text-ink-soft">
                   Show up to
+                  <span className="block text-[11px] text-ink-soft/80">
+                    6 fills a row
+                  </span>
                   <input
                     type="number"
                     min={1}
