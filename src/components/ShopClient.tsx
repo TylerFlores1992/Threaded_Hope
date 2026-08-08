@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Product } from "@/data/products";
 import type { Collection } from "@/data/collections";
+import { formatPrice } from "@/lib/format";
 import { ProductCard } from "./ProductCard";
 
 type Sort = "newest" | "price-asc" | "price-desc";
@@ -11,26 +12,32 @@ export function ShopClient({
   products,
   collections,
   initialQuery = "",
+  initialMaxPrice,
 }: {
   products: Product[];
   collections: Collection[];
   initialQuery?: string;
+  /** From `?maxPrice=` — how the gift guide's "under $X" rows link here. */
+  initialMaxPrice?: number;
 }) {
   const [activeCollections, setActiveCollections] = useState<string[]>([]);
   const [sort, setSort] = useState<Sort>("newest");
   const [query, setQuery] = useState(initialQuery);
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(initialMaxPrice);
 
   // Keep the URL in sync with the search box (debounced) so a search is
   // shareable/bookmarkable — updated with history.replaceState to avoid a
   // server round-trip (all products are already client-side).
   useEffect(() => {
     const t = setTimeout(() => {
-      const q = query.trim();
-      const url = q ? `/shop?q=${encodeURIComponent(q)}` : "/shop";
-      window.history.replaceState(null, "", url);
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      if (maxPrice != null) params.set("maxPrice", String(maxPrice));
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `/shop?${qs}` : "/shop");
     }, 300);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, maxPrice]);
 
   const toggleCollection = (slug: string) =>
     setActiveCollections((prev) =>
@@ -48,7 +55,8 @@ export function ShopClient({
         p.name.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q) ||
         p.collectionName.toLowerCase().includes(q);
-      return matchCollection && matchQuery;
+      const matchPrice = maxPrice == null || p.price <= maxPrice;
+      return matchCollection && matchQuery && matchPrice;
     });
 
     list = [...list].sort((a, b) => {
@@ -59,7 +67,7 @@ export function ShopClient({
       return b.createdAt.localeCompare(a.createdAt); // newest
     });
     return list;
-  }, [products, activeCollections, sort, query]);
+  }, [products, activeCollections, sort, query, maxPrice]);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
@@ -116,9 +124,24 @@ export function ShopClient({
       {/* Results */}
       <div>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-ink-soft" aria-live="polite">
-            {filtered.length} product{filtered.length === 1 ? "" : "s"}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-ink-soft" aria-live="polite">
+              {filtered.length} product{filtered.length === 1 ? "" : "s"}
+            </p>
+            {/* A price limit arriving by URL has to be visible and removable —
+                otherwise the shop silently hides things with no explanation. */}
+            {maxPrice != null && (
+              <button
+                type="button"
+                onClick={() => setMaxPrice(undefined)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-sand px-3 py-1 text-xs font-medium text-ink ring-1 ring-border hover:bg-sand-deep"
+              >
+                Under {formatPrice(maxPrice)}
+                <span aria-hidden>×</span>
+                <span className="sr-only">Remove price filter</span>
+              </button>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <span className="text-ink-soft">Sort</span>
             <select

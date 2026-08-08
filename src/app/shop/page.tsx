@@ -19,9 +19,10 @@ export const revalidate = 300;
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; maxPrice?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, maxPrice } = await searchParams;
+  const max = Number(maxPrice);
   const text = await getSiteText();
   const products = await getProducts();
   const collections = await getVisibleCollections();
@@ -36,6 +37,7 @@ export default async function ShopPage({
         products={products}
         collections={collections}
         initialQuery={q ?? ""}
+        initialMaxPrice={Number.isFinite(max) && max > 0 ? max : undefined}
       />
     </div>
   );
