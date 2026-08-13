@@ -6,6 +6,7 @@
  * Every range is compared against the equivalent stretch immediately before it.
  */
 export type RangeId =
+  | "today"
   | "7d"
   | "30d"
   | "90d"
@@ -15,6 +16,7 @@ export type RangeId =
   | "lastyear";
 
 export const RANGES: { id: RangeId; label: string }[] = [
+  { id: "today", label: "Today" },
   { id: "7d", label: "Last 7 days" },
   { id: "30d", label: "Last 30 days" },
   { id: "90d", label: "Last 90 days" },
@@ -30,7 +32,7 @@ export function isRangeId(v: unknown): v is RangeId {
   return typeof v === "string" && RANGES.some((r) => r.id === v);
 }
 
-export type Bucketing = "day" | "month";
+export type Bucketing = "hour" | "day" | "month";
 
 export type ResolvedRange = {
   id: RangeId;
@@ -51,13 +53,22 @@ export type ResolvedRange = {
 
 const DAY_MS = 86_400_000;
 
+const hourKey = (d: Date) => d.toISOString().slice(0, 13);
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 const monthKey = (d: Date) => d.toISOString().slice(0, 7);
 
 /** Which bucket a timestamp belongs to, for the given granularity. */
 export function bucketKey(d: Date, bucketing: Bucketing): string {
-  return bucketing === "month" ? monthKey(d) : dayKey(d);
+  if (bucketing === "month") return monthKey(d);
+  if (bucketing === "hour") return hourKey(d);
+  return dayKey(d);
 }
+
+const hourLabel = (key: string) =>
+  new Date(`${key}:00:00Z`).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    timeZone: "UTC",
+  });
 
 const dayLabel = (key: string) =>
   new Date(`${key}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -80,6 +91,16 @@ function addMonths(d: Date, n: number): Date {
   );
 }
 
+const HOUR_MS = 3_600_000;
+
+function hourKeysEndingAt(end: Date, count: number): string[] {
+  const keys: string[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    keys.push(hourKey(new Date(end.getTime() - i * HOUR_MS)));
+  }
+  return keys;
+}
+
 function dayKeysEndingAt(end: Date, count: number): string[] {
   const keys: string[] = [];
   for (let i = count - 1; i >= 0; i--) {
@@ -100,6 +121,30 @@ function monthKeysEndingAt(end: Date, count: number): string[] {
  */
 export function resolveRange(id: RangeId, now: Date): ResolvedRange {
   const label = RANGES.find((r) => r.id === id)?.label ?? id;
+
+  /**
+   * Today is read hour by hour — a single day bucket would plot one point.
+   * It runs from midnight to the hour in progress, and is compared against the
+   * *same* hours yesterday rather than yesterday's whole day, so a morning
+   * check-in isn't measured against a full 24 hours and always looks down.
+   */
+  if (id === "today") {
+    const hours = now.getUTCHours() + 1;
+    const currentKeys = hourKeysEndingAt(now, hours);
+    const previousKeys = hourKeysEndingAt(new Date(now.getTime() - DAY_MS), hours);
+    return {
+      id,
+      label,
+      bucketing: "hour",
+      currentKeys,
+      previousKeys,
+      labels: currentKeys.map(hourLabel),
+      start: new Date(`${previousKeys[0]}:00:00Z`),
+      currentStart: new Date(`${currentKeys[0]}:00:00Z`),
+      rangeLabel: dayLabel(currentKeys[0].slice(0, 10)),
+      previousLabel: dayLabel(previousKeys[0].slice(0, 10)),
+    };
+  }
 
   // Day-bucketed ranges are a straight count back from today.
   const days: Partial<Record<RangeId, number>> = { "7d": 7, "30d": 30, "90d": 90 };

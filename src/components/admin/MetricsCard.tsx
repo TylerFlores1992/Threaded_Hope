@@ -192,7 +192,11 @@ export function MetricsCard({
               key={`x${i}`}
               x={i * step}
               y={H + 28}
-              textAnchor={i === 0 ? "start" : "middle"}
+              // The first and last ticks sit on the very edges of the plot, so
+              // centring them would hang half the text outside the viewBox.
+              textAnchor={
+                i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle"
+              }
               fontSize={16}
               fill="#616161"
             >
