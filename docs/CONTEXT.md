@@ -540,6 +540,17 @@ seed + fallback — see below.
   delivered). Buying a label auto-marks the order shipped (once) + emails
   tracking; the Orders table's `FulfillmentControl` (client) sets status inline
   via the `setFulfillment` action, which emails the customer on the first ship.
+  **Local-pickup orders skip the parcel vocabulary entirely** — `FulfillmentControl`
+  takes a `pickup` prop and renders "Awaiting pickup" → "Picked up" (one button,
+  no shipped step, no label link, and `setFulfillment` never counts a pickup as a
+  first ship so no tracking email goes out). The stored status is still
+  `delivered`; only the wording differs, so the tabs and counts keep working.
+  **Bulk fulfilment** (`setFulfillmentMany`, a single `updateMany`) marks every
+  selected order at once from the table's selection bar. It deliberately does
+  *not* email anyone — the confirm dialog says so — because it exists to close out
+  imported history, not to notify live customers. The **Imported** tab
+  (`source !== "web"`) is what scopes that: select-all → Mark delivered retires
+  the whole Shopify back catalogue.
   **A fully refunded order is not a parcel waiting to go out** — `needsFulfilment`
   (`lib/order-refunds.ts`) is shared by the dashboard's "To ship" count, the
   Orders "To fulfill" stat and the Unfulfilled tab so they can't drift, and the
@@ -625,19 +636,39 @@ seed + fallback — see below.
   they offer text search, a collection filter, a status filter, and sorting. The
   products table shows a per-row **photo thumbnail** and **persists its filters**
   across navigation via `sessionStorage` (returning from an edit keeps them). The
+  Orders table (`AdminOrdersTable`) does the same, plus saved-view tabs (All /
+  Unfulfilled / Shipped / Delivered / Local pickup / Gifts / Refunded / Imported),
+  bulk select, and the bulk fulfilment and delete actions.
+  **Reading that storage during render is a hydration bug**, and the third variant
+  of the same trap as `ProductPager` and the chart's `<title>`: the server renders
+  the defaults, the client renders the saved values, and React reports a text
+  mismatch (#418) and throws the tree away on every load after a filter is saved.
+  `AdminOrdersTable` reads its filters through **`useSyncExternalStore`** —
+  hydrate against the server snapshot, then swap in the saved one — which is the
+  pattern to copy. **`AdminProductsTable` still reads `sessionStorage` in a
+  `useState` initialiser and carries this bug.** The
   low-stock *filter option* was removed; the dashboard's old "Low stock" stat is
   now **"To ship"** (count of `fulfillmentStatus = "unfulfilled"` orders).
 - **Dashboard analytics.** `MetricsCard` (client) draws a hand-rolled
   cardinal-spline SVG chart with a selectable metric (sales, orders, sessions,
   conversion rate) and a same-length previous-period comparison, over a range
-  picked in `RangePicker` — 7d / 30d / 90d / 6m / 12m / YTD / last year
-  (`lib/date-range.ts` resolves the range and buckets by day or month, UTC-safe).
-  Alongside it: four stat tiles and a **best-sellers** list (units sold, 90 days)
-  from order item snapshots. **Revenue is net of refunds** everywhere — the
+  picked in `RangePicker` — today / 7d / 30d / 90d / 6m / 12m / YTD / last year
+  (`lib/date-range.ts` resolves the range and buckets by hour, day or month,
+  UTC-safe). **Today is bucketed hourly** — a single day bucket would plot one
+  point — and runs midnight → the hour in progress, compared against the *same*
+  hours yesterday rather than yesterday's whole day, so a 9am check-in isn't
+  measured against a full 24 hours and always shown down. Note every range's day
+  boundary is **UTC**, not shop-local; nothing records a shop timezone yet, which
+  shows up most on Today (it rolls over at 5pm Pacific).
+  Alongside it: four stat tiles and a **best-sellers** list (units sold over the
+  selected range) from order item snapshots. **Revenue is net of refunds** everywhere — the
   all-time tile and every chart bucket subtract `refundedCents`, booked against
   the order's own date so the chart keeps matching the order list.
-  Two things learned the hard way here: the SVG needs an explicit `viewBox` with
-  room for its axis labels (it letterboxed into half the card without one), and
+  Three things learned the hard way here: the SVG needs an explicit `viewBox` with
+  room for its axis labels (it letterboxed into half the card without one), the
+  first and last x-axis ticks sit on the plot's edges so they anchor `start`/`end`
+  rather than `middle` (centred, half the text hangs outside the viewBox — visible
+  on any range short enough to tick every bucket), and
   an SVG `<title>` must take **one** interpolated string — React separates
   adjacent text nodes with marker comments, the browser reunites them inside
   `<title>`, and the mismatch made React throw the whole chart away and re-render

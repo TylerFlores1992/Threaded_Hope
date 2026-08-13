@@ -109,7 +109,8 @@ catalog already has rows, so it never overwrites admin edits).
 **Using the admin:** go to `/admin` and sign in with `ADMIN_PASSWORD`. The nav is
 grouped:
 
-- **Overview** — Dashboard: stats, a 30-day revenue chart, best sellers, a
+- **Overview** — Dashboard: stats, a revenue chart over a period you pick
+  (Today, which is charted hour by hour, through Last year), best sellers, a
   read-only **Setup status** panel (which integrations are live/test), and
   quick-action shortcuts.
 - **Catalog** — Products (create/edit/delete, photo gallery, per-size/-unit stock,
@@ -241,6 +242,10 @@ the CSV from Shopify **Admin → Orders → Export** (all orders, plain CSV).
   so the admin can *record* a refund against them but can't move money — do that
   wherever the sale was originally paid.
 - The export has no ship dates, so imported orders show as shipped without one.
+  To retire the whole back catalogue at once: **Orders → Imported** tab → tick the
+  header checkbox to select the page → **Mark delivered**. Bulk marking never
+  emails anyone, so this is safe on years-old orders. Repeat per page if the
+  history runs past one.
 
 ### Backfill collection memberships
 
@@ -361,8 +366,11 @@ still record normally.
 The `from` mailbox doesn't need to exist — replies are routed to
 `store.contact.email` via a reply-to header. Emails and fulfillment status:
 buying a shipping label (or clicking **Mark shipped** on the Orders page)
-flips the order to *Shipped* and emails the customer their tracking. Resend's
-**Logs** tab shows every send with delivery status.
+flips the order to *Shipped* and emails the customer their tracking. Two
+deliberate exceptions send nothing: **bulk** marking from the selection bar (it's
+for closing out imported history), and **local-pickup** orders, which show
+*Awaiting pickup* → *Picked up* instead of shipped/delivered and have no tracking
+to send. Resend's **Logs** tab shows every send with delivery status.
 
 ### Sales tax (optional)
 
