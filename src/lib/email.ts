@@ -65,6 +65,15 @@ export type EmailItem = {
   unitAmountCents?: number;
 };
 
+/** A payment method offered in the invoice email, flattened for rendering. */
+export type PayOptionLine = {
+  id: string;
+  label: string;
+  detail: string;
+  url: string;
+  qr: boolean;
+};
+
 export type EmailOrder = {
   id: string;
   email: string | null;
@@ -238,31 +247,102 @@ export async function sendRefundConfirmation(
   });
 }
 
+/** One payment method as a bordered block, with its QR code when it has one. */
+function payBlock(opt: {
+  label: string;
+  detail: string;
+  url?: string;
+  qrKey?: string;
+  note?: string;
+  /** Text for a real button — used where there's no QR code to scan. */
+  button?: string;
+}): string {
+  const heading = opt.url
+    ? `<a href="${esc(opt.url)}" style="color:#5b6b52;text-decoration:none;font-weight:bold;font-size:15px">${esc(opt.label)}</a>`
+    : `<span style="font-weight:bold;font-size:15px">${esc(opt.label)}</span>`;
+  // Absolute URL: an emailed image has no page to be relative to.
+  const qr = opt.qrKey
+    ? `<div style="margin-top:8px"><img src="${SITE_URL}/api/qr/${esc(opt.qrKey)}" width="110" height="110" alt="${esc(opt.label)} QR code" style="display:block;border-radius:8px" /></div>`
+    : "";
+  const button =
+    opt.button && opt.url
+      ? `<div style="margin-top:10px"><a href="${esc(opt.url)}" style="display:inline-block;background:#5b6b52;color:#fff;text-decoration:none;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:bold">${esc(opt.button)}</a></div>`
+      : "";
+  return `<td style="vertical-align:top;padding:12px;border:1px solid #ece5d8;border-radius:12px;width:50%">
+    ${heading}
+    <div style="font-size:14px;color:#3a352c;margin-top:2px">${esc(opt.detail)}</div>
+    ${opt.note ? `<div style="font-size:12px;color:#8a8272;margin-top:4px">${esc(opt.note)}</div>` : ""}
+    ${button}
+    ${qr}
+  </td>`;
+}
+
 /**
- * An invoice for a sale that hasn't been paid for yet, with a button through
- * to Stripe's hosted payment page. Sent from Record a sale when the shop bills
- * a customer rather than taking the money there and then.
+ * The invoice for a hand-entered sale that hasn't been paid for yet.
+ *
+ * Deliberately not Stripe's own invoice email. A hand-entered order is nearly
+ * always a friend or a relative, so this is the shop's own note, in the shop's
+ * own voice, with every way they might actually pay: card, Venmo, Zelle, or
+ * cash next time they see her. Venmo and Zelle carry QR codes, since those get
+ * paid from a phone.
  */
 export async function sendInvoice(
-  order: EmailOrder & { payUrl: string },
+  order: EmailOrder & { payUrl: string; payOptions: PayOptionLine[] },
 ): Promise<boolean> {
   if (!order.email) return false;
-  const name = esc(order.customerName?.split(" ")[0] ?? "there");
-  const inner = `
-    <h1 style="font-size:22px;margin:0 0 4px">Your invoice from ${esc(store.name)}</h1>
-    <p style="margin:0 0 4px;color:#6a6456">Hi ${name}, here's invoice ${orderRef(order.id)}. You can pay it securely with the button below — no account needed.</p>
-    ${itemsTable(order, true)}
-    ${totals(order)}
-    <div style="text-align:center;margin-top:24px">
-      <a href="${esc(order.payUrl)}" style="display:inline-block;background:#5b6b52;color:#fff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:15px;font-weight:bold">Pay ${money(order.amountTotalCents)}</a>
-    </div>
-    <p style="margin:20px 0 0;font-size:13px;color:#8a8272;text-align:center">Or copy this link into your browser:<br/><a href="${esc(order.payUrl)}" style="color:#5b6b52;word-break:break-all">${esc(order.payUrl)}</a></p>
-    <p style="margin:20px 0 0;font-size:14px;color:#6a6456">Reply to this email with any questions — a real person reads it.</p>`;
   return send({
     to: order.email,
-    subject: `Your invoice from ${store.name} ${orderRef(order.id)}`,
-    html: shell(inner),
+    subject: `Your order from ${store.name} ${orderRef(order.id)}`,
+    html: renderInvoiceHtml(order),
   });
+}
+
+/** The invoice body, split out so the template can be rendered and eyeballed. */
+export function renderInvoiceHtml(
+  order: EmailOrder & { payUrl: string; payOptions: PayOptionLine[] },
+): string {
+  const name = esc(order.customerName?.split(" ")[0] ?? "there");
+
+  // Two per row so the blocks stay side by side in a phone-width email.
+  const blocks = [
+    payBlock({
+      label: "Card",
+      detail: "Pay online",
+      url: order.payUrl,
+      note: "Secure Stripe page — no account needed.",
+      button: `Pay ${money(order.amountTotalCents)}`,
+    }),
+    ...order.payOptions.map((o) =>
+      payBlock({
+        label: o.label,
+        detail: o.detail,
+        url: o.url,
+        qrKey: o.qr ? o.id : undefined,
+      }),
+    ),
+    ...(store.payments.acceptsCash
+      ? [payBlock({ label: "Cash", detail: "In person", note: "Whenever we next see you — no rush." })]
+      : []),
+  ];
+  const rows: string[] = [];
+  for (let i = 0; i < blocks.length; i += 2) {
+    rows.push(
+      `<tr>${blocks[i]}${blocks[i + 1] ?? "<td style=\"width:50%\"></td>"}</tr>`,
+      `<tr><td colspan="2" style="height:10px"></td></tr>`,
+    );
+  }
+
+  const inner = `
+    <h1 style="font-size:22px;margin:0 0 6px">Thanks so much, ${name}! 💛</h1>
+    <p style="margin:0;color:#6a6456;font-size:15px">Here's what you ordered — no rush on paying, whenever works for you.</p>
+    ${itemsTable(order, true)}
+    ${totals(order)}
+    <h2 style="font-size:16px;margin:28px 0 10px">Ways to pay</h2>
+    <table style="width:100%;border-collapse:separate;border-spacing:0 0">${rows.join("")}</table>
+    <p style="margin:18px 0 0;font-size:13px;color:#8a8272">Card link, if the button doesn't work:<br/><a href="${esc(order.payUrl)}" style="color:#5b6b52;word-break:break-all">${esc(order.payUrl)}</a></p>
+    <p style="margin:18px 0 0;font-size:14px;color:#6a6456">Any questions, just hit reply. Thank you for supporting handmade! 🧵</p>`;
+
+  return shell(inner);
 }
 
 /** Shipping notification with tracking (if available). */

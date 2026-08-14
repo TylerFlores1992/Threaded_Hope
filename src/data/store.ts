@@ -24,6 +24,19 @@ export const store = {
     location: "Handmade in the USA",
   },
 
+  /**
+   * How someone can settle an invoice raised from Record a sale. These are
+   * personal handles, shown only in the invoice email — never on the website.
+   * Leave a handle blank to drop that option from the email.
+   */
+  payments: {
+    venmoHandle: "melinda-flores-5",
+    zellePhone: "805-404-7195",
+    /** The name their bank shows for the Zelle number, so they know it's right. */
+    zelleName: "Melinda Flores",
+    acceptsCash: true,
+  },
+
   socials: {
     instagram: "https://instagram.com/threaded_hope_",
     instagramHandle: "threaded_hope_",

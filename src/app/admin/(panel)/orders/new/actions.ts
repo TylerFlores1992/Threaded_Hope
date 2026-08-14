@@ -7,6 +7,7 @@ import { getPrisma } from "@/lib/db";
 import { lookupPromoCode } from "@/lib/promo-codes";
 import { createPayableInvoice } from "@/lib/invoices";
 import { sendInvoice } from "@/lib/email";
+import { payOptions } from "@/lib/payment-links";
 
 /** Check a promo code from the form without submitting it. */
 export async function checkPromoCode(
@@ -79,7 +80,6 @@ export async function createManualOrder(formData: FormData): Promise<void> {
   const notes = String(formData.get("notes") ?? "").trim();
   const shippingDollars = Number(formData.get("shipping") ?? 0);
   const decrement = formData.get("decrement") === "on";
-  const fulfilled = formData.get("fulfilled") === "on";
   const ship = formData.get("delivery") === "ship";
   const byInvoice = formData.get("payment") === "invoice";
   const promoCode = String(formData.get("promoCode") ?? "").trim();
@@ -205,11 +205,10 @@ export async function createManualOrder(formData: FormData): Promise<void> {
               } as unknown as Prisma.InputJsonValue,
             }
           : {}),
-        // Nothing that still has to be paid for or posted counts as handed over.
-        fulfillmentStatus: fulfilled && !ship && !byInvoice ? "delivered" : "unfulfilled",
-        ...(fulfilled && !ship && !byInvoice
-          ? { shippedAt: new Date(), deliveredAt: new Date() }
-          : {}),
+        // Every order starts unfulfilled and is moved on from the order list —
+        // an in-person sale that hasn't been handed over yet is a real state,
+        // and assuming otherwise here hid those orders from the to-do queue.
+        fulfillmentStatus: "unfulfilled",
         items: items as unknown as Prisma.InputJsonValue,
       },
     });
@@ -258,6 +257,7 @@ export async function createManualOrder(formData: FormData): Promise<void> {
         shippingCents,
         items,
         payUrl: invoiceUrl,
+        payOptions: payOptions(),
       });
     } catch (err) {
       console.error("Invoice email failed (the invoice is still payable):", err);

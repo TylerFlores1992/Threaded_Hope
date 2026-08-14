@@ -59,7 +59,7 @@ export default async function NewOrderPage({
       <p className="mt-1 mb-6 max-w-2xl text-sm text-ink-soft">
         For sales made outside the website — in person, at a fair, or to a
         friend. Record one you&apos;ve already been paid for, or email an invoice
-        with a payment link and let them pay by card.
+        they can settle by card, Venmo, Zelle or cash.
       </p>
 
       {error && (

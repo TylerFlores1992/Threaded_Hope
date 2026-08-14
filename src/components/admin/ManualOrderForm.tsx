@@ -160,14 +160,14 @@ export function ManualOrderForm({
           {rows.map((row, i) => {
             const p = productOf(row.slug);
             return (
+              // The product search gets the full width of its own row. Sharing
+              // a row with the number fields squeezed it down to a few visible
+              // characters, which is no use for something you type into.
               <div
                 key={i}
-                // The product column gets a floor: a bare 1fr collapses to
-                // near-nothing beside the fixed-width number fields, and a
-                // search box you can't read what you typed in is useless.
-                className="grid grid-cols-2 gap-2 border-b border-border pb-3 last:border-0 sm:grid-cols-[minmax(13rem,1fr)_auto_auto_auto_auto]"
+                className="border-b border-border pb-3 last:border-0"
               >
-                <label className="col-span-2 text-xs text-ink-soft sm:col-span-1">
+                <label className="block text-xs text-ink-soft">
                   Product
                   <SearchSelect
                     name="slug"
@@ -184,6 +184,7 @@ export function ManualOrderForm({
                   />
                 </label>
 
+                <div className="mt-2 flex flex-wrap items-end gap-2">
                 <label className="text-xs text-ink-soft">
                   Size
                   <select
@@ -234,19 +235,18 @@ export function ManualOrderForm({
                   />
                 </label>
 
-                <div className="flex items-end pb-1">
-                  {rows.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRows((r) => r.filter((_, j) => j !== i));
-                        setPromo(null);
-                      }}
-                      className="rounded px-2 py-1 text-xs text-red-700 hover:bg-red-50"
-                    >
-                      Remove
-                    </button>
-                  )}
+                {rows.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRows((r) => r.filter((_, j) => j !== i));
+                      setPromo(null);
+                    }}
+                    className="mb-1 rounded px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                )}
                 </div>
               </div>
             );
@@ -393,9 +393,10 @@ export function ManualOrderForm({
               className="mt-1"
             />
             <span>
-              Handed over in person
+              In person
               <span className="block text-xs text-ink-soft">
-                Pickup, a fair, a friend — nothing to post.
+                Pickup, a fair, a friend — nothing to post. Mark it picked up
+                from the order list once they have it.
               </span>
             </span>
           </label>
@@ -532,8 +533,9 @@ export function ManualOrderForm({
             <span>
               Email an invoice to pay
               <span className="block text-xs text-ink-soft">
-                Sends a pay-by-card link. The order stays unpaid, and out of
-                your sales totals, until they pay.
+                Sends a friendly note with the order and four ways to pay —
+                card, Venmo, Zelle or cash. It stays unpaid, and out of your
+                sales totals, until you or Stripe says otherwise.
               </span>
             </span>
           </label>
@@ -551,17 +553,6 @@ export function ManualOrderForm({
             </span>
           </span>
         </label>
-        {!ship && !invoice && (
-          <label className="flex items-start gap-2 text-sm text-ink">
-            <input type="checkbox" name="fulfilled" defaultChecked className="mt-0.5" />
-            <span>
-              Already handed over
-              <span className="block text-xs text-ink-soft">
-                Marks the order delivered so it doesn&apos;t show in “To ship”.
-              </span>
-            </span>
-          </label>
-        )}
       </div>
 
       {/* ── Total ─────────────────────────────────────────────────── */}
@@ -594,7 +585,7 @@ export function ManualOrderForm({
 
       <p className="text-xs text-ink-soft">
         {invoice
-          ? "The customer gets an email with a secure card-payment link. Nothing is charged until they pay it."
+          ? "They get a casual email with the order and four ways to pay: card, Venmo, Zelle or cash. If they pay you any way other than card, mark it paid on the order."
           : "No payment is charged — this only records a sale you’ve already been paid for, so it counts toward totals and inventory."}
       </p>
 

@@ -423,3 +423,43 @@ export async function setFulfillmentMany(
   revalidatePath("/admin/customers");
   return { updated: count };
 }
+
+/**
+ * Record that an invoiced order has been paid, when it wasn't paid by card.
+ *
+ * The invoice email offers Venmo, Zelle and cash alongside the Stripe link, and
+ * none of those three tell Stripe anything — so without this an order settled
+ * in person would sit "pending" for ever and never reach the sales figures.
+ *
+ * The Stripe invoice is voided on the way past. Leaving it open would keep it
+ * payable (and keep Stripe chasing it), so the customer could end up paying
+ * twice for the same order.
+ */
+export async function markInvoicePaid(orderId: string): Promise<void> {
+  const prisma = getPrisma();
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.status !== "pending") return;
+
+  // Best-effort: a voided-already or long-gone invoice must not block the order
+  // being marked paid, which is the part that actually matters here.
+  if (order.invoiceUrl && isStripeConfigured()) {
+    try {
+      const invoice = await getStripe().invoices.retrieve(order.stripeSessionId);
+      if (invoice.status === "open" || invoice.status === "draft") {
+        await getStripe().invoices.voidInvoice(order.stripeSessionId);
+      }
+    } catch (err) {
+      console.error("Couldn't void the Stripe invoice (continuing):", err);
+    }
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: "paid", invoiceUrl: null },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/customers");
+}

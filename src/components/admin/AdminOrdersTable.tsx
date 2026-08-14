@@ -497,12 +497,15 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
                   >
                     Slip
                   </Link>
-                  <Link
-                    href={`/admin/orders/${o.id}/label`}
-                    className="rounded px-1.5 py-1 text-[#005bd3] hover:bg-black/5"
-                  >
-                    {o.hasLabel ? "Label" : "Buy label"}
-                  </Link>
+                  {/* Nothing to post for a pickup, so there's no label to buy. */}
+                  {!o.pickup && (
+                    <Link
+                      href={`/admin/orders/${o.id}/label`}
+                      className="rounded px-1.5 py-1 text-[#005bd3] hover:bg-black/5"
+                    >
+                      {o.hasLabel ? "Label" : "Buy label"}
+                    </Link>
+                  )}
                 </td>
               </tr>
             ))}
