@@ -12,14 +12,49 @@ payments, backed by a **Shopify-style admin** at `/admin` for managing products,
 orders, inventory, discounts, and traffic. Stripe remains the authoritative
 payment/receipt record; the app's database mirrors orders and drives the catalog.
 
+## Open items
+
+A running list of things shipped but not yet finished off, so they aren't lost
+between sessions. **Prune an entry once it's genuinely done** — a stale list here
+is worse than none.
+
+- **Add the `_dmarc` TXT record** at the DNS host (Cloudflare):
+  `v=DMARC1; p=none; rua=mailto:Melinda@threaded-hope.com`. SPF and DKIM are
+  live; DMARC is absent entirely, which is the most likely reason an invoice
+  landed in a customer's spam folder. See "Order emails" in SETUP.
+- **Subscribe `invoice.paid`** on the live Stripe webhook endpoint. Without it,
+  an invoice paid by card never flips the order out of `pending`, so the money
+  arrives at Stripe and the books never hear about it.
+- **The invoice flow has never been run end to end against Stripe.** Creating an
+  invoice, the hosted pay link, the invoice email and the `invoice.paid` webhook
+  are all unexercised — the code typechecks and the template renders, that's all.
+  Do one small invoice to a real address before using it on a customer.
+- **`AdminProductsTable` still has the hydration bug** the Orders table was
+  fixed for: it reads its saved filters from `sessionStorage` in a `useState`
+  initialiser, so every load after a filter is saved throws the tree away and
+  re-renders it (React #418). The fix is the `useSyncExternalStore` pattern
+  already in `AdminOrdersTable` — see "Admin tables" below.
+- **The Zelle QR has not been scanned on a phone.** It's built to Zelle's
+  documented `enroll.zellepay.com/qr-codes?data=` shape and decodes back to the
+  right payload, but that's not the same as a bank app accepting it. The phone
+  number is printed above it either way, so the failure mode is cosmetic.
+
+> **The dev container carries the LIVE Stripe secret key** (`sk_live_…`), not a
+> test one. Read-only calls are fine — listing promotion codes is how the
+> discount path was verified — but **do not create coupons, invoices, or charges
+> while developing**: each one is a real object on the shop's real account, and a
+> finalised invoice is a real receivable. Anything that needs a Stripe write
+> should be tested by the shop owner from the deployed site.
+
 ## Stack
 
 - **Next.js 16** (App Router, Turbopack) · **React 19** · **TypeScript**
 - **Tailwind CSS v4** — design tokens are CSS variables in
   `src/app/globals.css` (`@theme inline` maps them to utilities like `bg-cream`,
   `text-sage-deep`).
-- **Stripe** (`stripe` server SDK) for payments via hosted Stripe Checkout and
-  for promo codes.
+- **Stripe** (`stripe` server SDK) for payments via hosted Stripe Checkout, for
+  promo codes, and for the invoices raised from Record a sale.
+- **`qrcode`** to render the Venmo/Zelle payment QR codes in the invoice email.
 - **Postgres via Prisma** (Neon, added through the Vercel integration) as the
   catalog + orders + traffic store. **The app still builds and runs with no
   database** — it falls back to the static seed (see "Catalog data layer").
@@ -49,6 +84,7 @@ src/
     api/webhooks/stripe/route.ts records paid orders + decrements inventory
     api/track/route.ts           records storefront page views
     api/contact/route.ts         emails the shop owner from the contact form
+    api/qr/[key]/route.ts        PNG QR codes for the invoice email's pay options
     api/subscribe/route.ts       newsletter signup → Subscriber
     api/blob/upload/route.ts     admin-gated token issuer for direct Blob uploads
     admin/
@@ -59,7 +95,7 @@ src/
         products/                list · new · [id]/edit (+ live inventory) · actions.ts
         products/sync/           pull full descriptions/stock/weights from Shopify
         orders/                  recorded orders (+ actions.ts: labels, sample order)
-        orders/new/              record an off-site sale (manual order)
+        orders/new/              record an off-site sale, or bill it by invoice
         orders/[id]/             order detail (items, totals, actions)
         orders/export/route.ts   CSV export of all orders
         orders/[id]/label/       buy + print a Shippo shipping label
@@ -162,7 +198,9 @@ seed + fallback — see below.
   carries `labelUrl` / `trackingNumber` / `carrier` once a shipping label is
   bought, a receipt breakdown (`subtotalCents` / `discountCents` /
   `shippingCents` / `taxCents`, captured from Stripe in the webhook) plus the
-  `discountCode` used, gift fields
+  `discountCode` used, an `invoiceUrl` (Stripe's hosted payment page, set only
+  when a manual sale was billed rather than collected — see "Manual orders"),
+  gift fields
   (`isGift` / `giftMessage` / `giftFrom`), a `pickup` flag (local pickup chosen at
   checkout), `source` ("web" | "manual" | "shopify") + `notes` for sales recorded
   by hand or imported, the `phone` collected at checkout, refund state
@@ -223,6 +261,11 @@ seed + fallback — see below.
   the slug metadata, marking items sold out at 0 — the create + all decrements
   run in one `prisma.$transaction`, so a partial failure rolls back and Stripe's
   retry re-runs cleanly. Emails send after commit.
+- The webhook also handles **`invoice.paid`**, which flips a manual sale that was
+  billed rather than collected from `pending` to `paid` (matched on
+  `stripeSessionId`, which holds the invoice id). **That event has to be enabled
+  on the Stripe endpoint** — it isn't part of the default `checkout.session.*`
+  subscription, and without it an invoice paid by card never reaches the books.
 - **The customer's name and address come from `collected_information.
   shipping_details`, not `customer_details`.** Checkout only collects a *shipping*
   address, so `customer_details.name` is usually null — the admin was showing a
@@ -240,6 +283,10 @@ seed + fallback — see below.
 
 - **Stripe is still the authoritative record** for payments, receipts, and
   refunds. The app's `Order` table mirrors paid orders for the admin dashboard.
+  The one place that isn't true is a manual sale settled by Venmo, Zelle or cash:
+  Stripe never hears about it, so the `Order` row is the only record — which is
+  why marking it paid in the admin also voids the Stripe invoice, rather than
+  leaving two sources disagreeing about whether it's owed.
 - Admin **Discounts** has two kinds. **Promo codes** (manual): a Stripe coupon +
   promotion code the customer types at checkout. **Automatic discounts**
   (`DiscountRule`, `lib/discounts.ts`): quantity (buy N+) or spend (subtotal ≥ $)
@@ -405,12 +452,79 @@ seed + fallback — see below.
   - **Mobile.** Panel and preview can't sit side by side on a phone, so the
     editor switches between **Edit** and **Preview**; the container uses `svh`
     so browser chrome doesn't clip it.
-- **Manual orders.** `/admin/orders/new` records a sale made off-site (in person,
-  a fair, a friend): products with size/qty and an **editable price**, optional
-  customer/shipping/note, saved as a paid order so it counts toward revenue and
-  best-sellers. Optionally decrements inventory in the same transaction, and can
-  be marked already handed over. Flagged `source = "manual"` (badge in the list,
-  note on the detail page, columns in the CSV).
+- **Manual orders** (`/admin/orders/new`, "Record a sale"). A sale made off-site
+  — in person, a fair, a friend. Items carry size/qty and an **editable price**;
+  the order optionally decrements inventory in the same transaction, and is
+  flagged `source = "manual"` (badge in the list, note on the detail page,
+  columns in the CSV). Six things are worth knowing about:
+  - **Products and customers are searched, not scrolled.** `SearchSelect`
+    (`components/admin/SearchSelect.tsx`) is a shared type-to-search combobox
+    that filters an **already-loaded** list in the browser — no request between
+    keystrokes — and mirrors its choice into a hidden input, so a form
+    containing it posts exactly what a `<select name=…>` would have. Two things
+    it gets wrong if you rewrite it: reading the selection from a `query` string
+    that starts `""` blanks the field whenever it's refocused (the state is
+    `string | null`, where `null` means "not typing"), and clicking an option
+    hands focus *back* to the input, which re-opens the list over the fields
+    below unless that one focus event is suppressed. It also gets its own
+    full-width row on this form — sharing one with the number fields squeezed it
+    to about four visible characters.
+  - **Picking a saved customer** fills name, email, phone and their last known
+    address from `getCustomers()`. Those inputs are controlled for that reason.
+  - **Discount codes** reuse the Stripe promotion codes from the Discounts page,
+    so there's no second list to keep in step (`lib/promo-codes.ts`). Stripe
+    applies the coupon itself during a real checkout; a recorded sale never
+    touches Stripe, so the value is computed against the subtotal and written on
+    as a flat `discountCents` + `discountCode`. Editing the cart clears an
+    applied discount — it was computed for a different subtotal — and the server
+    re-runs the lookup on submit rather than trusting the figure the browser
+    sends back.
+  - **Delivery is an explicit choice**, In person vs Ship it, rather than being
+    inferred from whether shipping was charged (free shipping used to read as a
+    pickup). Shipping asks for an address and stores it in the same shape the
+    webhook writes, so slips and labels work. There is deliberately **no
+    "already handed over" checkbox**: an in-person sale that hasn't been handed
+    over yet is a real state, and assuming otherwise hid those orders from the
+    queue. Every order starts `unfulfilled` and is progressed from the order
+    list, where a pickup reads "Awaiting pickup → Picked up".
+  - **Invoicing** (`lib/invoices.ts`). Instead of recording a sale as paid, the
+    shop can bill it: Stripe raises an invoice, the customer is emailed a pay
+    link, and the order is saved `status: "pending"` with the hosted URL in
+    `Order.invoiceUrl` and the **invoice id in `stripeSessionId`** (which is what
+    lets the `invoice.paid` webhook find the row again). A Stripe *invoice* is
+    used rather than a Checkout Session because a session expires within 24
+    hours and an emailed invoice has to stay payable. Invoice line items use
+    `amount` (the whole line, quantity in the description) rather than
+    `price_data` + `quantity`, because `price_data` demands a pre-existing
+    Stripe Product id and we're not minting one per catalog item.
+  - **Pending is not revenue.** A `pending` order is excluded from the
+    dashboard's totals, order count, sales chart and best-sellers (the `banked`
+    filter in `(panel)/page.tsx`) and from customer lifetime spend
+    (`lib/customers.ts`). It still shows in the order list, badged. `invoice.paid`
+    flips it to `paid`, guarded on `status: "pending"` so a replayed event can't
+    overwrite a refund.
+- **The invoice email is ours, not Stripe's** (`lib/email.ts` →
+  `renderInvoiceHtml` / `sendInvoice`). A hand-entered order is nearly always a
+  friend or a relative, so it reads casually and offers **four** ways to pay:
+  card (the Stripe link), Venmo, Zelle, and cash in person. Handles live in
+  `store.payments`; blanking one drops that option from the email.
+  - Venmo and Zelle carry **QR codes**, served as PNGs from `/api/qr/<key>`.
+    They can't be inline SVG or `data:` URIs — Gmail strips both — so they need
+    to be a real URL, which also means `NEXT_PUBLIC_BASE_URL` has to be right or
+    the images break in the mail. The key names one of *our* configured options;
+    the endpoint deliberately **won't encode arbitrary content**, since a QR
+    service that renders whatever it's handed puts a trusted domain in front of
+    anyone's link.
+  - Zelle has no universal deep link (it lives inside each bank's app), so the
+    phone number is always shown in plain text and the QR is a bonus. The URL
+    follows Zelle's documented `enroll.zellepay.com/qr-codes?data=` shape but has
+    not been scanned on a handset from this codebase.
+  - **Venmo, Zelle and cash tell Stripe nothing.** Without a way to say so, an
+    invoice settled any of those ways would sit pending for ever and never reach
+    the books — so a pending order carries a **"They paid another way"** button
+    (`components/admin/AwaitingPayment.tsx` → `markInvoicePaid`). It marks the
+    order paid and **voids the Stripe invoice** on the way past, so the customer
+    can't also pay the card link.
 - **Collection banners.** Each collection has an admin-uploaded banner
   (`Setting` key `collection_hero_<slug>`, edited in the Photos tab), falling
   back to the generated pattern. The Photos save action is **key-driven** (it
@@ -467,6 +581,15 @@ seed + fallback — see below.
   refund receipt too, but only in live mode and only if that email is enabled in
   the dashboard — which is why relying on it left refunded customers hearing
   nothing. Expect both mails when Stripe's is switched on.
+- **Every email is multipart.** The shared `send()` helper derives a plain-text
+  alternative from the HTML (`htmlToText`) and posts both parts to Resend.
+  HTML-only mail is a long-standing spam signal — real senders send both, a lot
+  of bulk mail doesn't — and an invoice landing in spam is an invoice that never
+  gets paid. The converter keeps link destinations in brackets, since "Pay now"
+  with nowhere to go is worse than useless in the text part. A new email type
+  should go through `send()` rather than posting to Resend directly. Deliverability
+  also depends on DNS the repo can't hold: SPF and DKIM are set up by Resend's
+  wizard, but **DMARC is listed as optional and isn't** — see SETUP.
 - **Contact form** (`components/ContactForm.tsx` → `api/contact` →
   `sendContactMessage`). Emails the shop owner with the customer's address as
   reply-to. The thank-you only renders when the send actually succeeded; a failure
@@ -759,7 +882,9 @@ seed + fallback — see below.
 See [SETUP.md](./SETUP.md) for setup. Names only here:
 
 - **Stripe** — `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-- **Site** — `NEXT_PUBLIC_BASE_URL`
+- **Site** — `NEXT_PUBLIC_BASE_URL`. Also the origin the invoice email's QR-code
+  images are loaded from, so a wrong value there shows as broken images in the
+  customer's inbox rather than anything visible on the site.
 - **Database** (Neon via Vercel) — `DATABASE_POSTGRES_PRISMA_URL` (pooled, used by
   the app), `DATABASE_POSTGRES_URL_NON_POOLING` (direct, used for schema
   sync/seed), plus the other `DATABASE_*` vars the integration adds.
@@ -768,8 +893,14 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
 - **Shipping (optional)** — `SHIPPO_API_KEY` (`shippo_test_*` or `shippo_live_*`);
   enables buying labels in the admin. Absent → the label page shows a setup guide.
 - **Email (optional)** — `RESEND_API_KEY` and `EMAIL_FROM` (e.g.
-  `Threaded Hope <orders@threaded-hope.com>`); enables order/shipping emails.
-  Absent → emails are skipped, orders still record.
+  `Threaded Hope <orders@threaded-hope.com>`); enables order/shipping/invoice
+  emails. Absent → emails are skipped, orders still record. An invoice raised
+  without email configured is still payable — the link is on the order page.
+
+Not environment variables, but configured the same way and easy to miss: the
+**Venmo handle, Zelle number and cash option** in the invoice email live in
+`store.payments` (`src/data/store.ts`), not in env, because they're branding
+rather than secrets. Blank a handle to drop that option from the email.
 - **Sales tax (optional, pick one)** — `STRIPE_TAX_ENABLED=1` (automatic Stripe
   Tax) **or** `STRIPE_TAX_RATE_ID=txr_…` (free flat rate). Plus
   `NEXT_PUBLIC_SALES_TAX_RATE` (e.g. `7.25`) to show a matching on-site tax line

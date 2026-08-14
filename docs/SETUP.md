@@ -27,6 +27,33 @@ Browsing and cart work with **no configuration** (the app falls back to the
 static catalog). Payments need Stripe keys; the admin, product management, and
 order/inventory/traffic tracking need a database (and Blob for photos) — all below.
 
+### In a throwaway cloud container (Claude Code on the web, Codespaces…)
+
+The container is ephemeral, so Postgres and the generated Prisma client don't
+survive a restart, and a dead database looks like an application bug until you
+check. Bringing it back:
+
+```bash
+# Postgres 16 listens on 5433 here; without the explicit config_file it fails to
+# find postgresql.conf and exits, having already printed "server started".
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/postgresql/16/main \
+  -o '-p 5433 -c config_file=/etc/postgresql/16/main/postgresql.conf' start"
+pg_isready -p 5433                       # verify — pg_ctl's own success is not proof
+
+npx prisma generate                      # the client is wiped with node_modules
+DATABASE_POSTGRES_PRISMA_URL=... npx prisma db push   # tables are gone with the volume
+```
+
+If Prisma reports *"Authentication failed"*, `pg_hba.conf` is asking for
+`scram-sha-256` on host connections and the throwaway `postgres` role has no
+password — switch those lines to `trust` and reload. If it reports *"too many
+clients already"*, a previous `next start` is still holding connections; kill it.
+
+Two other habits that save time here: a **live** Stripe key is present, so never
+exercise a Stripe *write* path (see "Open items" in CONTEXT), and `pkill -f
+"next start"` before rebuilding, since a stale server keeps serving the previous
+build's chunks and makes a fix look like it didn't work.
+
 ## Environment variables
 
 Copy the template and fill it in. **Never commit `.env.local` or real keys.**
@@ -86,6 +113,11 @@ Paste the printed `whsec_…` into `.env.local` as `STRIPE_WEBHOOK_SECRET`.
 On `checkout.session.completed`, the webhook records the order and decrements
 tracked inventory (when a database is configured). It's idempotent per Stripe
 session, so retries are safe.
+
+It also handles **`invoice.paid`**, which marks an invoice raised from *Record a
+sale* as paid. `stripe listen` forwards every event by default, so nothing extra
+is needed locally — but the live endpoint subscribes to a named list, and this
+event has to be on it (see "Go live with real payments").
 
 ## Database, Blob & admin
 
@@ -346,8 +378,9 @@ items over a few days before they can appear.
 ### Order emails (Resend, optional)
 
 The store sends **order confirmation** (to the customer), a **new-order alert**
-(to you), a **shipping notification with tracking** (when an order ships), and a
-**refund confirmation** (when you refund an order).
+(to you), a **shipping notification with tracking** (when an order ships), a
+**refund confirmation** (when you refund an order), and an **invoice** (when you
+bill a hand-entered sale — see "Recording a sale by hand").
 All are optional — without `RESEND_API_KEY` they're simply skipped and orders
 still record normally.
 
@@ -363,6 +396,31 @@ still record normally.
    `RESEND_API_KEY`, plus `EMAIL_FROM` (e.g.
    `Threaded Hope <orders@threaded-hope.com>`). Redeploy.
 
+**Add a DMARC record.** Resend's setup wizard lists `_dmarc` as optional; it
+isn't, in practice. Without one, mailbox providers have no published policy to
+check the domain's mail against, and Gmail in particular has been treating
+missing DMARC as a negative signal since its 2024 sender rules. Add a TXT record
+at your DNS host:
+
+| Name | Type | Value |
+| --- | --- | --- |
+| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:Melinda@threaded-hope.com` |
+
+`p=none` only asks for reports — it never causes mail to be rejected — so it's
+safe to add to a domain that already sends through Zoho. Check it with
+[dmarcian](https://dmarcian.com/dmarc-inspector/) or `dig TXT _dmarc.your-domain`.
+
+**If mail still lands in spam**, in rough order of impact: the sending domain is
+new and has no reputation yet (it builds with volume — ask the first few
+recipients to mark *Not spam* and add the address to their contacts, which is
+worth far more than any header); confirm SPF, DKIM and DMARC all show **pass** in
+the raw message headers of a delivered mail (Gmail → ⋮ → Show original); and keep
+`EMAIL_FROM` on the verified domain rather than a free mailbox. Every email the
+store sends already goes out as **multipart** (HTML plus a plain-text
+alternative) — HTML-only mail is a long-standing filter trigger, so if you add a
+new email type, send it through the shared `send()` helper rather than posting to
+Resend directly.
+
 The `from` mailbox doesn't need to exist — replies are routed to
 `store.contact.email` via a reply-to header. Emails and fulfillment status:
 buying a shipping label (or clicking **Mark shipped** on the Orders page)
@@ -371,6 +429,51 @@ deliberate exceptions send nothing: **bulk** marking from the selection bar (it'
 for closing out imported history), and **local-pickup** orders, which show
 *Awaiting pickup* → *Picked up* instead of shipped/delivered and have no tracking
 to send. Resend's **Logs** tab shows every send with delivery status.
+
+### Recording a sale by hand
+
+**Admin → Orders → Create order** records a sale made off the website — in
+person, at a fair, or for a friend.
+
+- **Items.** Type to search the catalog; the price is prefilled from the product
+  but stays editable (friend price, a one-off deal).
+- **Discount code.** The same codes customers type at checkout, from the
+  Discounts page. Type it, press **Apply**, and it shows what comes off before
+  you save. Changing the items afterwards clears it — the amount was worked out
+  for a different subtotal — so apply it last.
+- **Customer.** Search anyone who's ordered before to fill in their name, email,
+  phone and last known address in one go, or just type.
+- **Delivery.** *In person* or *Ship it*. Shipping asks for an address and puts
+  the order in **To ship** so you can buy a label. An in-person order shows
+  **Awaiting pickup** in the order list; mark it **Picked up** when they have it.
+- **Payment.** Either *Already paid* (cash, Venmo, card in person — just record
+  it) or *Email an invoice to pay*.
+
+**Invoicing.** Choosing to invoice raises a Stripe invoice and emails the
+customer a friendly note with the order and four ways to pay: **card** (a secure
+Stripe link), **Venmo**, **Zelle**, and **cash** in person. Venmo and Zelle
+include QR codes to scan. The handles come from `store.payments` in
+`src/data/store.ts` — edit them there; blank one to drop it from the email.
+
+An invoiced order is saved **unpaid**. It shows in the order list badged
+*pending* and is deliberately **left out of your revenue, sales chart and
+best-sellers** until it's actually paid — an unpaid invoice is money you hope
+for, not money you have.
+
+- Paid by **card** → Stripe tells the site and the order flips to paid by itself.
+  This needs the **`invoice.paid`** webhook event (see "Go live with real
+  payments"); without it the order stays pending for ever.
+- Paid by **Venmo, Zelle or cash** → Stripe never hears about it, so open the
+  order and press **They paid another way**. That marks it paid and cancels the
+  card link so nobody pays twice.
+
+Requires `STRIPE_SECRET_KEY` (to raise the invoice) and `RESEND_API_KEY` (to send
+it). Without email configured the invoice is still created and payable — the link
+is on the order page to send by hand.
+
+> Send one invoice to yourself before you send one to a customer, and scan both
+> QR codes with your phone. Zelle in particular has no universal link format, so
+> the phone number is always printed above the code as a fallback.
 
 ### Sales tax (optional)
 
@@ -515,8 +618,12 @@ only on `localhost`.
 2. Update `STRIPE_SECRET_KEY` in Vercel to the live key.
 3. Add a live webhook: Stripe **Dashboard → Developers → Webhooks → Add endpoint**
    → `https://threaded-hope.com/api/webhooks/stripe`, subscribe to
-   `checkout.session.completed`. Copy its `whsec_…` into Vercel as
-   `STRIPE_WEBHOOK_SECRET`. Redeploy.
+   **`checkout.session.completed`** *and* **`invoice.paid`**. Copy its `whsec_…`
+   into Vercel as `STRIPE_WEBHOOK_SECRET`. Redeploy.
+
+   `invoice.paid` is what marks an invoice from *Record a sale* as paid when the
+   customer pays by card. Leave it off and the money arrives in Stripe while the
+   order sits "pending" in the admin for ever.
 
 > **Before flipping to live keys:** live mode means real cards, real money, and
 > real orders to fulfill. Sales tax is the store owner's responsibility. It's
@@ -532,7 +639,8 @@ to verify each step below. Redeploy after any env change.
       redirects to it (see "Connect the domain").
 - [ ] **Stripe key = Live** — `STRIPE_SECRET_KEY` is `sk_live_…`.
 - [ ] **Stripe webhook (LIVE) set** — endpoint added in Stripe **live mode** →
-      `…/api/webhooks/stripe`, event `checkout.session.completed`; its `whsec_…`
+      `…/api/webhooks/stripe`, events `checkout.session.completed` **and**
+      `invoice.paid`; its `whsec_…`
       is in `STRIPE_WEBHOOK_SECRET`. (A test-mode webhook secret with a live key
       means paid orders never record — the panel can't detect the mismatch, so
       double-check the endpoint was created in live mode.)
@@ -540,6 +648,15 @@ to verify each step below. Redeploy after any env change.
       admin, confirmation + owner emails arrive, best-sellers/revenue update.
       Then **refund it from the order page** — that exercises the Stripe refund
       path end to end, and the money comes back to your own card.
+- [ ] **Invoice yourself one small order** from **Orders → Create order** →
+      *Email an invoice to pay*, and check the email arrives with all four
+      payment options, the QR codes scan, and paying the card link flips the
+      order from *pending* to *paid* in the admin. That last step is what proves
+      the `invoice.paid` webhook event is subscribed.
+- [ ] **DMARC published** — `_dmarc.threaded-hope.com` returns a
+      `v=DMARC1; p=none; …` TXT record, and a delivered test mail shows
+      `dkim=pass`, `spf=pass` and `dmarc=pass` in its raw headers. Missing DMARC
+      is the usual reason a correctly-configured domain still lands in spam.
 - [ ] **Send yourself a message through `/contact`** and confirm it arrives with
       the sender's address as reply-to. It needs `RESEND_API_KEY`; without it the
       form tells the visitor it couldn't send rather than pretending it did.
