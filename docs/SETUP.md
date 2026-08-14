@@ -87,6 +87,11 @@ On `checkout.session.completed`, the webhook records the order and decrements
 tracked inventory (when a database is configured). It's idempotent per Stripe
 session, so retries are safe.
 
+It also handles **`invoice.paid`**, which marks an invoice raised from *Record a
+sale* as paid. `stripe listen` forwards every event by default, so nothing extra
+is needed locally — but the live endpoint subscribes to a named list, and this
+event has to be on it (see "Go live with real payments").
+
 ## Database, Blob & admin
 
 Product management, orders, inventory, discounts, and traffic run on a Postgres
@@ -346,8 +351,9 @@ items over a few days before they can appear.
 ### Order emails (Resend, optional)
 
 The store sends **order confirmation** (to the customer), a **new-order alert**
-(to you), a **shipping notification with tracking** (when an order ships), and a
-**refund confirmation** (when you refund an order).
+(to you), a **shipping notification with tracking** (when an order ships), a
+**refund confirmation** (when you refund an order), and an **invoice** (when you
+bill a hand-entered sale — see "Recording a sale by hand").
 All are optional — without `RESEND_API_KEY` they're simply skipped and orders
 still record normally.
 
@@ -371,6 +377,51 @@ deliberate exceptions send nothing: **bulk** marking from the selection bar (it'
 for closing out imported history), and **local-pickup** orders, which show
 *Awaiting pickup* → *Picked up* instead of shipped/delivered and have no tracking
 to send. Resend's **Logs** tab shows every send with delivery status.
+
+### Recording a sale by hand
+
+**Admin → Orders → Create order** records a sale made off the website — in
+person, at a fair, or for a friend.
+
+- **Items.** Type to search the catalog; the price is prefilled from the product
+  but stays editable (friend price, a one-off deal).
+- **Discount code.** The same codes customers type at checkout, from the
+  Discounts page. Type it, press **Apply**, and it shows what comes off before
+  you save. Changing the items afterwards clears it — the amount was worked out
+  for a different subtotal — so apply it last.
+- **Customer.** Search anyone who's ordered before to fill in their name, email,
+  phone and last known address in one go, or just type.
+- **Delivery.** *In person* or *Ship it*. Shipping asks for an address and puts
+  the order in **To ship** so you can buy a label. An in-person order shows
+  **Awaiting pickup** in the order list; mark it **Picked up** when they have it.
+- **Payment.** Either *Already paid* (cash, Venmo, card in person — just record
+  it) or *Email an invoice to pay*.
+
+**Invoicing.** Choosing to invoice raises a Stripe invoice and emails the
+customer a friendly note with the order and four ways to pay: **card** (a secure
+Stripe link), **Venmo**, **Zelle**, and **cash** in person. Venmo and Zelle
+include QR codes to scan. The handles come from `store.payments` in
+`src/data/store.ts` — edit them there; blank one to drop it from the email.
+
+An invoiced order is saved **unpaid**. It shows in the order list badged
+*pending* and is deliberately **left out of your revenue, sales chart and
+best-sellers** until it's actually paid — an unpaid invoice is money you hope
+for, not money you have.
+
+- Paid by **card** → Stripe tells the site and the order flips to paid by itself.
+  This needs the **`invoice.paid`** webhook event (see "Go live with real
+  payments"); without it the order stays pending for ever.
+- Paid by **Venmo, Zelle or cash** → Stripe never hears about it, so open the
+  order and press **They paid another way**. That marks it paid and cancels the
+  card link so nobody pays twice.
+
+Requires `STRIPE_SECRET_KEY` (to raise the invoice) and `RESEND_API_KEY` (to send
+it). Without email configured the invoice is still created and payable — the link
+is on the order page to send by hand.
+
+> Send one invoice to yourself before you send one to a customer, and scan both
+> QR codes with your phone. Zelle in particular has no universal link format, so
+> the phone number is always printed above the code as a fallback.
 
 ### Sales tax (optional)
 
@@ -515,8 +566,12 @@ only on `localhost`.
 2. Update `STRIPE_SECRET_KEY` in Vercel to the live key.
 3. Add a live webhook: Stripe **Dashboard → Developers → Webhooks → Add endpoint**
    → `https://threaded-hope.com/api/webhooks/stripe`, subscribe to
-   `checkout.session.completed`. Copy its `whsec_…` into Vercel as
-   `STRIPE_WEBHOOK_SECRET`. Redeploy.
+   **`checkout.session.completed`** *and* **`invoice.paid`**. Copy its `whsec_…`
+   into Vercel as `STRIPE_WEBHOOK_SECRET`. Redeploy.
+
+   `invoice.paid` is what marks an invoice from *Record a sale* as paid when the
+   customer pays by card. Leave it off and the money arrives in Stripe while the
+   order sits "pending" in the admin for ever.
 
 > **Before flipping to live keys:** live mode means real cards, real money, and
 > real orders to fulfill. Sales tax is the store owner's responsibility. It's
@@ -532,7 +587,8 @@ to verify each step below. Redeploy after any env change.
       redirects to it (see "Connect the domain").
 - [ ] **Stripe key = Live** — `STRIPE_SECRET_KEY` is `sk_live_…`.
 - [ ] **Stripe webhook (LIVE) set** — endpoint added in Stripe **live mode** →
-      `…/api/webhooks/stripe`, event `checkout.session.completed`; its `whsec_…`
+      `…/api/webhooks/stripe`, events `checkout.session.completed` **and**
+      `invoice.paid`; its `whsec_…`
       is in `STRIPE_WEBHOOK_SECRET`. (A test-mode webhook secret with a live key
       means paid orders never record — the panel can't detect the mismatch, so
       double-check the endpoint was created in live mode.)
@@ -540,6 +596,11 @@ to verify each step below. Redeploy after any env change.
       admin, confirmation + owner emails arrive, best-sellers/revenue update.
       Then **refund it from the order page** — that exercises the Stripe refund
       path end to end, and the money comes back to your own card.
+- [ ] **Invoice yourself one small order** from **Orders → Create order** →
+      *Email an invoice to pay*, and check the email arrives with all four
+      payment options, the QR codes scan, and paying the card link flips the
+      order from *pending* to *paid* in the admin. That last step is what proves
+      the `invoice.paid` webhook event is subscribed.
 - [ ] **Send yourself a message through `/contact`** and confirm it arrives with
       the sender's address as reply-to. It needs `RESEND_API_KEY`; without it the
       form tells the visitor it couldn't send rather than pretending it did.

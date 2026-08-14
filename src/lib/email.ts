@@ -321,7 +321,7 @@ export function renderInvoiceHtml(
       }),
     ),
     ...(store.payments.acceptsCash
-      ? [payBlock({ label: "Cash", detail: "In person", note: "Whenever we next see you — no rush." })]
+      ? [payBlock({ label: "Cash", detail: "In person", note: "Whenever we next see you." })]
       : []),
   ];
   const rows: string[] = [];
@@ -334,7 +334,7 @@ export function renderInvoiceHtml(
 
   const inner = `
     <h1 style="font-size:22px;margin:0 0 6px">Thanks so much, ${name}! 💛</h1>
-    <p style="margin:0;color:#6a6456;font-size:15px">Here's what you ordered — no rush on paying, whenever works for you.</p>
+    <p style="margin:0;color:#6a6456;font-size:15px">Whenever you get a chance, you can take care of payment here!</p>
     ${itemsTable(order, true)}
     ${totals(order)}
     <h2 style="font-size:16px;margin:28px 0 10px">Ways to pay</h2>
