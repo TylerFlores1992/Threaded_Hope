@@ -12,6 +12,40 @@ payments, backed by a **Shopify-style admin** at `/admin` for managing products,
 orders, inventory, discounts, and traffic. Stripe remains the authoritative
 payment/receipt record; the app's database mirrors orders and drives the catalog.
 
+## Open items
+
+A running list of things shipped but not yet finished off, so they aren't lost
+between sessions. **Prune an entry once it's genuinely done** — a stale list here
+is worse than none.
+
+- **Add the `_dmarc` TXT record** at the DNS host (Cloudflare):
+  `v=DMARC1; p=none; rua=mailto:Melinda@threaded-hope.com`. SPF and DKIM are
+  live; DMARC is absent entirely, which is the most likely reason an invoice
+  landed in a customer's spam folder. See "Order emails" in SETUP.
+- **Subscribe `invoice.paid`** on the live Stripe webhook endpoint. Without it,
+  an invoice paid by card never flips the order out of `pending`, so the money
+  arrives at Stripe and the books never hear about it.
+- **The invoice flow has never been run end to end against Stripe.** Creating an
+  invoice, the hosted pay link, the invoice email and the `invoice.paid` webhook
+  are all unexercised — the code typechecks and the template renders, that's all.
+  Do one small invoice to a real address before using it on a customer.
+- **`AdminProductsTable` still has the hydration bug** the Orders table was
+  fixed for: it reads its saved filters from `sessionStorage` in a `useState`
+  initialiser, so every load after a filter is saved throws the tree away and
+  re-renders it (React #418). The fix is the `useSyncExternalStore` pattern
+  already in `AdminOrdersTable` — see "Admin tables" below.
+- **The Zelle QR has not been scanned on a phone.** It's built to Zelle's
+  documented `enroll.zellepay.com/qr-codes?data=` shape and decodes back to the
+  right payload, but that's not the same as a bank app accepting it. The phone
+  number is printed above it either way, so the failure mode is cosmetic.
+
+> **The dev container carries the LIVE Stripe secret key** (`sk_live_…`), not a
+> test one. Read-only calls are fine — listing promotion codes is how the
+> discount path was verified — but **do not create coupons, invoices, or charges
+> while developing**: each one is a real object on the shop's real account, and a
+> finalised invoice is a real receivable. Anything that needs a Stripe write
+> should be tested by the shop owner from the deployed site.
+
 ## Stack
 
 - **Next.js 16** (App Router, Turbopack) · **React 19** · **TypeScript**

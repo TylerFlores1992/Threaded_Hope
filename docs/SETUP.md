@@ -27,6 +27,33 @@ Browsing and cart work with **no configuration** (the app falls back to the
 static catalog). Payments need Stripe keys; the admin, product management, and
 order/inventory/traffic tracking need a database (and Blob for photos) — all below.
 
+### In a throwaway cloud container (Claude Code on the web, Codespaces…)
+
+The container is ephemeral, so Postgres and the generated Prisma client don't
+survive a restart, and a dead database looks like an application bug until you
+check. Bringing it back:
+
+```bash
+# Postgres 16 listens on 5433 here; without the explicit config_file it fails to
+# find postgresql.conf and exits, having already printed "server started".
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/postgresql/16/main \
+  -o '-p 5433 -c config_file=/etc/postgresql/16/main/postgresql.conf' start"
+pg_isready -p 5433                       # verify — pg_ctl's own success is not proof
+
+npx prisma generate                      # the client is wiped with node_modules
+DATABASE_POSTGRES_PRISMA_URL=... npx prisma db push   # tables are gone with the volume
+```
+
+If Prisma reports *"Authentication failed"*, `pg_hba.conf` is asking for
+`scram-sha-256` on host connections and the throwaway `postgres` role has no
+password — switch those lines to `trust` and reload. If it reports *"too many
+clients already"*, a previous `next start` is still holding connections; kill it.
+
+Two other habits that save time here: a **live** Stripe key is present, so never
+exercise a Stripe *write* path (see "Open items" in CONTEXT), and `pkill -f
+"next start"` before rebuilding, since a stale server keeps serving the previous
+build's chunks and makes a fix look like it didn't work.
+
 ## Environment variables
 
 Copy the template and fill it in. **Never commit `.env.local` or real keys.**
