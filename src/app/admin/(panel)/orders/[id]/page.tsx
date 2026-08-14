@@ -4,6 +4,7 @@ import { getPrisma, isDbConfigured } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
 import { FulfillmentControl } from "@/components/admin/FulfillmentControl";
 import { RefundPanel } from "@/components/admin/RefundPanel";
+import { AwaitingPayment } from "@/components/admin/AwaitingPayment";
 import { isFullyRefunded, isStripeBackedOrder } from "@/lib/order-refunds";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,15 @@ export default async function OrderDetailPage({
             </span>
           )}
         </div>
+      )}
+
+      {/* An invoice that's still waiting to be paid. */}
+      {order.status === "pending" && order.invoiceUrl && (
+        <AwaitingPayment
+          orderId={order.id}
+          email={order.email}
+          payUrl={order.invoiceUrl}
+        />
       )}
 
       {order.source === "manual" && (

@@ -112,7 +112,11 @@ export async function getCustomers(): Promise<Customer[]> {
 
     c.orderCount++;
     // Net of refunds: "total spent" should reflect what they actually kept.
-    c.totalSpentCents += o.amountTotalCents - o.refundedCents;
+    // An invoice they haven't paid yet isn't spending, so it adds nothing —
+    // the order still appears in their history, marked unpaid.
+    if (o.status !== "pending") {
+      c.totalSpentCents += o.amountTotalCents - o.refundedCents;
+    }
     c.lastOrderAt ??= o.createdAt;
     c.firstOrderAt = o.createdAt; // overwritten until the oldest order wins
     c.orders.push({

@@ -145,13 +145,19 @@ export default async function AdminDashboard({
     now,
   );
 
+  // An invoice that hasn't been paid yet is a hope, not a sale. It stays out of
+  // every revenue figure until Stripe reports the payment and flips it to
+  // "paid" — it still shows in the order list, badged unpaid.
+  const banked = { status: { not: "pending" } };
+
   const [productCount, orderCount, revenue, toShip, ordersWindow, viewsWindow] =
     await Promise.all([
       prisma.product.count(),
-      prisma.order.count(),
+      prisma.order.count({ where: banked }),
       // Refunds come off revenue — money that went back to a customer was
       // never really earned, and a headline that ignores them overstates sales.
       prisma.order.aggregate({
+        where: banked,
         _sum: { amountTotalCents: true, refundedCents: true },
       }),
       // A fully refunded order isn't a parcel waiting to go out. Compared as a
@@ -164,7 +170,7 @@ export default async function AdminDashboard({
         },
       }),
       prisma.order.findMany({
-        where: { createdAt: { gte: range.start } },
+        where: { createdAt: { gte: range.start }, ...banked },
         select: {
           createdAt: true,
           amountTotalCents: true,

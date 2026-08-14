@@ -25,9 +25,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6",
+    "@types/qrcode": "^1.5.6",
     "@vercel/blob": "^0.27",
     "jose": "^5",
     "next": "16.2.11",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "stripe": "^22.3.2"

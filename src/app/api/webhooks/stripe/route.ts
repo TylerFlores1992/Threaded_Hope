@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import type Stripe from "stripe";
 import { Prisma } from "@prisma/client";
 import { getStripe } from "@/lib/stripe";
@@ -272,6 +273,33 @@ export async function POST(req: Request) {
       console.error("Failed to record order:", err);
       return NextResponse.json(
         { error: "Failed to record order." },
+        { status: 500 },
+      );
+    }
+  }
+
+  /**
+   * An invoice raised from Record a sale has been paid. The order already
+   * exists, written as `pending` and kept out of revenue; this is what turns it
+   * into money. Matched on `stripeSessionId`, which holds the invoice id.
+   */
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object;
+    try {
+      if (!prisma) return NextResponse.json({ received: true });
+      const { count } = await prisma.order.updateMany({
+        // Guarded on `pending` so a replayed event can't overwrite a refund.
+        where: { stripeSessionId: invoice.id, status: "pending" },
+        data: { status: "paid" },
+      });
+      if (count > 0) {
+        revalidatePath("/admin");
+        revalidatePath("/admin/orders");
+      }
+    } catch (err) {
+      console.error("Failed to mark invoice paid:", err);
+      return NextResponse.json(
+        { error: "Failed to mark invoice paid." },
         { status: 500 },
       );
     }
