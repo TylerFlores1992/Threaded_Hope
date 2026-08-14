@@ -547,6 +547,15 @@ seed + fallback — see below.
   refund receipt too, but only in live mode and only if that email is enabled in
   the dashboard — which is why relying on it left refunded customers hearing
   nothing. Expect both mails when Stripe's is switched on.
+- **Every email is multipart.** The shared `send()` helper derives a plain-text
+  alternative from the HTML (`htmlToText`) and posts both parts to Resend.
+  HTML-only mail is a long-standing spam signal — real senders send both, a lot
+  of bulk mail doesn't — and an invoice landing in spam is an invoice that never
+  gets paid. The converter keeps link destinations in brackets, since "Pay now"
+  with nowhere to go is worse than useless in the text part. A new email type
+  should go through `send()` rather than posting to Resend directly. Deliverability
+  also depends on DNS the repo can't hold: SPF and DKIM are set up by Resend's
+  wizard, but **DMARC is listed as optional and isn't** — see SETUP.
 - **Contact form** (`components/ContactForm.tsx` → `api/contact` →
   `sendContactMessage`). Emails the shop owner with the customer's address as
   reply-to. The thank-you only renders when the send actually succeeded; a failure

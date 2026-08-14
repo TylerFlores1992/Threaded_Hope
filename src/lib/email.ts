@@ -21,6 +21,69 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM ?? `${store.name} <onboarding@resend.dev>`;
 }
 
+const ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  "#39": "'",
+  nbsp: " ",
+  ldquo: "“",
+  rdquo: "”",
+  mdash: "—",
+  ndash: "–",
+};
+
+/**
+ * A readable plain-text version of an HTML email.
+ *
+ * Sending HTML with no `text/plain` alternative is one of the oldest and most
+ * reliable spam signals there is — real senders send both parts, and a lot of
+ * bulk mail doesn't bother. Every send goes out as multipart because of this.
+ *
+ * Links keep their URL in brackets, because in the text part a bare "Pay now"
+ * with nowhere to go is worse than useless.
+ */
+export function htmlToText(html: string): string {
+  return (
+    html
+      .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, "")
+      // Keep the destination: "Pay $40.50 (https://…)".
+      .replace(
+        /<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi,
+        (_m, href: string, text: string) => {
+          const label = text.replace(/<[^>]+>/g, "").trim();
+          if (!label) return href;
+          return label === href ? href : `${label} (${href})`;
+        },
+      )
+      .replace(/<img\b[^>]*alt="([^"]*)"[^>]*>/gi, (_m, alt: string) =>
+        alt ? `\n${alt}\n` : "",
+      )
+      .replace(/<(br|hr)\s*\/?>/gi, "\n")
+      // Both ends of a block: a name followed by a <div> sub-label would
+      // otherwise come out as "Sage Baby BonnetSize: 0-3m".
+      .replace(/<(p|div|tr|h1|h2|h3|li|table)\b[^>]*>/gi, "\n")
+      .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, "\n")
+      .replace(/<\/t[dh]>/gi, "  ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&([a-z]+|#\d+);/gi, (m, name: string) => {
+        const key = name.toLowerCase();
+        if (ENTITIES[key]) return ENTITIES[key];
+        if (key.startsWith("#")) {
+          return String.fromCodePoint(Number(key.slice(1)));
+        }
+        return m;
+      })
+      // Tidy the ragged whitespace all that tag-stripping leaves behind.
+      .split("\n")
+      .map((line) => line.replace(/[ \t]+/g, " ").trim())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
+}
+
 async function send(opts: {
   to: string;
   subject: string;
@@ -41,6 +104,8 @@ async function send(opts: {
         to: [opts.to],
         subject: opts.subject,
         html: opts.html,
+        // Always multipart — see htmlToText.
+        text: htmlToText(opts.html),
         reply_to: opts.replyTo ?? store.contact.email,
       }),
       cache: "no-store",

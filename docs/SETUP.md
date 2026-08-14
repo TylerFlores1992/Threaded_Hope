@@ -369,6 +369,31 @@ still record normally.
    `RESEND_API_KEY`, plus `EMAIL_FROM` (e.g.
    `Threaded Hope <orders@threaded-hope.com>`). Redeploy.
 
+**Add a DMARC record.** Resend's setup wizard lists `_dmarc` as optional; it
+isn't, in practice. Without one, mailbox providers have no published policy to
+check the domain's mail against, and Gmail in particular has been treating
+missing DMARC as a negative signal since its 2024 sender rules. Add a TXT record
+at your DNS host:
+
+| Name | Type | Value |
+| --- | --- | --- |
+| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:Melinda@threaded-hope.com` |
+
+`p=none` only asks for reports — it never causes mail to be rejected — so it's
+safe to add to a domain that already sends through Zoho. Check it with
+[dmarcian](https://dmarcian.com/dmarc-inspector/) or `dig TXT _dmarc.your-domain`.
+
+**If mail still lands in spam**, in rough order of impact: the sending domain is
+new and has no reputation yet (it builds with volume — ask the first few
+recipients to mark *Not spam* and add the address to their contacts, which is
+worth far more than any header); confirm SPF, DKIM and DMARC all show **pass** in
+the raw message headers of a delivered mail (Gmail → ⋮ → Show original); and keep
+`EMAIL_FROM` on the verified domain rather than a free mailbox. Every email the
+store sends already goes out as **multipart** (HTML plus a plain-text
+alternative) — HTML-only mail is a long-standing filter trigger, so if you add a
+new email type, send it through the shared `send()` helper rather than posting to
+Resend directly.
+
 The `from` mailbox doesn't need to exist — replies are routed to
 `store.contact.email` via a reply-to header. Emails and fulfillment status:
 buying a shipping label (or clicking **Mark shipped** on the Orders page)
@@ -601,6 +626,10 @@ to verify each step below. Redeploy after any env change.
       payment options, the QR codes scan, and paying the card link flips the
       order from *pending* to *paid* in the admin. That last step is what proves
       the `invoice.paid` webhook event is subscribed.
+- [ ] **DMARC published** — `_dmarc.threaded-hope.com` returns a
+      `v=DMARC1; p=none; …` TXT record, and a delivered test mail shows
+      `dkim=pass`, `spf=pass` and `dmarc=pass` in its raw headers. Missing DMARC
+      is the usual reason a correctly-configured domain still lands in spam.
 - [ ] **Send yourself a message through `/contact`** and confirm it arrives with
       the sender's address as reply-to. It needs `RESEND_API_KEY`; without it the
       form tells the visitor it couldn't send rather than pretending it did.
