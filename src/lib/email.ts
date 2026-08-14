@@ -238,6 +238,33 @@ export async function sendRefundConfirmation(
   });
 }
 
+/**
+ * An invoice for a sale that hasn't been paid for yet, with a button through
+ * to Stripe's hosted payment page. Sent from Record a sale when the shop bills
+ * a customer rather than taking the money there and then.
+ */
+export async function sendInvoice(
+  order: EmailOrder & { payUrl: string },
+): Promise<boolean> {
+  if (!order.email) return false;
+  const name = esc(order.customerName?.split(" ")[0] ?? "there");
+  const inner = `
+    <h1 style="font-size:22px;margin:0 0 4px">Your invoice from ${esc(store.name)}</h1>
+    <p style="margin:0 0 4px;color:#6a6456">Hi ${name}, here's invoice ${orderRef(order.id)}. You can pay it securely with the button below — no account needed.</p>
+    ${itemsTable(order, true)}
+    ${totals(order)}
+    <div style="text-align:center;margin-top:24px">
+      <a href="${esc(order.payUrl)}" style="display:inline-block;background:#5b6b52;color:#fff;text-decoration:none;padding:12px 28px;border-radius:999px;font-size:15px;font-weight:bold">Pay ${money(order.amountTotalCents)}</a>
+    </div>
+    <p style="margin:20px 0 0;font-size:13px;color:#8a8272;text-align:center">Or copy this link into your browser:<br/><a href="${esc(order.payUrl)}" style="color:#5b6b52;word-break:break-all">${esc(order.payUrl)}</a></p>
+    <p style="margin:20px 0 0;font-size:14px;color:#6a6456">Reply to this email with any questions — a real person reads it.</p>`;
+  return send({
+    to: order.email,
+    subject: `Your invoice from ${store.name} ${orderRef(order.id)}`,
+    html: shell(inner),
+  });
+}
+
 /** Shipping notification with tracking (if available). */
 export async function sendShippingNotification(order: EmailOrder): Promise<boolean> {
   if (!order.email) return false;

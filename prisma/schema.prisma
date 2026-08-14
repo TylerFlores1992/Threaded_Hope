@@ -124,7 +124,11 @@ model Order {
   phone            String?
   amountTotalCents Int
   currency         String   @default("usd")
-  status           String   @default("paid") // paid | partially_refunded | refunded
+  status           String   @default("paid") // pending | paid | partially_refunded | refunded
+  /// Stripe's hosted invoice page, when the sale was billed rather than
+  /// collected on the spot. The customer pays here; `invoice.paid` flips the
+  /// order to paid. Null for everything that was already paid when recorded.
+  invoiceUrl       String?
   /// Money returned to the customer, in cents. Kept as a running total so a
   /// partial refund can be followed by another without losing the history, and
   /// so revenue reporting can subtract it. 0 for every untouched order.

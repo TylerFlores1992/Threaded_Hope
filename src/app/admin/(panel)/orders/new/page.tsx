@@ -2,8 +2,10 @@ import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
 import { sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
+import { getCustomers } from "@/lib/customers";
 import {
   ManualOrderForm,
+  type PickerCustomer,
   type PickerProduct,
 } from "@/components/admin/ManualOrderForm";
 
@@ -24,7 +26,20 @@ export default async function NewOrderPage({
     );
   }
 
-  const rows = await prisma.product.findMany({ orderBy: { name: "asc" } });
+  const [rows, allCustomers] = await Promise.all([
+    prisma.product.findMany({ orderBy: { name: "asc" } }),
+    getCustomers(),
+  ]);
+
+  // Only what the picker searches and fills in — not their whole order history.
+  const customers: PickerCustomer[] = allCustomers.map((c) => ({
+    email: c.email,
+    name: c.name,
+    phone: c.phone,
+    orderCount: c.orderCount,
+    address: c.address,
+  }));
+
   const products: PickerProduct[] = rows.map((p) => {
     const variants = (Array.isArray(p.variants) ? p.variants : []) as Variant[];
     return {
@@ -43,8 +58,8 @@ export default async function NewOrderPage({
       <h1 className="mt-2 text-xl font-semibold text-ink">Record a sale</h1>
       <p className="mt-1 mb-6 max-w-2xl text-sm text-ink-soft">
         For sales made outside the website — in person, at a fair, or to a
-        friend. Payment is assumed already collected; this records the sale so it
-        counts toward your totals and (optionally) reduces inventory.
+        friend. Record one you&apos;ve already been paid for, or email an invoice
+        with a payment link and let them pay by card.
       </p>
 
       {error && (
@@ -53,7 +68,7 @@ export default async function NewOrderPage({
         </p>
       )}
 
-      <ManualOrderForm products={products} />
+      <ManualOrderForm products={products} customers={customers} />
     </div>
   );
 }

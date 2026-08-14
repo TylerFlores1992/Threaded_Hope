@@ -99,6 +99,25 @@ export default async function OrderDetailPage({
         </div>
       )}
 
+      {/* An invoice that's still waiting to be paid. */}
+      {order.status === "pending" && order.invoiceUrl && (
+        <div className="mt-3 rounded-lg border border-[#ffd6a4] bg-[#fff6e8] px-3 py-2.5 text-sm">
+          <p className="font-medium text-[#5e4200]">Awaiting payment</p>
+          <p className="mt-0.5 text-xs text-[#5e4200]">
+            An invoice was emailed to {order.email ?? "the customer"}. It won&apos;t
+            count toward your sales until it&apos;s paid.
+          </p>
+          <a
+            href={order.invoiceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 inline-block text-xs font-medium text-sage-deep underline"
+          >
+            Open the payment page ↗
+          </a>
+        </div>
+      )}
+
       {order.source === "manual" && (
         <p className="mt-3 rounded-lg bg-sand px-3 py-2 text-xs text-ink-soft">
           Recorded manually (sale made outside the website).
