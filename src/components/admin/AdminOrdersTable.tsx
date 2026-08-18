@@ -318,7 +318,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrder[] }) {
             setQuery(e.target.value);
             reset();
           }}
-          placeholder="Search by customer, email, item, or tracking"
+          placeholder="Search by customer, email, item, colour, or tracking"
           className="min-w-[220px] flex-1 rounded-lg border border-border bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink"
         />
         <select

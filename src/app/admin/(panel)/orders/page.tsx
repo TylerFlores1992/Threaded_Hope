@@ -9,6 +9,7 @@ import {
   AdminOrdersTable,
   type AdminOrder,
 } from "@/components/admin/AdminOrdersTable";
+import { variantValues } from "@/lib/order-items";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,13 @@ function shippingName(shipping: unknown): string | null {
   return typeof name === "string" && name.trim() ? name : null;
 }
 
-type OrderItem = { name: string; quantity: number };
+type OrderItem = {
+  name: string;
+  quantity: number;
+  size?: string | null;
+  /** Non-size choices (colour, style, …) as { group: option }. */
+  options?: Record<string, string>;
+};
 
 export default async function OrdersPage() {
   if (!isDbConfigured() || !prisma) {
@@ -46,7 +53,11 @@ export default async function OrdersPage() {
       customerName: o.customerName ?? shippingName(o.shipping),
       email: o.email,
       itemCount: items.reduce((n, it) => n + (it.quantity ?? 1), 0),
-      itemNames: items.map((it) => it.name).join(", "),
+      // The variant choices are searchable too, so "blue" finds the orders
+      // with a blue one — the name alone can't tell them apart.
+      itemNames: items
+        .map((it) => [it.name, variantValues(it)].filter(Boolean).join(" "))
+        .join(", "),
       amountTotalCents: o.amountTotalCents,
       refundedCents: o.refundedCents,
       status: o.status,

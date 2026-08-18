@@ -74,6 +74,7 @@ cp .env.example .env.local
 | `SHIPPO_API_KEY` | Shipping labels (optional) | Shippo API token for buying/printing labels in the admin. `shippo_test_…` for free test labels, `shippo_live_…` for real postage. From [apps.goshippo.com/settings/api](https://apps.goshippo.com/settings/api). Absent → the label page shows a setup guide. |
 | `RESEND_API_KEY` | Emails (optional) | Resend API key for order confirmation + shipping emails. Without it, emails are skipped and orders still record. From [resend.com](https://resend.com). |
 | `EMAIL_FROM` | Emails (optional) | From address, e.g. `Threaded Hope <orders@threaded-hope.com>`. The sending domain must be verified in Resend; the mailbox itself need not exist (replies route to your contact email). |
+| `ORDER_NOTIFY_EMAIL` | Emails (optional) | Who gets the new-order alert. Comma-separated for more than one person. Defaults to the shop's public contact address in `src/data/store.ts`, which isn't always the address whoever packs the orders reads. |
 | `STRIPE_TAX_ENABLED` | Sales tax (optional) | `1` turns on automatic Stripe Tax (exact per-destination, ~0.5%/order fee). Requires Stripe Tax configured (origin + registrations) first, or checkout errors. Mutually exclusive with the flat rate. |
 | `STRIPE_TAX_RATE_ID` | Sales tax (optional) | A Stripe **Tax Rate** id (`txr_…`) for a free flat rate applied to items. Must be an **Exclusive** (added-on-top) rate in the same mode as your key. Ignored if `STRIPE_TAX_ENABLED=1`. |
 | `NEXT_PUBLIC_SALES_TAX_RATE` | Sales tax (optional) | Percent (e.g. `7.25`) shown as a matching tax line in the on-site order summary. Build-time inlined — set it, then redeploy with a fresh build. Leave unset with automatic tax. |
@@ -382,7 +383,11 @@ The store sends **order confirmation** (to the customer), a **new-order alert**
 **refund confirmation** (when you refund an order), and an **invoice** (when you
 bill a hand-entered sale — see "Recording a sale by hand").
 All are optional — without `RESEND_API_KEY` they're simply skipped and orders
-still record normally.
+still record normally. **The new-order alert needs nothing beyond
+`RESEND_API_KEY`** — it is sent automatically by the Stripe webhook on every
+paid checkout. By default it goes to the shop's public contact address; set
+`ORDER_NOTIFY_EMAIL` to send it somewhere else, or to several people at once.
+Admin → Home → Setup status shows whether it's on and which addresses it uses.
 
 1. **Create a Resend account** at [resend.com](https://resend.com).
 2. **Verify your sending domain.** Resend → **Domains → Add Domain** → enter your
