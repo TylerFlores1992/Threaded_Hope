@@ -71,6 +71,9 @@ export async function createManualOrder(formData: FormData): Promise<void> {
 
   const slugs = formData.getAll("slug").map((v) => String(v));
   const sizes = formData.getAll("size").map((v) => String(v).trim());
+  // Non-size choices (colour, style, …) per row, as a JSON blob each, matching
+  // the shape the Stripe webhook writes so both kinds of order read alike.
+  const optionBlobs = formData.getAll("options").map((v) => String(v));
   const qtys = formData.getAll("quantity").map((v) => Number(v));
   const prices = formData.getAll("price").map((v) => Number(v));
 
@@ -86,10 +89,25 @@ export async function createManualOrder(formData: FormData): Promise<void> {
 
   // Resolve the chosen products so names/prices come from the catalog, not the
   // client (a manual price override is still allowed for discounts/gifts).
+  const parseOptions = (raw: string | undefined): Record<string, string> => {
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.entries(parsed)
+          .filter(([, v]) => typeof v === "string" && v !== "")
+          .map(([k, v]) => [k, v as string]),
+      );
+    } catch {
+      return {};
+    }
+  };
+
   const chosen = slugs
     .map((slug, i) => ({
       slug,
       size: sizes[i] || null,
+      options: parseOptions(optionBlobs[i]),
       quantity: Math.max(1, Math.floor(qtys[i] || 1)),
       priceDollars: prices[i],
     }))
@@ -114,6 +132,7 @@ export async function createManualOrder(formData: FormData): Promise<void> {
         name: p.name,
         slug: p.slug,
         size: c.size,
+        ...(Object.keys(c.options).length > 0 ? { options: c.options } : {}),
         quantity: c.quantity,
         unitAmountCents,
       },
@@ -222,6 +241,26 @@ export async function createManualOrder(formData: FormData): Promise<void> {
           ? { ...(product.sizeStock as Record<string, number>) }
           : {};
 
+      const optionStock =
+        product.optionStock && typeof product.optionStock === "object"
+          ? (JSON.parse(JSON.stringify(product.optionStock)) as Record<
+              string,
+              Record<string, number>
+            >)
+          : {};
+      // Each tracked non-size group (colour, style, …) decrements on its own,
+      // the same way the Stripe webhook does it for a website order.
+      let optionTouched = false;
+      for (const [group, option] of Object.entries(
+        (it as { options?: Record<string, string> }).options ?? {},
+      )) {
+        const counts = optionStock[group];
+        if (counts && typeof counts[option] === "number") {
+          counts[option] = Math.max(0, counts[option] - it.quantity);
+          optionTouched = true;
+        }
+      }
+
       if (it.size && typeof sizeStock[it.size] === "number") {
         sizeStock[it.size] = Math.max(0, sizeStock[it.size] - it.quantity);
         const anyLeft = Object.values(sizeStock).some((n) => n > 0);
@@ -229,6 +268,20 @@ export async function createManualOrder(formData: FormData): Promise<void> {
           where: { id: product.id },
           data: {
             sizeStock: sizeStock as Prisma.InputJsonValue,
+            ...(optionTouched
+              ? { optionStock: optionStock as Prisma.InputJsonValue }
+              : {}),
+            inStock: anyLeft && product.inStock,
+          },
+        });
+      } else if (optionTouched) {
+        const anyLeft = Object.values(optionStock).every((counts) =>
+          Object.values(counts).some((n) => n > 0),
+        );
+        await tx.product.update({
+          where: { id: product.id },
+          data: {
+            optionStock: optionStock as Prisma.InputJsonValue,
             inStock: anyLeft && product.inStock,
           },
         });

@@ -1,6 +1,7 @@
 import "server-only";
 import { store } from "@/data/store";
 import { SITE_URL } from "@/lib/seo";
+import { variantChoices } from "@/lib/order-items";
 
 /**
  * Transactional email via Resend (REST, no SDK). Everything is gated on
@@ -62,7 +63,7 @@ export function htmlToText(html: string): string {
       )
       .replace(/<(br|hr)\s*\/?>/gi, "\n")
       // Both ends of a block: a name followed by a <div> sub-label would
-      // otherwise come out as "Sage Baby BonnetSize: 0-3m".
+      // otherwise come out as "Sage Baby BonnetSize: 0-3mColor: Sage".
       .replace(/<(p|div|tr|h1|h2|h3|li|table)\b[^>]*>/gi, "\n")
       .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, "\n")
       .replace(/<\/t[dh]>/gi, "  ")
@@ -126,6 +127,8 @@ async function send(opts: {
 export type EmailItem = {
   name: string;
   size?: string | null;
+  /** Non-size choices (colour, style, …) as { group: option }. */
+  options?: Record<string, string>;
   quantity?: number;
   unitAmountCents?: number;
 };
@@ -191,7 +194,12 @@ function itemsTable(order: EmailOrder, showPrices: boolean): string {
         ? `<td style="padding:8px 0;text-align:right">${money((it.unitAmountCents ?? 0) * qty)}</td>`
         : "";
       return `<tr style="border-bottom:1px solid #ece5d8">
-        <td style="padding:8px 0">${esc(it.name)}${it.size ? `<div style="font-size:12px;color:#8a8272">Size: ${esc(it.size)}</div>` : ""}</td>
+        <td style="padding:8px 0">${esc(it.name)}${variantChoices(it)
+          .map(
+            (c) =>
+              `<div style="font-size:12px;color:#8a8272">${esc(c.label)}: ${esc(c.value)}</div>`,
+          )
+          .join("")}</td>
         <td style="padding:8px 0;text-align:center;color:#8a8272">×${qty}</td>
         ${amount}
       </tr>`;

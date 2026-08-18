@@ -1,5 +1,6 @@
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { variantValues } from "@/lib/order-items";
 
 /**
  * Billing a customer for a sale instead of collecting on the spot.
@@ -16,6 +17,8 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe";
 export type InvoiceLine = {
   name: string;
   size?: string | null;
+  /** Non-size choices (colour, style, …) as { group: option }. */
+  options?: Record<string, string>;
   quantity: number;
   unitAmountCents: number;
 };
@@ -78,7 +81,8 @@ export async function createPayableInvoice(
       // price_data + quantity) keeps this from having to create a Stripe
       // Product for every catalog item just to raise one invoice, so the
       // quantity goes in the description instead.
-      const label = line.size ? `${line.name} (${line.size})` : line.name;
+      const v = variantValues(line);
+      const label = v ? `${line.name} (${v})` : line.name;
       await stripe.invoiceItems.create({
         customer: customer.id,
         invoice: invoice.id,

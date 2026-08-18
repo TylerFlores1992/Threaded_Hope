@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma, isDbConfigured } from "@/lib/db";
-import { sizeAxisOf } from "@/lib/stock";
+import { optionAxesOf, sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import { getCustomers } from "@/lib/customers";
 import {
@@ -47,6 +47,12 @@ export default async function NewOrderPage({
       name: p.name,
       price: p.priceCents / 100,
       sizes: sizeAxisOf({ variants })?.options ?? [],
+      // Colour, style, … — so an in-person sale records the same choices a
+      // website order does.
+      optionGroups: optionAxesOf({ variants }).map((v) => ({
+        name: v.name,
+        options: v.options,
+      })),
     };
   });
 
