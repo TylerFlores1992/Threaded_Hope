@@ -387,7 +387,10 @@ still record normally. **The new-order alert needs nothing beyond
 `RESEND_API_KEY`** — it is sent automatically by the Stripe webhook on every
 paid checkout. By default it goes to the shop's public contact address; set
 `ORDER_NOTIFY_EMAIL` to send it somewhere else, or to several people at once.
-Admin → Home → Setup status shows whether it's on and which addresses it uses.
+Admin → Home → Setup status shows whether it's on and which addresses it uses —
+**read that panel on the deployed site, not a dev server**, since it reports the
+environment of whichever process renders it and the dev container is provisioned
+separately. Email is currently configured in production.
 
 1. **Create a Resend account** at [resend.com](https://resend.com).
 2. **Verify your sending domain.** Resend → **Domains → Add Domain** → enter your
