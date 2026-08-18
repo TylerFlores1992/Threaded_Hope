@@ -6,12 +6,15 @@ import { FulfillmentControl } from "@/components/admin/FulfillmentControl";
 import { RefundPanel } from "@/components/admin/RefundPanel";
 import { AwaitingPayment } from "@/components/admin/AwaitingPayment";
 import { isFullyRefunded, isStripeBackedOrder } from "@/lib/order-refunds";
+import { variantChoices } from "@/lib/order-items";
 
 export const dynamic = "force-dynamic";
 
 type Item = {
   name?: string;
   size?: string | null;
+  /** Non-size choices (colour, style, …) as { group: option }. */
+  options?: Record<string, string>;
   quantity?: number;
   unitAmountCents?: number;
 };
@@ -216,11 +219,14 @@ export default async function OrderDetailPage({
                 <tr key={i}>
                   <td className="py-2 text-ink">
                     {it.name}
-                    {it.size && (
-                      <span className="block text-xs text-ink-soft">
-                        Size: {it.size}
+                    {variantChoices(it).map((c) => (
+                      <span
+                        key={c.label}
+                        className="block text-xs text-ink-soft"
+                      >
+                        {c.label}: {c.value}
                       </span>
-                    )}
+                    ))}
                   </td>
                   <td className="py-2 text-center text-ink">{qty}</td>
                   <td className="py-2 text-right text-ink-soft">{cents(unit)}</td>

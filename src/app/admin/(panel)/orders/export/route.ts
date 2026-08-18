@@ -1,4 +1,5 @@
 import { prisma, isDbConfigured } from "@/lib/db";
+import { variantValues } from "@/lib/order-items";
 
 export const dynamic = "force-dynamic";
 
@@ -6,7 +7,13 @@ export const dynamic = "force-dynamic";
  * CSV export of all recorded orders for bookkeeping. Gated by the admin
  * middleware (it lives under /admin). Streams a downloadable file.
  */
-type Item = { name?: string; size?: string | null; quantity?: number };
+type Item = {
+  name?: string;
+  size?: string | null;
+  /** Non-size choices (colour, style, …) as { group: option }. */
+  options?: Record<string, string>;
+  quantity?: number;
+};
 
 const cell = (v: unknown) => {
   const s = v == null ? "" : String(v);
@@ -62,7 +69,11 @@ export async function GET(request: Request) {
     const itemsText = items
       .map(
         (it) =>
-          `${it.name ?? "Item"}${it.size ? ` (${it.size})` : ""} x${it.quantity ?? 1}`,
+          (() => {
+            // Every choice, so a colour-only line isn't just a product name.
+            const v = variantValues(it);
+            return `${it.name ?? "Item"}${v ? ` (${v})` : ""} x${it.quantity ?? 1}`;
+          })(),
       )
       .join("; ");
     const count = items.reduce((n, it) => n + (it.quantity ?? 1), 0);

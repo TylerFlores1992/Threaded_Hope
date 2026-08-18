@@ -13,6 +13,8 @@ export type PickerProduct = {
   name: string;
   price: number; // dollars
   sizes: string[];
+  /** Non-size choice groups (colour, style, …). */
+  optionGroups: { name: string; options: string[] }[];
 };
 
 export type PickerCustomer = {
@@ -52,10 +54,17 @@ function SubmitButton({ invoice }: { invoice: boolean }) {
   );
 }
 
-type Row = { slug: string; size: string; quantity: string; price: string };
+type Row = {
+  slug: string;
+  size: string;
+  /** Chosen non-size options, keyed by group name. */
+  options: Record<string, string>;
+  quantity: string;
+  price: string;
+};
 type Promo = { code: string; label: string; discountCents: number };
 
-const emptyRow: Row = { slug: "", size: "", quantity: "1", price: "" };
+const emptyRow: Row = { slug: "", size: "", options: {}, quantity: "1", price: "" };
 
 /** Records an off-site sale, or bills one by emailing an invoice. */
 export function ManualOrderForm({
@@ -98,6 +107,7 @@ export function ManualOrderForm({
     update(i, {
       slug,
       size: "",
+      options: {},
       // Prefill the catalog price; still editable (friend price, discount…).
       price: p ? String(p.price) : "",
     });
@@ -202,6 +212,36 @@ export function ManualOrderForm({
                     ))}
                   </select>
                 </label>
+
+                {/* One select per non-size group, so an in-person sale records
+                    the colour the same way a website order does. Always
+                    submitted — even empty — to stay aligned with the row index. */}
+                <input
+                  type="hidden"
+                  name="options"
+                  value={JSON.stringify(row.options)}
+                />
+                {(p?.optionGroups ?? []).map((g) => (
+                  <label key={g.name} className="text-xs text-ink-soft">
+                    {g.name}
+                    <select
+                      value={row.options[g.name] ?? ""}
+                      onChange={(e) =>
+                        update(i, {
+                          options: { ...row.options, [g.name]: e.target.value },
+                        })
+                      }
+                      className={field}
+                    >
+                      <option value="">—</option>
+                      {g.options.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
 
                 <label className="text-xs text-ink-soft">
                   Qty

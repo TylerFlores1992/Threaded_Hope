@@ -7,11 +7,15 @@ import { store } from "@/data/store";
 import { formatPrice } from "@/lib/format";
 import { PrintButton } from "@/components/admin/PrintButton";
 
+import { variantChoices } from "@/lib/order-items";
+
 export const dynamic = "force-dynamic";
 
 type SlipItem = {
   name: string;
   size?: string | null;
+  /** Non-size choices (colour, style, …) as { group: option }. */
+  options?: Record<string, string>;
   quantity?: number;
   unitAmountCents?: number;
 };
@@ -182,11 +186,16 @@ export default async function PackingSlipPage({
                 <tr key={i}>
                   <td className="py-2 text-ink">
                     {it.name}
-                    {it.size && (
-                      <span className="block text-xs text-ink-soft">
-                        Size: {it.size}
+                    {/* Every choice, not just the size — a colour-only product
+                        printed as a bare name and nobody knew what to make. */}
+                    {variantChoices(it).map((c) => (
+                      <span
+                        key={c.label}
+                        className="block text-xs text-ink-soft"
+                      >
+                        {c.label}: {c.value}
                       </span>
-                    )}
+                    ))}
                   </td>
                   <td className="py-2 text-center text-ink">{qty}</td>
                   {showPrices && (
