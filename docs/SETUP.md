@@ -457,6 +457,15 @@ person, at a fair, or for a friend.
   order gets one discount, not both, the same as a website checkout.
   (A quantity rule counts **items**, so three of one thing qualifies for "3 or
   more" just as one each of three things does.)
+- **An unfinished sale is kept for you.** If you close the tab, wander off, or
+  the form comes back with a message instead of saving, what you typed isn't
+  lost. Next time you open **Record a sale** you'll see *"You have an unfinished
+  sale"* with a summary — **Restore it** puts everything back, **Discard**
+  starts fresh. It saves as you type; there's no button to press.
+  Two things to know: it's kept in **that browser on that device**, so a sale
+  started on your phone won't appear on the laptop, and it holds the customer's
+  details until you record the sale or discard it — worth discarding rather than
+  leaving if you're on a shared computer. Recording the sale clears it for you.
 - **Customer.** Search anyone who's ordered before to fill in their name, email,
   phone and last known address in one go, or just type.
 - **Delivery.** *In person* or *Ship it*. Shipping asks for an address and puts

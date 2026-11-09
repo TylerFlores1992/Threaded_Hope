@@ -82,6 +82,7 @@ export default async function NewOrderPage({
         products={products}
         customers={customers}
         discountRules={discountRules}
+        hadError={Boolean(error)}
       />
     </div>
   );

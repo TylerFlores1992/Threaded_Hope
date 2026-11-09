@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { useFormStatus } from "react-dom";
 import {
   checkPromoCode,
@@ -71,16 +78,190 @@ type Promo = { code: string; label: string; discountCents: number };
 
 const emptyRow: Row = { slug: "", size: "", options: {}, quantity: "1", price: "" };
 
+/**
+ * Unfinished sales, kept in the browser.
+ *
+ * Nothing on this form was written anywhere until "Record sale" was pressed, so
+ * closing the tab — or a server-side validation bounce, which remounts the page
+ * and resets every `useState` — threw away everything typed so far. A sale
+ * entered at a fair is a dozen fields of someone else's details; retyping it is
+ * the kind of thing that stops you recording sales at all.
+ *
+ * Deliberately per-browser (`localStorage`) rather than a row in the database:
+ * it's one shop owner on one device finishing what she started, and a draft
+ * that needs a table, a list page and a delete button is a bigger thing than
+ * the problem. It does mean a draft doesn't follow her from phone to laptop.
+ *
+ * Note it holds a customer's name, email, phone and address until the sale is
+ * recorded or the draft discarded. That's the same device already signed in to
+ * the admin, but it does outlive the session — worth knowing on a shared one.
+ */
+const DRAFT_KEY = "threaded-hope-manual-order-draft";
+const DRAFT_VERSION = 1;
+
+type Draft = {
+  v: number;
+  savedAt: number;
+  /** Set when the form was submitted; see `useDraftOnMount` for why. */
+  submittedAt?: number;
+  rows: Row[];
+  customerName: string;
+  email: string;
+  phone: string;
+  notes: string;
+  addr: Address;
+  ship: boolean;
+  invoice: boolean;
+  shippingCharged: string;
+  decrement: boolean;
+  codeInput: string;
+  promo: Promo | null;
+};
+
+type Address = {
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postal: string;
+  country: string;
+};
+
+/**
+ * Every access is wrapped: `localStorage` throws outright in a locked-down or
+ * private window, and a draft is a convenience — it must never be the reason
+ * the page fails to render.
+ */
+function readDraft(): Draft | null {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Draft;
+    // A draft written by an older shape is discarded rather than half-applied.
+    if (!parsed || parsed.v !== DRAFT_VERSION || !Array.isArray(parsed.rows)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Validate a raw stored string into a draft, or nothing. */
+function parseDraft(raw: string | null): Draft | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Draft;
+    // A draft written by an older shape is discarded rather than half-applied.
+    if (!parsed || parsed.v !== DRAFT_VERSION || !Array.isArray(parsed.rows)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(draft: Draft): void {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* a full or disabled store is not worth interrupting the sale for */
+  }
+}
+
+function clearDraft(): void {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* as above */
+  }
+}
+
+/**
+ * The draft as it stood **when this page was opened**, read through
+ * `useSyncExternalStore`.
+ *
+ * Two things force this shape. First, reading browser storage during render is
+ * the trap this codebase has hit four times (ProductPager's sort, the chart's
+ * `<title>`, the orders table, the products table): server and client render
+ * different text, React reports a #418 mismatch and silently throws the tree
+ * away. `useSyncExternalStore` is the documented way out — hydrate against the
+ * server snapshot (no draft), then swap in the real one.
+ *
+ * Second, the snapshot is cached per visit rather than re-read live, because
+ * autosave writes to the same key: a live snapshot would notice the user's own
+ * first keystrokes and pop an "unfinished sale" banner at them while they type.
+ * What's offered back has to be what was there on arrival.
+ */
+let openedWith: string | null | undefined;
+
+function draftSnapshot(): string | null {
+  if (openedWith === undefined) {
+    try {
+      openedWith = window.localStorage.getItem(DRAFT_KEY);
+    } catch {
+      openedWith = null;
+    }
+  }
+  return openedWith;
+}
+
+/** Server render has no browser storage, so there is never a draft there. */
+function noDraftOnServer(): null {
+  return null;
+}
+
+/** Nothing to subscribe to: this value is fixed for the life of the visit. */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
+/** Forget the cached read so the next visit to the form sees current storage. */
+function forgetSnapshot(): void {
+  openedWith = undefined;
+}
+
+/** Is there anything here worth keeping? An untouched form is not a draft. */
+function worthSaving(d: Pick<Draft, "rows" | "customerName" | "email" | "phone" | "notes">): boolean {
+  return (
+    d.rows.some((r) => r.slug) ||
+    Boolean(d.customerName.trim()) ||
+    Boolean(d.email.trim()) ||
+    Boolean(d.phone.trim()) ||
+    Boolean(d.notes.trim())
+  );
+}
+
+/** "3 items · 5 minutes ago" — enough to recognise a draft without opening it. */
+function describeDraft(d: Draft): string {
+  const items = d.rows.filter((r) => r.slug).length;
+  const parts: string[] = [];
+  if (items) parts.push(`${items} item${items === 1 ? "" : "s"}`);
+  if (d.customerName.trim()) parts.push(d.customerName.trim());
+  const mins = Math.round((Date.now() - d.savedAt) / 60000);
+  parts.push(
+    mins < 1 ? "just now"
+      : mins < 60 ? `${mins} minute${mins === 1 ? "" : "s"} ago`
+      : mins < 1440 ? `${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"} ago`
+      : `${Math.round(mins / 1440)} day${Math.round(mins / 1440) === 1 ? "" : "s"} ago`,
+  );
+  return parts.join(" · ");
+}
+
 /** Records an off-site sale, or bills one by emailing an invoice. */
 export function ManualOrderForm({
   products,
   customers,
   discountRules = [],
+  hadError = false,
 }: {
   products: PickerProduct[];
   customers: PickerCustomer[];
   /** Active automatic rules, so the discount is visible before saving. */
   discountRules?: DiscountRule[];
+  /** True when the server bounced the last submit back with a message. */
+  hadError?: boolean;
 }) {
   const [rows, setRows] = useState<Row[]>([emptyRow]);
   const [ship, setShip] = useState(false);
@@ -91,7 +272,10 @@ export function ManualOrderForm({
   const [customerName, setCustomerName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [addr, setAddr] = useState({
+  // Controlled so they can be written back into a restored draft.
+  const [notes, setNotes] = useState("");
+  const [decrement, setDecrement] = useState(true);
+  const [addr, setAddr] = useState<Address>({
     line1: "",
     line2: "",
     city: "",
@@ -100,10 +284,103 @@ export function ManualOrderForm({
     country: "US",
   });
 
+  /** Set once she has restored or discarded what was waiting. */
+  const [draftHandled, setDraftHandled] = useState(false);
+  /**
+   * Latched when the form is submitted, to stop a debounced autosave that was
+   * already in flight from landing afterwards and wiping the submitted mark —
+   * which would leave a finished sale being offered back as an unfinished one.
+   */
+  const submitted = useRef(false);
+
   const [codeInput, setCodeInput] = useState("");
   const [promo, setPromo] = useState<Promo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [checking, startCheck] = useTransition();
+
+  const applyDraft = useCallback((d: Draft) => {
+    setRows(d.rows.length ? d.rows : [emptyRow]);
+    setCustomerName(d.customerName);
+    setEmail(d.email);
+    setPhone(d.phone);
+    setNotes(d.notes);
+    setAddr(d.addr);
+    setShip(d.ship);
+    setInvoice(d.invoice);
+    setShippingCharged(d.shippingCharged);
+    setDecrement(d.decrement);
+    setCodeInput(d.codeInput);
+    // The server re-checks any code on submit, so a restored one can't
+    // mis-charge — at worst it's re-validated against the same subtotal.
+    setPromo(d.promo);
+  }, []);
+
+  // What was in storage when this page was opened (see `draftSnapshot`).
+  const openingDraft = parseDraft(
+    useSyncExternalStore(subscribeToNothing, draftSnapshot, noDraftOnServer),
+  );
+
+  /**
+   * A draft marked submitted belongs to a sale that went through — the
+   * redirect to the order page is the only way to leave without an error. So
+   * on a plain visit it is finished business and gets cleared; arriving *with*
+   * an error means the sale did not save, and the draft is still live.
+   */
+  const finished = Boolean(openingDraft?.submittedAt) && !hadError;
+
+  const restorable =
+    openingDraft && !draftHandled && !finished && worthSaving(openingDraft)
+      ? openingDraft
+      : null;
+
+  // Writing to storage is what effects are for; no React state is set here.
+  useEffect(() => {
+    if (finished) clearDraft();
+  }, [finished]);
+
+  // Re-read storage on the next visit rather than reusing this visit's value.
+  useEffect(() => forgetSnapshot, []);
+
+  // Autosave. Debounced so a burst of typing is one write, and skipped for an
+  // untouched form so an empty visit can't bury a real draft.
+  useEffect(() => {
+    const snapshot = {
+      rows, customerName, email, phone, notes,
+    };
+    if (!worthSaving(snapshot)) return;
+    // Don't overwrite a draft that's still sitting in the banner unrestored —
+    // the form underneath it is empty, and this would be the empty one winning.
+    if (restorable) return;
+
+    const t = setTimeout(() => {
+      if (submitted.current) return;
+      writeDraft({
+        v: DRAFT_VERSION,
+        savedAt: Date.now(),
+        rows, customerName, email, phone, notes, addr,
+        ship, invoice, shippingCharged, decrement, codeInput, promo,
+      });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [
+    restorable,
+    rows, customerName, email, phone, notes, addr,
+    ship, invoice, shippingCharged, decrement, codeInput, promo,
+  ]);
+
+  /**
+   * Mark the draft submitted rather than deleting it.
+   *
+   * If the server rejects the sale it redirects back here with a message and
+   * the whole component remounts with fresh state — so deleting on submit
+   * would lose the form exactly when she most needs it back. The mark is what
+   * `finished` above reads to tell "it saved" from "it bounced".
+   */
+  const onSubmit = () => {
+    submitted.current = true;
+    const current = readDraft();
+    if (current) writeDraft({ ...current, submittedAt: Date.now() });
+  };
 
   const productOf = (slug: string) => products.find((p) => p.slug === slug);
 
@@ -191,7 +468,47 @@ export function ManualOrderForm({
   };
 
   return (
-    <form action={createManualOrder} className="max-w-2xl space-y-5">
+    <form
+      action={createManualOrder}
+      onSubmit={onSubmit}
+      className="max-w-2xl space-y-5"
+    >
+      {/* ── Unfinished sale ───────────────────────────────────────── */}
+      {restorable && (
+        <div className="rounded-lg border border-border bg-sand p-4">
+          <p className="text-sm font-medium text-ink">
+            You have an unfinished sale
+          </p>
+          <p className="mt-1 text-sm text-ink-soft">
+            {describeDraft(restorable)}. Pick up where you left off, or start
+            fresh.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                applyDraft(restorable);
+                writeDraft({ ...restorable, submittedAt: undefined });
+                setDraftHandled(true);
+              }}
+              className="rounded-lg bg-ink px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Restore it
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearDraft();
+                setDraftHandled(true);
+              }}
+              className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sand"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Items ─────────────────────────────────────────────────── */}
       <div className="admin-card p-4">
         <p className="mb-3 text-sm font-medium text-ink">Items</p>
@@ -453,7 +770,13 @@ export function ManualOrderForm({
           </label>
           <label className="text-xs text-ink-soft">
             Note (e.g. paid cash / Venmo)
-            <input name="notes" type="text" className={field} />
+            <input
+              name="notes"
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className={field}
+            />
           </label>
         </div>
       </div>
@@ -624,7 +947,13 @@ export function ManualOrderForm({
       {/* ── Bookkeeping ───────────────────────────────────────────── */}
       <div className="space-y-2 admin-card p-4">
         <label className="flex items-start gap-2 text-sm text-ink">
-          <input type="checkbox" name="decrement" defaultChecked className="mt-0.5" />
+          <input
+            type="checkbox"
+            name="decrement"
+            checked={decrement}
+            onChange={(e) => setDecrement(e.target.checked)}
+            className="mt-0.5"
+          />
           <span>
             Subtract from inventory
             <span className="block text-xs text-ink-soft">

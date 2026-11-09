@@ -501,8 +501,42 @@ seed + fallback — see below.
     below unless that one focus event is suppressed. It also gets its own
     full-width row on this form — sharing one with the number fields squeezed it
     to about four visible characters.
+  - **An unfinished sale is kept in the browser** (`localStorage`,
+    `threaded-hope-manual-order-draft`). Nothing on this form was written
+    anywhere until "Record sale" was pressed, so closing the tab threw away a
+    dozen fields of someone else's details — and so did a server-side
+    validation bounce, which redirects back and remounts the component with
+    fresh `useState`. The form autosaves (debounced 500ms, and never for an
+    untouched form), and offers the draft back on the next visit as a banner
+    with **Restore it** / **Discard** rather than silently refilling.
+    Three things are load-bearing:
+    - **The draft is read through `useSyncExternalStore`, never during render**
+      — this is the same storage-hydration trap as the orders table, and the
+      pattern there is what's copied. It is also cached *per visit*
+      (`draftSnapshot`), because autosave writes to the same key: a live
+      snapshot would notice her own first keystrokes and pop an "unfinished
+      sale" banner at her mid-sentence.
+    - **Submitting marks the draft rather than deleting it** (`submittedAt`).
+      The server redirects to the order page on success and back to the form
+      with `?error=` on failure, so the mark plus `hadError` is how the next
+      visit tells "it saved, bin it" from "it bounced, offer it back". Deleting
+      on submit would lose the form exactly when it's most wanted.
+    - A `useRef` latch stops a debounced autosave **already in flight** from
+      landing after the submit and wiping that mark, which would leave a
+      recorded sale being offered back as an unfinished one.
+
+    Note most of the form's validation is browser-side `required`, so the
+    server's own `fail()` messages are only reachable for things HTML can't
+    check — "Add at least one item" is the everyday one. The draft holds a
+    customer's name, email, phone and address until the sale is recorded or
+    discarded; that's the same device already signed in to the admin, but it
+    does outlive the session, which is worth knowing on a shared one. It's
+    deliberately per-browser rather than a row in the database — one shop owner
+    finishing what she started — so a draft doesn't follow her phone → laptop.
   - **Picking a saved customer** fills name, email, phone and their last known
-    address from `getCustomers()`. Those inputs are controlled for that reason.
+    address from `getCustomers()`. Those inputs are controlled for that reason,
+    as are the note and "Subtract from inventory" fields, so a restored draft
+    can write every field back.
   - **Discount codes** reuse the Stripe promotion codes from the Discounts page,
     so there's no second list to keep in step (`lib/promo-codes.ts`). Stripe
     applies the coupon itself during a real checkout; a recorded sale never
@@ -828,7 +862,8 @@ seed + fallback — see below.
   mismatch (#418) and throws the tree away on every load after a filter is saved.
   `AdminOrdersTable` reads its filters through **`useSyncExternalStore`** —
   hydrate against the server snapshot, then swap in the saved one — which is the
-  pattern to copy. **`AdminProductsTable` still reads `sessionStorage` in a
+  pattern to copy, and `ManualOrderForm`'s saved draft is the second place that
+  copies it. **`AdminProductsTable` still reads `sessionStorage` in a
   `useState` initialiser and carries this bug.** The
   low-stock *filter option* was removed; the dashboard's old "Low stock" stat is
   now **"To ship"** (count of `fulfillmentStatus = "unfulfilled"` orders).
