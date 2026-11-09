@@ -5,9 +5,79 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/db";
 import { lookupPromoCode } from "@/lib/promo-codes";
+import {
+  getActiveDiscountRules,
+  pickBestRule,
+  ruleDiscountCents,
+} from "@/lib/discounts";
+import {
+  draftHasContent,
+  parseDraftPayload,
+  summarizeDraft,
+} from "@/lib/order-draft";
 import { createPayableInvoice } from "@/lib/invoices";
 import { sendInvoice } from "@/lib/email";
 import { payOptions } from "@/lib/payment-links";
+
+/**
+ * Park a sale that isn't certain yet.
+ *
+ * Distinct from the browser's autosave, which is insurance against losing work
+ * by accident: this is deliberate, survives a change of device, and is the
+ * answer to "get the order ready, we'll see if she takes it". Saving again
+ * against the same id updates that draft rather than breeding copies.
+ *
+ * Nothing is reserved — stock is untouched and the prices here are only what
+ * was typed. `createManualOrder` re-reads the catalog when the sale is really
+ * recorded, so a draft left for a fortnight can't bank a stale price.
+ */
+export async function saveOrderDraft(
+  raw: unknown,
+  id?: string,
+  label?: string,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const payload = parseDraftPayload(raw);
+  if (!payload) return { ok: false, error: "That draft couldn't be read." };
+  if (!draftHasContent(payload)) {
+    return { ok: false, error: "There's nothing to save yet." };
+  }
+
+  const prisma = getPrisma();
+  const { itemCount, subtotalCents } = summarizeDraft(payload);
+  const data = {
+    label: label?.trim() || null,
+    customerName: payload.customerName.trim() || null,
+    itemCount,
+    subtotalCents,
+    payload: payload as unknown as Prisma.InputJsonValue,
+  };
+
+  try {
+    // `update` throws if the row is gone — a draft deleted in another tab
+    // shouldn't lose the work, so fall back to writing a fresh one.
+    const saved = id
+      ? await prisma.orderDraft
+          .update({ where: { id }, data })
+          .catch(() => prisma.orderDraft.create({ data }))
+      : await prisma.orderDraft.create({ data });
+    revalidatePath("/admin/orders/new");
+    return { ok: true, id: saved.id };
+  } catch (err) {
+    console.error("Saving the draft failed:", err);
+    return { ok: false, error: "Couldn't save that draft." };
+  }
+}
+
+/** Throw away a parked sale. */
+export async function deleteOrderDraft(id: string): Promise<void> {
+  const prisma = getPrisma();
+  try {
+    await prisma.orderDraft.delete({ where: { id } });
+  } catch {
+    /* already gone is the outcome we wanted */
+  }
+  revalidatePath("/admin/orders/new");
+}
 
 /** Check a promo code from the form without submitting it. */
 export async function checkPromoCode(
@@ -86,6 +156,9 @@ export async function createManualOrder(formData: FormData): Promise<void> {
   const ship = formData.get("delivery") === "ship";
   const byInvoice = formData.get("payment") === "invoice";
   const promoCode = String(formData.get("promoCode") ?? "").trim();
+  // Set when this sale was opened from a parked draft, so recording it retires
+  // that draft rather than leaving a copy to be recorded a second time.
+  const draftId = String(formData.get("draftId") ?? "").trim();
 
   // Resolve the chosen products so names/prices come from the catalog, not the
   // client (a manual price override is still allowed for discounts/gifts).
@@ -149,8 +222,21 @@ export async function createManualOrder(formData: FormData): Promise<void> {
     ? Math.max(0, Math.round((shippingDollars || 0) * 100))
     : 0;
 
+  // Three of one thing is a three-item order, the same as one each of three
+  // things — this is the count the quantity rules are written against, and it
+  // matches how `api/checkout` totals a website cart.
+  const totalQty = items.reduce((n, it) => n + it.quantity, 0);
+
   // Re-check the code server-side. The browser already showed the shop owner
   // what it takes off, but that figure can't be trusted to come back unchanged.
+  //
+  // Failing that, the automatic rules get their turn. A sale recorded by hand
+  // is the same sale as one taken on the website, so a bundle rule the site
+  // would have applied has to apply here too — it didn't, which meant an
+  // in-person customer quietly paid full price for an order the website would
+  // have discounted. One discount per order, like Stripe enforces for a
+  // checkout: a code the owner typed is deliberate, so it wins over a rule
+  // that would have fired on its own.
   let discountCents = 0;
   let discountLabel: string | null = null;
   if (promoCode) {
@@ -158,6 +244,29 @@ export async function createManualOrder(formData: FormData): Promise<void> {
     if (!promo.ok) fail(`Discount code: ${promo.error}`);
     discountCents = promo.discountCents;
     discountLabel = promo.code;
+  } else {
+    try {
+      const rule = pickBestRule(await getActiveDiscountRules(), {
+        totalQty,
+        subtotalCents,
+      });
+      if (rule) {
+        // `rule.label` is what the website's own automatic discount stores in
+        // `discountCode` — `api/checkout` names the one-off Stripe coupon after
+        // it and the webhook reads that name back — so both kinds of order
+        // describe the same rule the same way on the slip, the CSV and the
+        // order page.
+        discountCents = Math.min(
+          ruleDiscountCents(rule, { totalQty, subtotalCents }),
+          subtotalCents,
+        );
+        discountLabel = discountCents > 0 ? rule.label : null;
+      }
+    } catch (err) {
+      // An unreachable rules table shouldn't block recording a sale: the order
+      // is the thing that matters, and it can be edited after.
+      console.error("Auto-discount lookup failed (recording without it):", err);
+    }
   }
 
   const amountTotalCents = subtotalCents - discountCents + shippingCents;
@@ -317,7 +426,19 @@ export async function createManualOrder(formData: FormData): Promise<void> {
     }
   }
 
+  // The sale exists now, so the draft of it is finished business. Best-effort:
+  // a stuck draft is a tidiness problem, not a reason to error after the money
+  // has been recorded.
+  if (draftId) {
+    try {
+      await prisma.orderDraft.delete({ where: { id: draftId } });
+    } catch {
+      /* already deleted, or never existed */
+    }
+  }
+
   revalidatePath("/admin/orders");
+  revalidatePath("/admin/orders/new");
   revalidatePath("/admin");
   revalidatePath("/shop");
   revalidatePath("/products/[slug]", "page");

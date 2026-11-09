@@ -3,6 +3,9 @@ import { prisma, isDbConfigured } from "@/lib/db";
 import { optionAxesOf, sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import { getCustomers } from "@/lib/customers";
+import { getActiveDiscountRules } from "@/lib/discounts";
+import { parseDraftPayload } from "@/lib/order-draft";
+import type { SavedDraft } from "@/components/admin/ManualOrderForm";
 import {
   ManualOrderForm,
   type PickerCustomer,
@@ -26,10 +29,30 @@ export default async function NewOrderPage({
     );
   }
 
-  const [rows, allCustomers] = await Promise.all([
+  const [rows, allCustomers, discountRules, draftRows] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: "asc" } }),
     getCustomers(),
+    // Passed to the form so it can show an automatic discount as the items are
+    // typed. The server works it out again on submit — this is the preview.
+    getActiveDiscountRules(),
+    prisma.orderDraft.findMany({ orderBy: { updatedAt: "desc" }, take: 50 }),
   ]);
+
+  // A draft written by an older shape parses to null and is left out rather
+  // than offered as a row that would restore nothing.
+  const savedDrafts: SavedDraft[] = draftRows.flatMap((d) => {
+    const payload = parseDraftPayload(d.payload);
+    if (!payload) return [];
+    return [{
+      id: d.id,
+      label: d.label,
+      customerName: d.customerName,
+      itemCount: d.itemCount,
+      subtotalCents: d.subtotalCents,
+      updatedAt: d.updatedAt.toISOString(),
+      payload,
+    }];
+  });
 
   // Only what the picker searches and fills in — not their whole order history.
   const customers: PickerCustomer[] = allCustomers.map((c) => ({
@@ -74,7 +97,13 @@ export default async function NewOrderPage({
         </p>
       )}
 
-      <ManualOrderForm products={products} customers={customers} />
+      <ManualOrderForm
+        products={products}
+        customers={customers}
+        discountRules={discountRules}
+        hadError={Boolean(error)}
+        savedDrafts={savedDrafts}
+      />
     </div>
   );
 }

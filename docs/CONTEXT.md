@@ -128,7 +128,8 @@ src/
                                  blog.ts (static seed + fallback catalog + blog)
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
-                                 shipping (Shippo REST), packaging, stock, discounts,
+                                 shipping (Shippo REST), packaging, stock,
+                                 discounts (+ -rules, the client-safe half),
                                  settings, email (Resend), seo (SITE_URL + keywords),
                                  site-text (+ -fields), theme (+ theme-config),
                                  customers (derived from orders + subscribers),
@@ -191,7 +192,8 @@ seed + fallback — see below.
 - Models: **Product** (catalog), **Collection** (categories, admin-managed),
   **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic),
   **Subscriber** (newsletter signups), **DiscountRule** (automatic cart
-  discounts), and **Setting** (key/value).
+  discounts), **OrderDraft** (a sale prepared but not recorded), and
+  **Setting** (key/value).
   `Product` has a primary `collectionSlug` plus a
   `collections` JSON list of every collection it appears in (see gotchas), a
   `weightOz` (per-unit shipping weight, used to prefill label parcels), an
@@ -295,12 +297,24 @@ seed + fallback — see below.
 - Admin **Discounts** has two kinds. **Promo codes** (manual): a Stripe coupon +
   promotion code the customer types at checkout. **Automatic discounts**
   (`DiscountRule`, `lib/discounts.ts`): quantity (buy N+) or spend (subtotal ≥ $)
-  thresholds with a %/$ off, applied at checkout with no code. `api/checkout`
+  thresholds with a %/$ off, applied with no code. `api/checkout`
   evaluates the active rules against the cart (`pickBestRule`), and when one
   applies it creates a one-off Stripe coupon and passes it as the session
   `discounts`. **Stripe allows one discount per session**, so an auto discount
   and a typed code are mutually exclusive — the route sends `discounts` (auto) or
   `allow_promotion_codes` (manual), never both.
+  **Both kinds of order evaluate the rules**, the website and Record a sale
+  alike. For a long time only checkout did, so a bundle rule the site would have
+  applied was silently skipped on a sale typed in by hand and the customer paid
+  full price. A rule is a property of the sale, not of the till it was rung up
+  on. The arithmetic is shared (`lib/discount-rules.ts`) so the two can't drift
+  — and note `totalQty` sums the line *quantities*: three of one thing is a
+  three-item order, the same as one each of three things.
+  The shape and the maths live in `lib/discount-rules.ts`, a plain module;
+  `lib/discounts.ts` keeps `server-only` and the database reads. That split
+  exists so the admin's client-side Record-a-sale form can price a rule live —
+  a `server-only` import from a client component is a build error. Same pattern
+  as `lib/gifting-rows.ts` beside `lib/gifting.ts`.
 - **Traffic**: `TrafficTracker` (client) beacons each storefront navigation to
   `/api/track`, which stores a `Pageview` with its referrer (admin routes
   excluded). The admin Traffic page shows 24h / 7d / all-time counts, top pages,
@@ -488,8 +502,70 @@ seed + fallback — see below.
     below unless that one focus event is suppressed. It also gets its own
     full-width row on this form — sharing one with the number fields squeezed it
     to about four visible characters.
+  - **A sale can also be parked on purpose** (`OrderDraft`, "Save draft").
+    The browser copy above is insurance against losing work by accident; this
+    is deliberate, and the answer to "get the order ready, we'll see if she
+    takes it". It lives in the database, so it survives a change of browser or
+    device, and the Record-a-sale page lists the saved ones with **Open** and
+    **Delete**. Saving again against the same draft updates that row rather
+    than breeding copies (the open one is tracked in `draftId`, carried to
+    `createManualOrder` as a hidden field); recording the sale deletes it, so a
+    parked order can't be recorded twice.
+    - **Deliberately its own table, not an `Order` with a third status.**
+      `pending` already costs a `banked` filter in the dashboard and an
+      exclusion in `lib/customers.ts`; a draft would additionally have to be
+      kept out of the order list, the fulfilment queue, best-sellers and the
+      CSV, and the first place anyone forgot would quietly report a sale that
+      never happened. A separate table cannot leak into any of it. It is also
+      purely additive, so `prisma db push` applies it to a populated database
+      without `--accept-data-loss` — verified against one with rows in it.
+    - **A draft is a snapshot, not a reservation.** No stock is held back, and
+      `createManualOrder` re-reads the catalog when the sale is finally
+      recorded, so a draft left for a fortnight can't bank a stale price.
+    - `payload` is the form's own state in the shape `lib/order-draft.ts`
+      defines — the same shape the browser autosaves — so one restore path
+      serves both. `parseDraftPayload` validates on the way in and on the way
+      out: a payload arrives from a browser, and a stored one may predate the
+      current shape, so anything that doesn't parse is dropped rather than
+      half-applied. A row whose payload no longer parses is left out of the
+      list instead of offered as a row that would restore nothing.
+
+  - **An unfinished sale is kept in the browser** (`localStorage`,
+    `threaded-hope-manual-order-draft`). Nothing on this form was written
+    anywhere until "Record sale" was pressed, so closing the tab threw away a
+    dozen fields of someone else's details — and so did a server-side
+    validation bounce, which redirects back and remounts the component with
+    fresh `useState`. The form autosaves (debounced 500ms, and never for an
+    untouched form), and offers the draft back on the next visit as a banner
+    with **Restore it** / **Discard** rather than silently refilling.
+    Three things are load-bearing:
+    - **The draft is read through `useSyncExternalStore`, never during render**
+      — this is the same storage-hydration trap as the orders table, and the
+      pattern there is what's copied. It is also cached *per visit*
+      (`draftSnapshot`), because autosave writes to the same key: a live
+      snapshot would notice her own first keystrokes and pop an "unfinished
+      sale" banner at her mid-sentence.
+    - **Submitting marks the draft rather than deleting it** (`submittedAt`).
+      The server redirects to the order page on success and back to the form
+      with `?error=` on failure, so the mark plus `hadError` is how the next
+      visit tells "it saved, bin it" from "it bounced, offer it back". Deleting
+      on submit would lose the form exactly when it's most wanted.
+    - A `useRef` latch stops a debounced autosave **already in flight** from
+      landing after the submit and wiping that mark, which would leave a
+      recorded sale being offered back as an unfinished one.
+
+    Note most of the form's validation is browser-side `required`, so the
+    server's own `fail()` messages are only reachable for things HTML can't
+    check — "Add at least one item" is the everyday one. The draft holds a
+    customer's name, email, phone and address until the sale is recorded or
+    discarded; that's the same device already signed in to the admin, but it
+    does outlive the session, which is worth knowing on a shared one. It's
+    deliberately per-browser rather than a row in the database — one shop owner
+    finishing what she started — so a draft doesn't follow her phone → laptop.
   - **Picking a saved customer** fills name, email, phone and their last known
-    address from `getCustomers()`. Those inputs are controlled for that reason.
+    address from `getCustomers()`. Those inputs are controlled for that reason,
+    as are the note and "Subtract from inventory" fields, so a restored draft
+    can write every field back.
   - **Discount codes** reuse the Stripe promotion codes from the Discounts page,
     so there's no second list to keep in step (`lib/promo-codes.ts`). Stripe
     applies the coupon itself during a real checkout; a recorded sale never
@@ -498,6 +574,16 @@ seed + fallback — see below.
     applied discount — it was computed for a different subtotal — and the server
     re-runs the lookup on submit rather than trusting the figure the browser
     sends back.
+    **With no code typed, the automatic rules apply here too** — the same
+    `pickBestRule` the website uses, re-evaluated server-side on submit. One
+    discount per order either way: a code the owner typed is a deliberate act,
+    so it wins over a rule that would have fired on its own. An auto rule stores
+    `rule.label` in `discountCode`, which is exactly what a website order ends
+    up with (`api/checkout` names the one-off coupon after the rule and the
+    webhook reads that name back), so the slip, the CSV and the order page
+    describe the same rule the same way whichever way the sale came in. The form
+    shows the rule and its value as the items are typed — an automatic discount
+    nobody can see before saving is the same bug in a quieter costume.
   - **Delivery is an explicit choice**, In person vs Ship it, rather than being
     inferred from whether shipping was charged (free shipping used to read as a
     pickup). Shipping asks for an address and stores it in the same shape the
@@ -805,7 +891,8 @@ seed + fallback — see below.
   mismatch (#418) and throws the tree away on every load after a filter is saved.
   `AdminOrdersTable` reads its filters through **`useSyncExternalStore`** —
   hydrate against the server snapshot, then swap in the saved one — which is the
-  pattern to copy. **`AdminProductsTable` still reads `sessionStorage` in a
+  pattern to copy, and `ManualOrderForm`'s saved draft is the second place that
+  copies it. **`AdminProductsTable` still reads `sessionStorage` in a
   `useState` initialiser and carries this bug.** The
   low-stock *filter option* was removed; the dashboard's old "Low stock" stat is
   now **"To ship"** (count of `fulfillmentStatus = "unfulfilled"` orders).

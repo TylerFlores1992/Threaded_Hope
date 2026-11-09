@@ -449,6 +449,34 @@ person, at a fair, or for a friend.
   Discounts page. Type it, press **Apply**, and it shows what comes off before
   you save. Changing the items afterwards clears it — the amount was worked out
   for a different subtotal — so apply it last.
+- **Automatic discounts apply here too.** Any **automatic** rule on the
+  Discounts page — buy 3 or more, spend over $50 — is worked out for a sale you
+  record by hand exactly as it would be on the website, with no code to
+  remember. It appears under Discount code and in the total as soon as the items
+  qualify, so you can see it before you save. A code you type replaces it: an
+  order gets one discount, not both, the same as a website checkout.
+  (A quantity rule counts **items**, so three of one thing qualifies for "3 or
+  more" just as one each of three things does.)
+- **Save draft — for an order that might not happen.** Getting one ready before
+  it's certain (a friend deciding, a fair you haven't packed for) — fill in as
+  much as you know, give it a name if you like, and press **Save draft**. It
+  appears under **Saved drafts** at the top of Record a sale, where **Open**
+  loads it back and **Delete** throws it away. Unlike the automatic one above,
+  a saved draft is kept on the site rather than in one browser, so you can
+  start it on your phone and finish on the laptop. Nothing counts as a sale and
+  no stock is held back until you actually record it, and the prices are
+  re-checked against the catalog at that point — so a draft that sat for a
+  fortnight won't record last month's price. Saving again updates the same
+  draft; recording the sale clears it.
+- **An unfinished sale is kept for you.** If you close the tab, wander off, or
+  the form comes back with a message instead of saving, what you typed isn't
+  lost. Next time you open **Record a sale** you'll see *"You have an unfinished
+  sale"* with a summary — **Restore it** puts everything back, **Discard**
+  starts fresh. It saves as you type; there's no button to press.
+  Two things to know: it's kept in **that browser on that device**, so a sale
+  started on your phone won't appear on the laptop, and it holds the customer's
+  details until you record the sale or discard it — worth discarding rather than
+  leaving if you're on a shared computer. Recording the sale clears it for you.
 - **Customer.** Search anyone who's ordered before to fill in their name, email,
   phone and last known address in one go, or just type.
 - **Delivery.** *In person* or *Ship it*. Shipping asks for an address and puts
