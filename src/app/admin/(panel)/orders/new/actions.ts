@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/db";
 import { lookupPromoCode } from "@/lib/promo-codes";
+import {
+  getActiveDiscountRules,
+  pickBestRule,
+  ruleDiscountCents,
+} from "@/lib/discounts";
 import { createPayableInvoice } from "@/lib/invoices";
 import { sendInvoice } from "@/lib/email";
 import { payOptions } from "@/lib/payment-links";
@@ -149,8 +154,21 @@ export async function createManualOrder(formData: FormData): Promise<void> {
     ? Math.max(0, Math.round((shippingDollars || 0) * 100))
     : 0;
 
+  // Three of one thing is a three-item order, the same as one each of three
+  // things — this is the count the quantity rules are written against, and it
+  // matches how `api/checkout` totals a website cart.
+  const totalQty = items.reduce((n, it) => n + it.quantity, 0);
+
   // Re-check the code server-side. The browser already showed the shop owner
   // what it takes off, but that figure can't be trusted to come back unchanged.
+  //
+  // Failing that, the automatic rules get their turn. A sale recorded by hand
+  // is the same sale as one taken on the website, so a bundle rule the site
+  // would have applied has to apply here too — it didn't, which meant an
+  // in-person customer quietly paid full price for an order the website would
+  // have discounted. One discount per order, like Stripe enforces for a
+  // checkout: a code the owner typed is deliberate, so it wins over a rule
+  // that would have fired on its own.
   let discountCents = 0;
   let discountLabel: string | null = null;
   if (promoCode) {
@@ -158,6 +176,29 @@ export async function createManualOrder(formData: FormData): Promise<void> {
     if (!promo.ok) fail(`Discount code: ${promo.error}`);
     discountCents = promo.discountCents;
     discountLabel = promo.code;
+  } else {
+    try {
+      const rule = pickBestRule(await getActiveDiscountRules(), {
+        totalQty,
+        subtotalCents,
+      });
+      if (rule) {
+        // `rule.label` is what the website's own automatic discount stores in
+        // `discountCode` — `api/checkout` names the one-off Stripe coupon after
+        // it and the webhook reads that name back — so both kinds of order
+        // describe the same rule the same way on the slip, the CSV and the
+        // order page.
+        discountCents = Math.min(
+          ruleDiscountCents(rule, { totalQty, subtotalCents }),
+          subtotalCents,
+        );
+        discountLabel = discountCents > 0 ? rule.label : null;
+      }
+    } catch (err) {
+      // An unreachable rules table shouldn't block recording a sale: the order
+      // is the thing that matters, and it can be edited after.
+      console.error("Auto-discount lookup failed (recording without it):", err);
+    }
   }
 
   const amountTotalCents = subtotalCents - discountCents + shippingCents;

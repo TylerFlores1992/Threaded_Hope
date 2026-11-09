@@ -1,21 +1,21 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import type { DiscountRule } from "@/lib/discount-rules";
 
 /**
- * Automatic discount rules — applied at checkout with no promo code, based on
- * the cart. Manual promo codes stay separate (Stripe promotion codes managed on
- * the Discounts page). Stripe allows only one discount per Checkout Session, so
- * an auto rule and a typed code can't both apply to the same order.
+ * Automatic discount rules — applied with no promo code, based on the cart.
+ * Manual promo codes stay separate (Stripe promotion codes managed on the
+ * Discounts page), and only one discount ever lands on an order: Stripe allows
+ * one per Checkout Session, and a hand-recorded sale follows the same rule so
+ * the two kinds of order can't disagree about what a total means.
+ *
+ * Reading the rules needs the database, so it lives here. The shape and the
+ * arithmetic live in `lib/discount-rules.ts`, which has no `server-only` on it
+ * and can therefore be shared with the admin's client-side forms.
  */
-export type DiscountRule = {
-  id: string;
-  label: string;
-  kind: "quantity" | "spend";
-  threshold: number; // min item count (quantity) or min subtotal in cents (spend)
-  percentOff: number | null;
-  amountOffCents: number | null;
-  active: boolean;
-};
+
+export type { DiscountRule, DiscountCart } from "@/lib/discount-rules";
+export { ruleDiscountCents, pickBestRule } from "@/lib/discount-rules";
 
 export async function getActiveDiscountRules(): Promise<DiscountRule[]> {
   if (!prisma) return [];
@@ -47,40 +47,4 @@ export async function getAllDiscountRules(): Promise<DiscountRule[]> {
     amountOffCents: r.amountOffCents,
     active: r.active,
   }));
-}
-
-/** The dollar value a rule takes off a given cart (0 if it doesn't apply). */
-export function ruleDiscountCents(
-  rule: DiscountRule,
-  cart: { totalQty: number; subtotalCents: number },
-): number {
-  const meets =
-    rule.kind === "quantity"
-      ? cart.totalQty >= rule.threshold
-      : cart.subtotalCents >= rule.threshold;
-  if (!meets) return 0;
-  if (rule.percentOff != null) {
-    return Math.round((cart.subtotalCents * rule.percentOff) / 100);
-  }
-  if (rule.amountOffCents != null) {
-    return Math.min(rule.amountOffCents, cart.subtotalCents);
-  }
-  return 0;
-}
-
-/** The best-matching active rule for a cart, or null. */
-export function pickBestRule(
-  rules: DiscountRule[],
-  cart: { totalQty: number; subtotalCents: number },
-): DiscountRule | null {
-  let best: DiscountRule | null = null;
-  let bestValue = 0;
-  for (const rule of rules) {
-    const value = ruleDiscountCents(rule, cart);
-    if (value > bestValue) {
-      best = rule;
-      bestValue = value;
-    }
-  }
-  return best;
 }

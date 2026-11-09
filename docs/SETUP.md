@@ -449,6 +449,14 @@ person, at a fair, or for a friend.
   Discounts page. Type it, press **Apply**, and it shows what comes off before
   you save. Changing the items afterwards clears it — the amount was worked out
   for a different subtotal — so apply it last.
+- **Automatic discounts apply here too.** Any **automatic** rule on the
+  Discounts page — buy 3 or more, spend over $50 — is worked out for a sale you
+  record by hand exactly as it would be on the website, with no code to
+  remember. It appears under Discount code and in the total as soon as the items
+  qualify, so you can see it before you save. A code you type replaces it: an
+  order gets one discount, not both, the same as a website checkout.
+  (A quantity rule counts **items**, so three of one thing qualifies for "3 or
+  more" just as one each of three things does.)
 - **Customer.** Search anyone who's ordered before to fill in their name, email,
   phone and last known address in one go, or just type.
 - **Delivery.** *In person* or *Ship it*. Shipping asks for an address and puts

@@ -7,6 +7,11 @@ import {
   createManualOrder,
 } from "@/app/admin/(panel)/orders/new/actions";
 import { SearchSelect } from "./SearchSelect";
+import {
+  pickBestRule,
+  ruleDiscountCents,
+  type DiscountRule,
+} from "@/lib/discount-rules";
 
 export type PickerProduct = {
   slug: string;
@@ -70,9 +75,12 @@ const emptyRow: Row = { slug: "", size: "", options: {}, quantity: "1", price: "
 export function ManualOrderForm({
   products,
   customers,
+  discountRules = [],
 }: {
   products: PickerProduct[];
   customers: PickerCustomer[];
+  /** Active automatic rules, so the discount is visible before saving. */
+  discountRules?: DiscountRule[];
 }) {
   const [rows, setRows] = useState<Row[]>([emptyRow]);
   const [ship, setShip] = useState(false);
@@ -139,7 +147,28 @@ export function ManualOrderForm({
     return sum + (Number.isFinite(price) ? price * qty : 0);
   }, 0);
   const subtotalCents = Math.round(subtotal * 100);
-  const discount = promo ? promo.discountCents / 100 : 0;
+
+  // Only rows with a product chosen count — an empty row left at the bottom of
+  // the form is not an item, and counting it would fire a bundle rule an item
+  // early.
+  const totalQty = rows.reduce(
+    (n, r) =>
+      r.slug ? n + Math.max(1, Math.floor(Number(r.quantity) || 1)) : n,
+    0,
+  );
+
+  // The automatic rule this sale qualifies for, mirroring what the server will
+  // work out on submit. A typed code is deliberate and takes its place.
+  const autoRule = promo
+    ? null
+    : pickBestRule(discountRules, { totalQty, subtotalCents });
+  const autoDiscountCents = autoRule
+    ? Math.min(ruleDiscountCents(autoRule, { totalQty, subtotalCents }), subtotalCents)
+    : 0;
+
+  const discountCents = promo ? promo.discountCents : autoDiscountCents;
+  const discountLabel = promo ? promo.code : autoRule?.label ?? null;
+  const discount = discountCents / 100;
   const shippingNum = ship ? Math.max(0, Number(shippingCharged) || 0) : 0;
   const total = Math.max(0, subtotal - discount + shippingNum);
 
@@ -344,6 +373,16 @@ export function ManualOrderForm({
         {promo && (
           <p className="mt-2 text-sm text-sage-deep">
             {promo.label} — −${(promo.discountCents / 100).toFixed(2)} applied.
+          </p>
+        )}
+        {/* An automatic rule that already fired. Said out loud so the owner
+            isn't surprised by the total, and so it's obvious that typing a code
+            replaces it rather than stacking with it. */}
+        {!promo && autoRule && autoDiscountCents > 0 && (
+          <p className="mt-2 text-sm text-sage-deep">
+            {autoRule.label} applied automatically — −$
+            {(autoDiscountCents / 100).toFixed(2)}. A code you enter here
+            replaces it.
           </p>
         )}
         {promoError && (
@@ -602,9 +641,9 @@ export function ManualOrderForm({
             <span>Subtotal</span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
-          {promo && (
+          {discountCents > 0 && (
             <div className="flex justify-between text-ink-soft">
-              <span>Discount ({promo.code})</span>
+              <span>Discount{discountLabel ? ` (${discountLabel})` : ""}</span>
               <span>−${discount.toFixed(2)}</span>
             </div>
           )}

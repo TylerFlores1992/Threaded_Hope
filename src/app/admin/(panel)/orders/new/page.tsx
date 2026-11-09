@@ -3,6 +3,7 @@ import { prisma, isDbConfigured } from "@/lib/db";
 import { optionAxesOf, sizeAxisOf } from "@/lib/stock";
 import type { Variant } from "@/data/products";
 import { getCustomers } from "@/lib/customers";
+import { getActiveDiscountRules } from "@/lib/discounts";
 import {
   ManualOrderForm,
   type PickerCustomer,
@@ -26,9 +27,12 @@ export default async function NewOrderPage({
     );
   }
 
-  const [rows, allCustomers] = await Promise.all([
+  const [rows, allCustomers, discountRules] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: "asc" } }),
     getCustomers(),
+    // Passed to the form so it can show an automatic discount as the items are
+    // typed. The server works it out again on submit — this is the preview.
+    getActiveDiscountRules(),
   ]);
 
   // Only what the picker searches and fills in — not their whole order history.
@@ -74,7 +78,11 @@ export default async function NewOrderPage({
         </p>
       )}
 
-      <ManualOrderForm products={products} customers={customers} />
+      <ManualOrderForm
+        products={products}
+        customers={customers}
+        discountRules={discountRules}
+      />
     </div>
   );
 }

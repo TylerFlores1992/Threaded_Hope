@@ -128,7 +128,8 @@ src/
                                  blog.ts (static seed + fallback catalog + blog)
   lib/                           cart-context, format, placeholder, stripe,
                                  db (Prisma), catalog (DB-or-static), pricing, auth,
-                                 shipping (Shippo REST), packaging, stock, discounts,
+                                 shipping (Shippo REST), packaging, stock,
+                                 discounts (+ -rules, the client-safe half),
                                  settings, email (Resend), seo (SITE_URL + keywords),
                                  site-text (+ -fields), theme (+ theme-config),
                                  customers (derived from orders + subscribers),
@@ -295,12 +296,24 @@ seed + fallback — see below.
 - Admin **Discounts** has two kinds. **Promo codes** (manual): a Stripe coupon +
   promotion code the customer types at checkout. **Automatic discounts**
   (`DiscountRule`, `lib/discounts.ts`): quantity (buy N+) or spend (subtotal ≥ $)
-  thresholds with a %/$ off, applied at checkout with no code. `api/checkout`
+  thresholds with a %/$ off, applied with no code. `api/checkout`
   evaluates the active rules against the cart (`pickBestRule`), and when one
   applies it creates a one-off Stripe coupon and passes it as the session
   `discounts`. **Stripe allows one discount per session**, so an auto discount
   and a typed code are mutually exclusive — the route sends `discounts` (auto) or
   `allow_promotion_codes` (manual), never both.
+  **Both kinds of order evaluate the rules**, the website and Record a sale
+  alike. For a long time only checkout did, so a bundle rule the site would have
+  applied was silently skipped on a sale typed in by hand and the customer paid
+  full price. A rule is a property of the sale, not of the till it was rung up
+  on. The arithmetic is shared (`lib/discount-rules.ts`) so the two can't drift
+  — and note `totalQty` sums the line *quantities*: three of one thing is a
+  three-item order, the same as one each of three things.
+  The shape and the maths live in `lib/discount-rules.ts`, a plain module;
+  `lib/discounts.ts` keeps `server-only` and the database reads. That split
+  exists so the admin's client-side Record-a-sale form can price a rule live —
+  a `server-only` import from a client component is a build error. Same pattern
+  as `lib/gifting-rows.ts` beside `lib/gifting.ts`.
 - **Traffic**: `TrafficTracker` (client) beacons each storefront navigation to
   `/api/track`, which stores a `Pageview` with its referrer (admin routes
   excluded). The admin Traffic page shows 24h / 7d / all-time counts, top pages,
@@ -498,6 +511,16 @@ seed + fallback — see below.
     applied discount — it was computed for a different subtotal — and the server
     re-runs the lookup on submit rather than trusting the figure the browser
     sends back.
+    **With no code typed, the automatic rules apply here too** — the same
+    `pickBestRule` the website uses, re-evaluated server-side on submit. One
+    discount per order either way: a code the owner typed is a deliberate act,
+    so it wins over a rule that would have fired on its own. An auto rule stores
+    `rule.label` in `discountCode`, which is exactly what a website order ends
+    up with (`api/checkout` names the one-off coupon after the rule and the
+    webhook reads that name back), so the slip, the CSV and the order page
+    describe the same rule the same way whichever way the sale came in. The form
+    shows the rule and its value as the items are typed — an automatic discount
+    nobody can see before saving is the same bug in a quieter costume.
   - **Delivery is an explicit choice**, In person vs Ship it, rather than being
     inferred from whether shipping was charged (free shipping used to read as a
     pickup). Shipping asks for an address and stores it in the same shape the
