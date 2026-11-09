@@ -12,6 +12,7 @@ import {
   isRangeId,
   resolveRange,
 } from "@/lib/date-range";
+import { orderNotifyAddresses } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,14 @@ function setupStatus() {
       value: process.env.RESEND_API_KEY ? "On" : "Off",
       tone: process.env.RESEND_API_KEY ? "live" : "off",
       note: process.env.EMAIL_FROM,
+    },
+    {
+      // Worth showing the address: the fallback is the public contact address,
+      // which isn't always the one whoever packs the orders reads.
+      label: "New-order alerts to",
+      value: process.env.RESEND_API_KEY ? "On" : "Off",
+      tone: process.env.RESEND_API_KEY ? "live" : "off",
+      note: orderNotifyAddresses().join(", "),
     },
     {
       label: "Shopify sync (Admin API)",

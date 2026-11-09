@@ -22,6 +22,22 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM ?? `${store.name} <onboarding@resend.dev>`;
 }
 
+/**
+ * Who gets told about a new order.
+ *
+ * `ORDER_NOTIFY_EMAIL` takes a comma-separated list, so the alert can go to
+ * more than one person. It falls back to the shop's public contact address —
+ * which is the address customers write to, not necessarily the one whoever
+ * packs the orders reads, so it's worth setting explicitly.
+ */
+export function orderNotifyAddresses(): string[] {
+  const configured = (process.env.ORDER_NOTIFY_EMAIL ?? "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+  return configured.length > 0 ? configured : [store.contact.email];
+}
+
 const ENTITIES: Record<string, string> = {
   amp: "&",
   lt: "<",
@@ -86,13 +102,15 @@ export function htmlToText(html: string): string {
 }
 
 async function send(opts: {
-  to: string;
+  /** One address, or several when more than one person wants the alert. */
+  to: string | string[];
   subject: string;
   html: string;
   /** Defaults to the shop address; contact messages reply to the sender. */
   replyTo?: string;
 }): Promise<boolean> {
-  if (!isEmailConfigured() || !opts.to) return false;
+  const to = (Array.isArray(opts.to) ? opts.to : [opts.to]).filter(Boolean);
+  if (!isEmailConfigured() || to.length === 0) return false;
   try {
     const res = await fetch(RESEND_URL, {
       method: "POST",
@@ -102,7 +120,7 @@ async function send(opts: {
       },
       body: JSON.stringify({
         from: fromAddress(),
-        to: [opts.to],
+        to,
         subject: opts.subject,
         html: opts.html,
         // Always multipart — see htmlToText.
@@ -169,8 +187,35 @@ const esc = (s: unknown) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+/**
+ * Wraps text that must never become a link.
+ *
+ * Phone numbers aren't anchors in this HTML, but iOS Mail and the Gmail app
+ * detect them and turn them into tappable tel: links anyway — so the Zelle
+ * number in an invoice arrived looking like a "call me" button. The meta tag
+ * in `shell` asks clients not to do it; Apple Mail overrides the styling of
+ * anything it linkifies regardless, which the `x-apple-data-detectors` rule
+ * there undoes. This span is the last layer: even a client that ignores both
+ * inherits plain body colour rather than link blue.
+ */
+function noAutoLink(text: string): string {
+  return `<span style="color:inherit;text-decoration:none">${esc(text)}</span>`;
+}
+
 function shell(bodyInner: string): string {
   return `
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no" />
+  <style>
+    /* Apple Mail restyles what it linkifies; put it back to the body text. */
+    a[x-apple-data-detectors] {
+      color: inherit !important;
+      text-decoration: none !important;
+      font-size: inherit !important;
+      font-family: inherit !important;
+      font-weight: inherit !important;
+      line-height: inherit !important;
+    }
+  </style>
   <div style="background:#f6f1e7;padding:24px 0;font-family:Arial,Helvetica,sans-serif;color:#3a352c">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden">
       <div style="padding:24px;text-align:center;border-bottom:1px solid #ece5d8">
@@ -259,7 +304,7 @@ export async function sendOwnerNewOrder(order: EmailOrder): Promise<boolean> {
       <a href="${SITE_URL}/admin/orders" style="display:inline-block;background:#5b6b52;color:#fff;text-decoration:none;padding:10px 20px;border-radius:999px;font-size:14px">Open admin</a>
     </div>`;
   return send({
-    to: store.contact.email,
+    to: orderNotifyAddresses(),
     subject: `New order ${orderRef(order.id)} — ${money(order.amountTotalCents)}`,
     html: shell(inner),
   });
@@ -343,7 +388,7 @@ function payBlock(opt: {
       : "";
   return `<td style="vertical-align:top;padding:12px;border:1px solid #ece5d8;border-radius:12px;width:50%">
     ${heading}
-    <div style="font-size:14px;color:#3a352c;margin-top:2px">${esc(opt.detail)}</div>
+    <div style="font-size:14px;color:#3a352c;margin-top:2px">${noAutoLink(opt.detail)}</div>
     ${opt.note ? `<div style="font-size:12px;color:#8a8272;margin-top:4px">${esc(opt.note)}</div>` : ""}
     ${button}
     ${qr}

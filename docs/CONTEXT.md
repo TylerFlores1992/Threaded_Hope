@@ -34,6 +34,11 @@ is worse than none.
   initialiser, so every load after a filter is saved throws the tree away and
   re-renders it (React #418). The fix is the `useSyncExternalStore` pattern
   already in `AdminOrdersTable` — see "Admin tables" below.
+- **Emailed phone numbers have not been checked on a real handset.** The
+  `format-detection` meta tag, the `a[x-apple-data-detectors]` rule and
+  `noAutoLink()` should stop iOS Mail and Gmail turning the Zelle number into a
+  tel: link, but that is client behaviour and only a real inbox proves it. Worth
+  one test send to a phone.
 - **The Zelle QR has not been scanned on a phone.** It's built to Zelle's
   documented `enroll.zellepay.com/qr-codes?data=` shape and decodes back to the
   right payload, but that's not the same as a bank app accepting it. The phone
@@ -340,6 +345,20 @@ seed + fallback — see below.
   those write stock directly, `updateProduct` no longer touches `stock`/`inStock`.
   Products without a size axis keep the single `stock` field. `checkout`/`success` skip
   applies; overall `inStock` is derived in the catalog layer.
+- **An order line's variant choices** (`lib/order-items.ts`). A line keeps its
+  size in `size` and every *other* choice — colour, style — in `options`
+  (`{"Color":"Blue"}`), the split the checkout route writes into the Stripe line
+  metadata and the webhook reads back. For a long time only the size was
+  rendered, so a product whose one choice is a colour printed as a bare name and
+  the packing slip didn't say which one to make. `variantChoices` (labelled,
+  size first) and `variantValues` (values only, for lists and CSVs) are the
+  single source for that text, used by the order page, packing slip, CSV export,
+  invoices, all four emails, and the orders search. Add a surface that shows an
+  ordered line and it goes through here — the point is that they agree.
+  **Recording a sale by hand** captures the same shape: `ManualOrderForm` renders
+  a select per non-size group and `createManualOrder` decrements that option's
+  `optionStock`, matching what the webhook does for a website order.
+
 - **Fulfillment: packing slips + shipping labels.** Each recorded order has two
   admin tools. **Packing slip** (`/admin/orders/[id]/slip`) is a print-friendly
   page — it sets `@page { margin: 0 }` and supplies its own 0.5in print padding,
@@ -581,6 +600,16 @@ seed + fallback — see below.
   refund receipt too, but only in live mode and only if that email is enabled in
   the dashboard — which is why relying on it left refunded customers hearing
   nothing. Expect both mails when Stripe's is switched on.
+- **Emailed phone numbers are wrapped against auto-linking.** The Zelle number
+  in an invoice is not an anchor in our HTML, but iOS Mail and the Gmail app
+  detect phone numbers and linkify them anyway, so it arrived looking like a
+  "call me" button. Three layers push back: a `format-detection` meta tag in
+  `shell()` asking clients not to, an `a[x-apple-data-detectors]` rule undoing
+  Apple Mail's restyle when it does it regardless, and `noAutoLink()` wrapping
+  the text in a span that inherits body colour. This is best-effort by nature —
+  it is the client's behaviour, not ours — and it has **not** been checked on a
+  real handset. Use `noAutoLink()` for any phone number added to an email.
+
 - **Every email is multipart.** The shared `send()` helper derives a plain-text
   alternative from the HTML (`htmlToText`) and posts both parts to Resend.
   HTML-only mail is a long-standing spam signal — real senders send both, a lot
@@ -659,6 +688,11 @@ seed + fallback — see below.
   confirmation** (customer) + **new-order alert** (owner) after recording; a
   **shipping notification** with tracking goes out when an order first becomes
   shipped; refunding an order emails a **refund confirmation**. When unset, everything runs as before with emails skipped.
+  The **new-order alert** goes to `orderNotifyAddresses()` — `ORDER_NOTIFY_EMAIL`
+  (comma-separated for several people), falling back to `store.contact.email`.
+  That fallback is the shop's *public* address, which isn't necessarily the one
+  whoever packs the orders reads, so it's worth setting explicitly. Hand-entered
+  sales deliberately raise no alert — you know about a sale you just typed in.
 - **Fulfillment status.** `Order.fulfillmentStatus` (unfulfilled → shipped →
   delivered). Buying a label auto-marks the order shipped (once) + emails
   tracking; the Orders table's `FulfillmentControl` (client) sets status inline
@@ -761,7 +795,10 @@ seed + fallback — see below.
   across navigation via `sessionStorage` (returning from an edit keeps them). The
   Orders table (`AdminOrdersTable`) does the same, plus saved-view tabs (All /
   Unfulfilled / Shipped / Delivered / Local pickup / Gifts / Refunded / Imported),
-  bulk select, and the bulk fulfilment and delete actions.
+  bulk select, and the bulk fulfilment and delete actions. Its search text is
+  built server-side in the orders page as name + `variantValues(item)`, so
+  "blue" finds the orders with a blue one — the product name alone can't tell
+  two colours of the same item apart.
   **Reading that storage during render is a hydration bug**, and the third variant
   of the same trap as `ProductPager` and the chart's `<title>`: the server renders
   the defaults, the client renders the saved values, and React reports a text
@@ -825,7 +862,15 @@ seed + fallback — see below.
 - **Admin config health.** The dashboard's **Setup status** panel reads env
   prefixes server-side and shows each integration's *mode only* (never the
   secret): Stripe Live/Test, webhook Set, Shippo Live/Test, email On, and sales
-  tax Auto/Flat/Off. Used to verify live-vs-test at a glance.
+  tax Auto/Flat/Off, plus which addresses the new-order alert goes to. Used to
+  verify live-vs-test at a glance.
+  **It reports the env of whatever process is rendering it.** Reading the panel
+  on a dev server tells you about the dev container, not production — the two
+  are provisioned separately, and this container has a live `STRIPE_SECRET_KEY`
+  but no `RESEND_API_KEY`, which reads as "email is off" and is true only here.
+  To answer "is X configured in production", open the panel on the deployed site
+  or look at the Vercel project's environment variables. (Production email *is*
+  configured — a live order alert was received.)
 - **Shop search is URL-driven.** `/shop?q=…` filters on landing (feeds the SEO
   `SearchAction`); `ShopClient` also writes the query back to the URL as you type
   (debounced, `history.replaceState` — no server round-trip) so searches are
@@ -896,6 +941,8 @@ See [SETUP.md](./SETUP.md) for setup. Names only here:
   `Threaded Hope <orders@threaded-hope.com>`); enables order/shipping/invoice
   emails. Absent → emails are skipped, orders still record. An invoice raised
   without email configured is still payable — the link is on the order page.
+  `ORDER_NOTIFY_EMAIL` addresses the new-order alert (comma-separated for more
+  than one recipient); unset, it goes to `store.contact.email`.
 
 Not environment variables, but configured the same way and easy to miss: the
 **Venmo handle, Zelle number and cash option** in the invoice email live in
