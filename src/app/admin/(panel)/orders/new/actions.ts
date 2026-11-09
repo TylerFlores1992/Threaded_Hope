@@ -10,9 +10,74 @@ import {
   pickBestRule,
   ruleDiscountCents,
 } from "@/lib/discounts";
+import {
+  draftHasContent,
+  parseDraftPayload,
+  summarizeDraft,
+} from "@/lib/order-draft";
 import { createPayableInvoice } from "@/lib/invoices";
 import { sendInvoice } from "@/lib/email";
 import { payOptions } from "@/lib/payment-links";
+
+/**
+ * Park a sale that isn't certain yet.
+ *
+ * Distinct from the browser's autosave, which is insurance against losing work
+ * by accident: this is deliberate, survives a change of device, and is the
+ * answer to "get the order ready, we'll see if she takes it". Saving again
+ * against the same id updates that draft rather than breeding copies.
+ *
+ * Nothing is reserved — stock is untouched and the prices here are only what
+ * was typed. `createManualOrder` re-reads the catalog when the sale is really
+ * recorded, so a draft left for a fortnight can't bank a stale price.
+ */
+export async function saveOrderDraft(
+  raw: unknown,
+  id?: string,
+  label?: string,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const payload = parseDraftPayload(raw);
+  if (!payload) return { ok: false, error: "That draft couldn't be read." };
+  if (!draftHasContent(payload)) {
+    return { ok: false, error: "There's nothing to save yet." };
+  }
+
+  const prisma = getPrisma();
+  const { itemCount, subtotalCents } = summarizeDraft(payload);
+  const data = {
+    label: label?.trim() || null,
+    customerName: payload.customerName.trim() || null,
+    itemCount,
+    subtotalCents,
+    payload: payload as unknown as Prisma.InputJsonValue,
+  };
+
+  try {
+    // `update` throws if the row is gone — a draft deleted in another tab
+    // shouldn't lose the work, so fall back to writing a fresh one.
+    const saved = id
+      ? await prisma.orderDraft
+          .update({ where: { id }, data })
+          .catch(() => prisma.orderDraft.create({ data }))
+      : await prisma.orderDraft.create({ data });
+    revalidatePath("/admin/orders/new");
+    return { ok: true, id: saved.id };
+  } catch (err) {
+    console.error("Saving the draft failed:", err);
+    return { ok: false, error: "Couldn't save that draft." };
+  }
+}
+
+/** Throw away a parked sale. */
+export async function deleteOrderDraft(id: string): Promise<void> {
+  const prisma = getPrisma();
+  try {
+    await prisma.orderDraft.delete({ where: { id } });
+  } catch {
+    /* already gone is the outcome we wanted */
+  }
+  revalidatePath("/admin/orders/new");
+}
 
 /** Check a promo code from the form without submitting it. */
 export async function checkPromoCode(
@@ -91,6 +156,9 @@ export async function createManualOrder(formData: FormData): Promise<void> {
   const ship = formData.get("delivery") === "ship";
   const byInvoice = formData.get("payment") === "invoice";
   const promoCode = String(formData.get("promoCode") ?? "").trim();
+  // Set when this sale was opened from a parked draft, so recording it retires
+  // that draft rather than leaving a copy to be recorded a second time.
+  const draftId = String(formData.get("draftId") ?? "").trim();
 
   // Resolve the chosen products so names/prices come from the catalog, not the
   // client (a manual price override is still allowed for discounts/gifts).
@@ -358,7 +426,19 @@ export async function createManualOrder(formData: FormData): Promise<void> {
     }
   }
 
+  // The sale exists now, so the draft of it is finished business. Best-effort:
+  // a stuck draft is a tidiness problem, not a reason to error after the money
+  // has been recorded.
+  if (draftId) {
+    try {
+      await prisma.orderDraft.delete({ where: { id: draftId } });
+    } catch {
+      /* already deleted, or never existed */
+    }
+  }
+
   revalidatePath("/admin/orders");
+  revalidatePath("/admin/orders/new");
   revalidatePath("/admin");
   revalidatePath("/shop");
   revalidatePath("/products/[slug]", "page");

@@ -457,6 +457,17 @@ person, at a fair, or for a friend.
   order gets one discount, not both, the same as a website checkout.
   (A quantity rule counts **items**, so three of one thing qualifies for "3 or
   more" just as one each of three things does.)
+- **Save draft — for an order that might not happen.** Getting one ready before
+  it's certain (a friend deciding, a fair you haven't packed for) — fill in as
+  much as you know, give it a name if you like, and press **Save draft**. It
+  appears under **Saved drafts** at the top of Record a sale, where **Open**
+  loads it back and **Delete** throws it away. Unlike the automatic one above,
+  a saved draft is kept on the site rather than in one browser, so you can
+  start it on your phone and finish on the laptop. Nothing counts as a sale and
+  no stock is held back until you actually record it, and the prices are
+  re-checked against the catalog at that point — so a draft that sat for a
+  fortnight won't record last month's price. Saving again updates the same
+  draft; recording the sale clears it.
 - **An unfinished sale is kept for you.** If you close the tab, wander off, or
   the form comes back with a message instead of saving, what you typed isn't
   lost. Next time you open **Record a sale** you'll see *"You have an unfinished

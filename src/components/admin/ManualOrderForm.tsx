@@ -12,8 +12,20 @@ import { useFormStatus } from "react-dom";
 import {
   checkPromoCode,
   createManualOrder,
+  deleteOrderDraft,
+  saveOrderDraft,
 } from "@/app/admin/(panel)/orders/new/actions";
 import { SearchSelect } from "./SearchSelect";
+import {
+  DRAFT_VERSION,
+  draftHasContent,
+  fallbackDraftLabel,
+  firstDraftSlug,
+  type DraftAddress,
+  type DraftPromo,
+  type DraftRow,
+  type OrderDraftPayload,
+} from "@/lib/order-draft";
 import {
   pickBestRule,
   ruleDiscountCents,
@@ -66,15 +78,8 @@ function SubmitButton({ invoice }: { invoice: boolean }) {
   );
 }
 
-type Row = {
-  slug: string;
-  size: string;
-  /** Chosen non-size options, keyed by group name. */
-  options: Record<string, string>;
-  quantity: string;
-  price: string;
-};
-type Promo = { code: string; label: string; discountCents: number };
+type Row = DraftRow;
+type Promo = DraftPromo;
 
 const emptyRow: Row = { slug: "", size: "", options: {}, quantity: "1", price: "" };
 
@@ -97,35 +102,27 @@ const emptyRow: Row = { slug: "", size: "", options: {}, quantity: "1", price: "
  * the admin, but it does outlive the session — worth knowing on a shared one.
  */
 const DRAFT_KEY = "threaded-hope-manual-order-draft";
-const DRAFT_VERSION = 1;
 
-type Draft = {
-  v: number;
+/** The autosaved copy: the shared payload plus when it was written. */
+type Draft = OrderDraftPayload & {
   savedAt: number;
-  /** Set when the form was submitted; see `useDraftOnMount` for why. */
+  /** Set when the form was submitted; see `finished` for why. */
   submittedAt?: number;
-  rows: Row[];
-  customerName: string;
-  email: string;
-  phone: string;
-  notes: string;
-  addr: Address;
-  ship: boolean;
-  invoice: boolean;
-  shippingCharged: string;
-  decrement: boolean;
-  codeInput: string;
-  promo: Promo | null;
 };
 
-type Address = {
-  line1: string;
-  line2: string;
-  city: string;
-  state: string;
-  postal: string;
-  country: string;
+/** A sale parked on purpose, as the Record-a-sale page lists it. */
+export type SavedDraft = {
+  id: string;
+  label: string | null;
+  customerName: string | null;
+  itemCount: number;
+  subtotalCents: number;
+  /** ISO string: a Date would not survive the server/client boundary intact. */
+  updatedAt: string;
+  payload: OrderDraftPayload;
 };
+
+type Address = DraftAddress;
 
 /**
  * Every access is wrapped: `localStorage` throws outright in a locked-down or
@@ -223,15 +220,6 @@ function forgetSnapshot(): void {
 }
 
 /** Is there anything here worth keeping? An untouched form is not a draft. */
-function worthSaving(d: Pick<Draft, "rows" | "customerName" | "email" | "phone" | "notes">): boolean {
-  return (
-    d.rows.some((r) => r.slug) ||
-    Boolean(d.customerName.trim()) ||
-    Boolean(d.email.trim()) ||
-    Boolean(d.phone.trim()) ||
-    Boolean(d.notes.trim())
-  );
-}
 
 /** "3 items · 5 minutes ago" — enough to recognise a draft without opening it. */
 function describeDraft(d: Draft): string {
@@ -255,6 +243,7 @@ export function ManualOrderForm({
   customers,
   discountRules = [],
   hadError = false,
+  savedDrafts = [],
 }: {
   products: PickerProduct[];
   customers: PickerCustomer[];
@@ -262,6 +251,8 @@ export function ManualOrderForm({
   discountRules?: DiscountRule[];
   /** True when the server bounced the last submit back with a message. */
   hadError?: boolean;
+  /** Sales parked on purpose, newest first. */
+  savedDrafts?: SavedDraft[];
 }) {
   const [rows, setRows] = useState<Row[]>([emptyRow]);
   const [ship, setShip] = useState(false);
@@ -293,12 +284,32 @@ export function ManualOrderForm({
    */
   const submitted = useRef(false);
 
+  /**
+   * The parked draft this form is currently editing, if it was opened from one.
+   * Saving again updates that row instead of breeding a second copy, and
+   * recording the sale retires it (the hidden `draftId` below carries it to the
+   * server action).
+   */
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState("");
+  const [saveState, setSaveState] = useState<
+    { kind: "idle" } | { kind: "saved"; at: number } | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [saving, startSaving] = useTransition();
+
   const [codeInput, setCodeInput] = useState("");
   const [promo, setPromo] = useState<Promo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [checking, startCheck] = useTransition();
 
-  const applyDraft = useCallback((d: Draft) => {
+  /** Current form state as the shared payload shape. */
+  const payload = (): OrderDraftPayload => ({
+    v: DRAFT_VERSION,
+    rows, customerName, email, phone, notes, addr,
+    ship, invoice, shippingCharged, decrement, codeInput, promo,
+  });
+
+  const applyDraft = useCallback((d: OrderDraftPayload) => {
     setRows(d.rows.length ? d.rows : [emptyRow]);
     setCustomerName(d.customerName);
     setEmail(d.email);
@@ -329,7 +340,7 @@ export function ManualOrderForm({
   const finished = Boolean(openingDraft?.submittedAt) && !hadError;
 
   const restorable =
-    openingDraft && !draftHandled && !finished && worthSaving(openingDraft)
+    openingDraft && !draftHandled && !finished && draftHasContent(openingDraft)
       ? openingDraft
       : null;
 
@@ -347,7 +358,7 @@ export function ManualOrderForm({
     const snapshot = {
       rows, customerName, email, phone, notes,
     };
-    if (!worthSaving(snapshot)) return;
+    if (!draftHasContent(snapshot)) return;
     // Don't overwrite a draft that's still sitting in the banner unrestored —
     // the form underneath it is empty, and this would be the empty one winning.
     if (restorable) return;
@@ -380,6 +391,38 @@ export function ManualOrderForm({
     submitted.current = true;
     const current = readDraft();
     if (current) writeDraft({ ...current, submittedAt: Date.now() });
+  };
+
+  const onSaveDraft = () => {
+    setSaveState({ kind: "idle" });
+    startSaving(async () => {
+      const res = await saveOrderDraft(payload(), draftId ?? undefined, draftLabel);
+      if (res.ok) {
+        setDraftId(res.id);
+        setSaveState({ kind: "saved", at: Date.now() });
+      } else {
+        setSaveState({ kind: "error", message: res.error });
+      }
+    });
+  };
+
+  const onOpenDraft = (d: SavedDraft) => {
+    applyDraft(d.payload);
+    setDraftId(d.id);
+    setDraftLabel(d.label ?? "");
+    setSaveState({ kind: "idle" });
+    // The parked draft is now what's on screen, so the browser's accidental-loss
+    // copy is stale; let autosave write the restored state over it.
+    setDraftHandled(true);
+  };
+
+  const onDeleteDraft = (d: SavedDraft) => {
+    startSaving(async () => {
+      await deleteOrderDraft(d.id);
+      // Opened, then deleted: the form keeps its contents but is no longer
+      // editing a stored row, so the next save creates a new one.
+      if (draftId === d.id) setDraftId(null);
+    });
   };
 
   const productOf = (slug: string) => products.find((p) => p.slug === slug);
@@ -473,6 +516,63 @@ export function ManualOrderForm({
       onSubmit={onSubmit}
       className="max-w-2xl space-y-5"
     >
+      {/* ── Parked sales ───────────────────────────────── */}
+      {savedDrafts.length > 0 && (
+        <div className="admin-card p-4">
+          <p className="text-sm font-medium text-ink">Saved drafts</p>
+          <p className="mb-3 text-xs text-ink-soft">
+            Orders got ready but not recorded. Opening one loads it here;
+            recording the sale clears it.
+          </p>
+          <ul className="divide-y divide-border">
+            {savedDrafts.map((d) => (
+              <li
+                key={d.id}
+                className="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
+                <span className="text-sm text-ink">
+                  {d.label ||
+                    d.customerName ||
+                    fallbackDraftLabel(
+                      d.payload,
+                      productOf(firstDraftSlug(d.payload) ?? "")?.name,
+                    )}
+                  <span className="text-ink-soft">
+                    {" · "}
+                    {d.itemCount} item{d.itemCount === 1 ? "" : "s"}
+                    {d.subtotalCents > 0 &&
+                      ` · $${(d.subtotalCents / 100).toFixed(2)}`}
+                  </span>
+                  {draftId === d.id && (
+                    <span className="ml-2 rounded bg-sage-deep px-1.5 py-0.5 text-[11px] font-medium text-white">
+                      open
+                    </span>
+                  )}
+                </span>
+                <span className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenDraft(d)}
+                    disabled={saving}
+                    className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-ink-soft hover:bg-sand disabled:opacity-50"
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteDraft(d)}
+                    disabled={saving}
+                    className="rounded px-2 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ── Unfinished sale ───────────────────────────────────────── */}
       {restorable && (
         <div className="rounded-lg border border-border bg-sand p-4">
@@ -996,6 +1096,43 @@ export function ManualOrderForm({
           ? "They get a casual email with the order and four ways to pay: card, Venmo, Zelle or cash. If they pay you any way other than card, mark it paid on the order."
           : "No payment is charged — this only records a sale you’ve already been paid for, so it counts toward totals and inventory."}
       </p>
+
+      {/* Carried to the server action so recording the sale retires the draft. */}
+      <input type="hidden" name="draftId" value={draftId ?? ""} />
+
+      <div className="admin-card p-4">
+        <p className="mb-1 text-sm font-medium text-ink">
+          Not ready to record it?
+        </p>
+        <p className="mb-3 text-xs text-ink-soft">
+          Save it as a draft and finish later, from this or any other device.
+          Nothing counts as a sale and no stock is held back until you record
+          it.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={draftLabel}
+            onChange={(e) => setDraftLabel(e.target.value)}
+            placeholder="Name it (optional)"
+            className="w-56 rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink"
+          />
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            disabled={saving}
+            className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium text-ink-soft hover:bg-sand disabled:opacity-50"
+          >
+            {saving ? "Saving…" : draftId ? "Update draft" : "Save draft"}
+          </button>
+          {saveState.kind === "saved" && (
+            <span className="text-sm text-sage-deep">Draft saved.</span>
+          )}
+          {saveState.kind === "error" && (
+            <span className="text-sm text-red-700">{saveState.message}</span>
+          )}
+        </div>
+      </div>
 
       <SubmitButton invoice={invoice} />
     </form>

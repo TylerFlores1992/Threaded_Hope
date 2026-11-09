@@ -192,7 +192,8 @@ seed + fallback — see below.
 - Models: **Product** (catalog), **Collection** (categories, admin-managed),
   **Order** (paid orders, JSON `items` snapshot), **Pageview** (traffic),
   **Subscriber** (newsletter signups), **DiscountRule** (automatic cart
-  discounts), and **Setting** (key/value).
+  discounts), **OrderDraft** (a sale prepared but not recorded), and
+  **Setting** (key/value).
   `Product` has a primary `collectionSlug` plus a
   `collections` JSON list of every collection it appears in (see gotchas), a
   `weightOz` (per-unit shipping weight, used to prefill label parcels), an
@@ -501,6 +502,34 @@ seed + fallback — see below.
     below unless that one focus event is suppressed. It also gets its own
     full-width row on this form — sharing one with the number fields squeezed it
     to about four visible characters.
+  - **A sale can also be parked on purpose** (`OrderDraft`, "Save draft").
+    The browser copy above is insurance against losing work by accident; this
+    is deliberate, and the answer to "get the order ready, we'll see if she
+    takes it". It lives in the database, so it survives a change of browser or
+    device, and the Record-a-sale page lists the saved ones with **Open** and
+    **Delete**. Saving again against the same draft updates that row rather
+    than breeding copies (the open one is tracked in `draftId`, carried to
+    `createManualOrder` as a hidden field); recording the sale deletes it, so a
+    parked order can't be recorded twice.
+    - **Deliberately its own table, not an `Order` with a third status.**
+      `pending` already costs a `banked` filter in the dashboard and an
+      exclusion in `lib/customers.ts`; a draft would additionally have to be
+      kept out of the order list, the fulfilment queue, best-sellers and the
+      CSV, and the first place anyone forgot would quietly report a sale that
+      never happened. A separate table cannot leak into any of it. It is also
+      purely additive, so `prisma db push` applies it to a populated database
+      without `--accept-data-loss` — verified against one with rows in it.
+    - **A draft is a snapshot, not a reservation.** No stock is held back, and
+      `createManualOrder` re-reads the catalog when the sale is finally
+      recorded, so a draft left for a fortnight can't bank a stale price.
+    - `payload` is the form's own state in the shape `lib/order-draft.ts`
+      defines — the same shape the browser autosaves — so one restore path
+      serves both. `parseDraftPayload` validates on the way in and on the way
+      out: a payload arrives from a browser, and a stored one may predate the
+      current shape, so anything that doesn't parse is dropped rather than
+      half-applied. A row whose payload no longer parses is left out of the
+      list instead of offered as a row that would restore nothing.
+
   - **An unfinished sale is kept in the browser** (`localStorage`,
     `threaded-hope-manual-order-draft`). Nothing on this form was written
     anywhere until "Record sale" was pressed, so closing the tab threw away a

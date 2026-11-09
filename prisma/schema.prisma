@@ -178,3 +178,33 @@ model Pageview {
   @@index([createdAt])
   @@index([path])
 }
+
+/// A sale prepared but not recorded — an order being got ready before it's
+/// certain it will happen (a quote for a friend, a fair stall not packed yet).
+///
+/// Deliberately **not** an `Order` with a third status. `pending` already costs
+/// the codebase a `banked` filter in the dashboard and an exclusion in
+/// `lib/customers.ts`; a draft would have to be kept out of revenue, the order
+/// list, the fulfilment queue, best-sellers, the customer list and the CSV
+/// besides, and the first place anyone forgot would quietly report a sale that
+/// never happened. A separate table can't leak into any of it.
+///
+/// `payload` is the Record-a-sale form's own state, the same shape the browser
+/// autosaves, so one restore path serves both. It's a snapshot, not a
+/// reservation: nothing is held back from stock, and prices are re-read from
+/// the catalog when the sale is finally recorded.
+model OrderDraft {
+  id            String   @id @default(cuid())
+  /// What she typed to recognise it by. Falls back to the customer name, then
+  /// to the first item, when left blank.
+  label         String?
+  /// Denormalized purely so the list reads well without parsing every payload.
+  customerName  String?
+  itemCount     Int      @default(0)
+  subtotalCents Int      @default(0)
+  payload       Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([updatedAt])
+}
